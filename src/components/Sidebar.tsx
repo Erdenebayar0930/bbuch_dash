@@ -1,41 +1,48 @@
-import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  Users,
-  Wallet,
-} from 'lucide-react';
+// components/Sidebar.tsx
+"use client";
 
-const items = [
-  { icon: LayoutDashboard, label: 'Dashboard', active: true },
-  { icon: Package, label: 'Products' },
-  { icon: ShoppingCart, label: 'Orders', badge: 2 },
-  { icon: Users, label: 'Customers' },
-  { icon: Wallet, label: 'Payouts' },
-];
+import { useState } from "react";
+import Link from "next/link";
+import { Menu } from "lucide-react";
 
 export default function Sidebar() {
-  return (
-    <aside className="w-64 bg-white border-r px-4 py-6">
-      <div className="font-bold text-xl mb-8">📦</div>
+  const [open, setOpen] = useState(false);
 
-      <nav className="space-y-1">
-        {items.map((item) => (
+  return (
+    <>
+      {/* Mobile top bar */}
+      <div className="md:hidden flex items-center p-3 border-b">
+        <button onClick={() => setOpen(true)}>
+          <Menu />
+        </button>
+        <span className="ml-3 font-bold">Dashboard</span>
+      </div>
+
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed z-40 top-0 left-0 h-full w-64 bg-slate-900 text-white
+          transform transition-transform
+          ${open ? "translate-x-0" : "-translate-x-full"}
+          md:translate-x-0 md:static
+        `}
+      >
+        <div className="p-4 font-bold text-lg">My PWA</div>
+
+        <nav className="space-y-2 px-4">
+          <Link href="/" className="block p-2 rounded hover:bg-slate-700">Home</Link>
+          <Link href="/reports" className="block p-2 rounded hover:bg-slate-700">Reports</Link>
+          <Link href="/settings" className="block p-2 rounded hover:bg-slate-700">Settings</Link>
+        </nav>
+
+        {/* Mobile close overlay */}
+        {open && (
           <div
-            key={item.label}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer
-              ${item.active ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`}
-          >
-            <item.icon size={18} />
-            <span className="flex-1">{item.label}</span>
-            {item.badge && (
-              <span className="text-xs bg-red-500 text-white px-2 rounded-full">
-                {item.badge}
-              </span>
-            )}
-          </div>
-        ))}
-      </nav>
-    </aside>
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 bg-black/50 md:hidden"
+          />
+        )}
+      </aside>
+    </>
   );
 }
