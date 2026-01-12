@@ -1,14 +1,24 @@
-import "./globals.css";
-import { AuthProvider } from "@/context/AuthContext";
+import { Outfit } from 'next/font/google';
+import './globals.css';
+import "flatpickr/dist/flatpickr.css";
+import { SidebarProvider } from '@/context/SidebarContext';
+import { ThemeProvider } from '@/context/ThemeContext';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+const outfit = Outfit({
+  subsets: ["latin"],
+});
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="en">
-      <body  className="bg-gray-50 dark:bg-gray-900"> 
-        {/* Client-side auth state */}
-        <AuthProvider>
-          {children} {/* server-side дээрээ loading placeholder */}
-        </AuthProvider>
+      <body className={`${outfit.className} dark:bg-gray-900`}>
+        <ThemeProvider>
+          <SidebarProvider>{children}</SidebarProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
