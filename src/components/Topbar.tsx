@@ -1,11 +1,17 @@
-"use client";
-import ThemeToggle from "./ThemeToggle";
+// components/Topbar.tsx
+import React from "react";
 
-export default function Topbar() {
+interface TopbarProps {
+  title?: string;
+}
+
+export default function Topbar({ title = "Dashboard" }: TopbarProps) {
   return (
-    <header className="w-full h-14 bg-white dark:bg-slate-800 border-b dark:border-slate-700 flex items-center justify-between px-4">
-      <h1 className="font-bold text-lg text-slate-900 dark:text-white">BBuch Dashboard</h1>
-      <ThemeToggle />
-    </header>
+    <div className="h-16 bg-white shadow flex items-center justify-between px-6">
+      <h1 className="text-xl font-semibold">{title}</h1>
+      <div className="flex items-center space-x-4">
+        <span>Admin</span>
+      </div>
+    </div>
   );
 }

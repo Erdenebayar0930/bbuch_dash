@@ -1,12 +1,34 @@
-"use client";
-import Link from "next/link";
+// components/Sidebar.tsx
+"use client"; // <--- Энэ мөр хамгийн эхэнд байх ёстой
+
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation"; // next/navigation ашиглана
 
 export default function Sidebar() {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/login"); // logout хийсний дараа redirect
+  };
+
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-900 border-r dark:border-slate-700 min-h-screen p-4 space-y-4">
-      <Link href="/" className="text-slate-900 dark:text-white hover:text-blue-500">Home</Link>
-      <Link href="/dashboard" className="text-slate-900 dark:text-white hover:text-blue-500">Dashboard</Link>
-      <Link href="/profile" className="text-slate-900 dark:text-white hover:text-blue-500">Profile</Link>
-    </aside>
+    <div className="w-64 bg-blue-800 text-white flex flex-col">
+      <div className="text-2xl font-bold p-6">Dashboard</div>
+      <nav className="flex-1">
+        <ul>
+          <li className="p-4 hover:bg-blue-700 cursor-pointer">Home</li>
+          <li className="p-4 hover:bg-blue-700 cursor-pointer">Profile</li>
+          <li className="p-4 hover:bg-blue-700 cursor-pointer">Settings</li>
+        </ul>
+      </nav>
+      <button
+        onClick={handleLogout}
+        className="m-4 p-2 bg-red-600 rounded hover:bg-red-500"
+      >
+        Logout
+      </button>
+    </div>
   );
 }

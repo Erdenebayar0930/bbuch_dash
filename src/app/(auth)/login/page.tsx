@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { auth } from "@/lib/firebase";
 import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
 // ------------------- Fingerprint бүртгэл -------------------
 export async function registerFingerprint(email: string) {
@@ -50,6 +51,7 @@ export async function loginWithFingerprint() {
   };
 
   try {
+  const router = useRouter();
     const credential = await navigator.credentials.get({ publicKey });
     console.log("Fingerprint login:", credential);
     alert(`✅ ${email} Fingerprint-аар нэвтэрлээ`);

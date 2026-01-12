@@ -9,11 +9,19 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
+    // loading дууссан үед л redirect хийх
     if (!loading) {
-      if (user) router.replace("/dashboard");
-      else router.replace("/login");
+      if (user) {
+        router.push("/dashboard"); // replace биш push ажиллана
+      } else {
+        router.push("/login");
+      }
     }
-  }, [user, loading]);
+  }, [user, loading, router]);
 
-  return null;
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <p className="text-gray-500">Checking authentication...</p>
+    </div>
+  );
 }
