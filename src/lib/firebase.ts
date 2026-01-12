@@ -1,7 +1,8 @@
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
+// Таны Firebase project config-г энд оруулна
 const firebaseConfig = {
   apiKey: "AIzaSyB2nCXPlY7m4V-Rt5gzeUqNpy-ow7PBRzY",
   authDomain: "daamal-414d3.firebaseapp.com",
@@ -12,7 +13,10 @@ const firebaseConfig = {
   measurementId: "G-SK9T89VMLB"
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
+/* ✅ ЭНД export хийнэ */
+export const firebaseApp =
+  getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+/* Services */
+export const auth = getAuth(firebaseApp);
+export const db = getFirestore(firebaseApp);
