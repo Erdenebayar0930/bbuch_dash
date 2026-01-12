@@ -5,6 +5,7 @@ const nextConfig = withPWA({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
+  buildExcludes: [/middleware-manifest.json$/], // Turbopack collision-ийг багасгана
 })({
   reactStrictMode: true,
 });
