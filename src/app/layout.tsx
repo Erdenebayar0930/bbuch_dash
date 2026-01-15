@@ -17,10 +17,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-  <body
-    suppressHydrationWarning
-    className={`${outfit.className} bg-white dark:bg-gray-900`}
-  >
+      <body
+        suppressHydrationWarning
+        className={`${outfit.className} bg-white dark:bg-gray-900`}
+      >
         <ThemeProvider>
           <SidebarProvider>
             {children}
