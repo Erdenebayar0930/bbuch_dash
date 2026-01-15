@@ -4,6 +4,12 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ThemeProvider } from "@/context/ThemeContext";
+import GridShape from "@/components/common/GridShape";
+import Link from "next/link";
+import ThemeTogglerTwo from "@/components/common/ThemeTogglerTwo";
+import SignInForm from "./SignInForm";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -16,13 +22,34 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="w-80 bg-white p-6 rounded-lg shadow">
-        <h2 className="text-xl font-semibold mb-4">Admin Login</h2>
-        <input className="input" placeholder="Email" onChange={e=>setEmail(e.target.value)} />
-        <input className="input mt-2" type="password" placeholder="Password" onChange={e=>setPassword(e.target.value)} />
-        <button className="btn-primary mt-4 w-full" onClick={login}>Login</button>
-      </div>
+    <div className="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
+      <ThemeProvider>
+        <div className="relative flex lg:flex-row w-full h-screen justify-center flex-col  dark:bg-gray-900 sm:p-0">
+          <SignInForm />
+          <div className="lg:w-1/2 w-full h-full bg-brand-950 dark:bg-white/5 lg:grid items-center hidden">
+            <div className="relative items-center justify-center  flex z-1">
+              {/* <!-- ===== Common Grid Shape Start ===== --> */}
+              <GridShape />
+              <div className="flex flex-col items-center max-w-xs">
+                <Link href="/" className="block mb-4">
+                  <Image
+                    width={231}
+                    height={48}
+                    src="./images/logo/auth-logo.svg"
+                    alt="Logo"
+                  />
+                </Link>
+                <p className="text-center text-gray-400 dark:text-white/60">
+                  ..........................................................
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="fixed bottom-6 right-6 z-50 hidden sm:block">
+            <ThemeTogglerTwo />
+          </div>
+        </div>
+      </ThemeProvider>
     </div>
   );
 }
