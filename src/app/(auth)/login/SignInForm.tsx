@@ -3,19 +3,20 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/lib/firebase";
+import { auth,db } from "@/lib/firebase";
 import {
   signInWithEmailAndPassword,
   setPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
 } from "firebase/auth";
-
+import { doc, getDoc } from "firebase/firestore";
 import Input from "@/components/form/input/InputField";
 import Checkbox from "@/components/form/input/Checkbox";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
 import { EyeCloseIcon, EyeIcon } from "@/icons";
+import { useUser } from "@/app/(auth)/UserContext";
 
 export default function SignInForm() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function SignInForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { setUser } = useUser(); // ✅ Hook-ийг component body-д дуудаж байна
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +42,30 @@ export default function SignInForm() {
             ? browserLocalPersistence   // ✔ Сануулах
             : browserSessionPersistence // ❌ Сануулахгүй → cache цэвэрлэгдэнэ
         );
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential =await signInWithEmailAndPassword(auth, email, password);
+
+        const user = userCredential.user;
+
+            // 🔹 Firestore-аас user info авах
+            const userDocRef = doc(db, "users", user.uid);
+            const userSnap = await getDoc(userDocRef);
+
+            if (userSnap.exists()) {
+              const userData = userSnap.data();
+              console.log("User data:", userData);
+              // Хэрэглэгчийн мэдээллийг local state эсвэл context-д хадгалах
+             // ✅ Hook-оор авсан setUser-ийг ашиглаж хадгалах
+            setUser({
+              email: userCredential.user.email || "",
+              name: userData.name,
+              first_name: userData.first_name,
+              last_name: userData.last_name,
+              role: userData.role,
+            });
+            }
+
+
+
         router.push("/");
     } catch (err: any) {
       console.error(err);
@@ -147,3 +172,4 @@ export default function SignInForm() {
     </div>
   );
 }
+

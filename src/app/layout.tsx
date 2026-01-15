@@ -4,6 +4,7 @@ import "flatpickr/dist/flatpickr.css";
 
 import { SidebarProvider } from "@/context/SidebarContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { UserProvider } from "./(auth)/UserContext";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -21,11 +22,13 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${outfit.className} bg-white dark:bg-gray-900`}
       >
+        <UserProvider>
         <ThemeProvider>
           <SidebarProvider>
             {children}
           </SidebarProvider>
         </ThemeProvider>
+        </UserProvider>
       </body>
     </html>
   );
