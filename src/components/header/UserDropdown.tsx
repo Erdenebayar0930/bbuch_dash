@@ -27,7 +27,7 @@ function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
   async function handleLogout(e: React.MouseEvent<HTMLButtonElement, MouseEvent>): Promise<void> {
     try {
         await signOut(auth); // Firebase-аас гарна
-        router.push("/login"); // /signin рүү шилжүүлнэ
+        router.push("/"); // /login рүү шилжүүлнэ
       } catch (error) {
         console.error("Logout failed:", error);
       }

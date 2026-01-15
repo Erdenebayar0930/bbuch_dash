@@ -1,7 +1,13 @@
 "use client";
 import { createContext, useContext, useState } from "react";
 
-type UserType = { email: string; name: string; first_name: string; last_name: string; role: string } | null;
+export type UserType = {
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  photoURL?: string;
+} | null;
 
 type UserContextType = {
   user: UserType;
