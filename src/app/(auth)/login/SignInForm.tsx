@@ -4,7 +4,12 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+} from "firebase/auth";
 
 import Input from "@/components/form/input/InputField";
 import Checkbox from "@/components/form/input/Checkbox";
@@ -28,8 +33,15 @@ export default function SignInForm() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push("/dashboard");
+         // 👉 Сануулах checkbox-оос хамаарч persistence сонгох
+        await setPersistence(
+        auth,
+        rememberMe
+            ? browserLocalPersistence   // ✔ Сануулах
+            : browserSessionPersistence // ❌ Сануулахгүй → cache цэвэрлэгдэнэ
+        );
+        await signInWithEmailAndPassword(auth, email, password);
+        router.push("/");
     } catch (err: any) {
       console.error(err);
       switch (err.code) {

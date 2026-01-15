@@ -6,7 +6,7 @@ import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";  
-import router, { useRouter } from "next/router";
+import router from "next/router";
 
 
 export default function UserDropdown() {
@@ -24,7 +24,7 @@ function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
   async function handleLogout(e: React.MouseEvent<HTMLButtonElement, MouseEvent>): Promise<void> {
     try {
         await signOut(auth); // Firebase-аас гарна
-        router.push("/signin"); // /signin рүү шилжүүлнэ
+        router.push("/login"); // /signin рүү шилжүүлнэ
       } catch (error) {
         console.error("Logout failed:", error);
       }
