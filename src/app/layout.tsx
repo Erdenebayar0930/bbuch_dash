@@ -17,7 +17,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${outfit.className} bg-white dark:bg-gray-900`}>
+      <body suppressHydrationWarning className={`${outfit.className} bg-white dark:bg-gray-900`}>     
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#2563eb" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+      </head>
       <UserProvider>
         <ThemeProvider>
           <SidebarProvider>

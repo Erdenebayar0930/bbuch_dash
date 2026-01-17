@@ -1,24 +1,14 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
-  webpack(config) {
-    config.module.rules.push({
-      test: /\.svg$/,
-      use: ["@svgr/webpack"],
-    });
-    return config;
+// next.config.js
+const withPWA = require("next-pwa")({
+  dest: "public", // service worker-ийг public/ дотор гаргана
+  register: true,
+  skipWaiting: true,
+  fallbacks: {
+    document: "/_offline.html",
   },
-    
-    turbopack: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
-  
-};
+  disable: process.env.NODE_ENV === "development", // dev-д PWA идэвхгүй
+});
 
-export default nextConfig;
+module.exports = withPWA({
+  reactStrictMode: true,
+});

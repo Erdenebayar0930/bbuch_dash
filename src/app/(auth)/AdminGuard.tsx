@@ -4,85 +4,66 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-
 import { auth, db } from "@/lib/firebase";
-import { useUser } from "@/app/(auth)/UserProvider";
+import { useUser } from "./UserProvider";
 
-export default function AdminGuard({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { setUser } = useUser();
-  const [loading, setLoading] = useState(true);
+  const { user, setUser } = useUser();
+  const [loading, setLoading] = useState(!user); // already cached бол loading=false
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
+    // ✅ already cached → шууд нэвтрүүлнэ
+    if (user) {
+      setLoading(false);
+      return;
+    }
+
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
         router.replace("/login");
         return;
       }
 
-      const userDocRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userDocRef);
+      const snap = await getDoc(doc(db, "users", firebaseUser.uid));
 
-      if (!userSnap.exists()) {
+      if (!snap.exists()) {
         router.replace("/unauthorized");
         return;
       }
 
-      const userData = userSnap.data();
+      const data = snap.data();
 
-      if (userData.role !== "admin") {
+      if (data.role !== "admin") {
         router.replace("/unauthorized");
         return;
       }
 
-      // ✅ Context-д хадгална
-      setUser({
-        email: userData.email,
-        first_name: userData.first_name,
-        last_name: userData.last_name,
-        role: userData.role,
-        photoURL: userData.photoURL ?? "",
-      });
+      const userData = {
+        email: data.email,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        role: data.role,
+        photoURL: data.photoURL ?? "",
+      };
 
+      setUser(userData); // ✅ sessionStorage + context-д хадгална
       setLoading(false);
     });
 
     return () => unsub();
-  }, [router, setUser]);
+  }, [user, router, setUser]);
 
-   if (loading) {
-  return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Sidebar skeleton */}
-      <div className="w-64 bg-white dark:bg-gray-800 p-4 space-y-4">
-        {[...Array(6)].map((_, i) => (
-          <div
-            key={i}
-            className="h-4 rounded bg-gray-200 dark:bg-gray-700 animate-pulse"
-          />
-        ))}
-      </div>
-
-      {/* Main content skeleton */}
-      <div className="flex-1 p-6 space-y-6">
-        <div className="h-6 w-1/3 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
-        <div className="grid grid-cols-3 gap-6">
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className="h-32 rounded-xl bg-white dark:bg-gray-800 shadow animate-pulse"
-            />
-          ))}
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-primary dark:border-gray-700 dark:border-t-primary"></div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Checking permissions...</p>
         </div>
       </div>
-    </div>
-  );
-}
-
+    );
+  }
 
   return <>{children}</>;
 }

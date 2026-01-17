@@ -14,6 +14,7 @@ export default function UserDropdown() {
   
   const { user } = useUser();
   const [isOpen, setIsOpen] = useState(false);
+  const { logout } = useUser();
 
 function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
   e.stopPropagation();
@@ -26,8 +27,9 @@ function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
 
   async function handleLogout(e: React.MouseEvent<HTMLButtonElement, MouseEvent>): Promise<void> {
     try {
-        await signOut(auth); // Firebase-аас гарна
-        router.push("/"); // /login рүү шилжүүлнэ
+        await signOut(auth); // firebase logout
+        logout(); // context + sessionStorage устгах
+        router.replace("/login");
       } catch (error) {
         console.error("Logout failed:", error);
       }
