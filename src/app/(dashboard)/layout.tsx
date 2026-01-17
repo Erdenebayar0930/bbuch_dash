@@ -1,65 +1,43 @@
 "use client";
 
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
-import { getUserRole } from "@/lib/auth";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useSidebar } from "@/context/SidebarContext";
 import AppHeader from "@/layout/AppHeader";
-import { useUser } from "@/app/(auth)/UserContext";
+import AppSidebar from "@/layout/AppSidebar";
+import Backdrop from "@/layout/Backdrop";
+import React from "react";
+import AdminGuard from "../(auth)/AdminGuard";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { setUser } = useUser();
-  const [loading, setLoading] = useState(true);
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { isExpanded, isHovered, isMobileOpen } = useSidebar();
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
+  // Dynamic class for main content margin based on sidebar state
+  const mainContentMargin = isMobileOpen
+    ? "ml-0"
+    : isExpanded || isHovered
+    ? "lg:ml-[290px]"
+    : "lg:ml-[90px]";
 
-
-      // 🔹 Firestore-аас user info авах
-      const userDocRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userDocRef);
-
-      if (!userSnap.exists()) {
-        router.replace("/unauthorized");
-        return;
-      }
-
-      const userData = userSnap.data();
-
-      if (userData.role !== "admin") {
-        router.replace("/unauthorized");
-        return;
-      }
-
-      // 🔹 Context-д user info хадгалах
-      setUser({
-        email: userData.email,
-        first_name: userData.first_name,
-        last_name: userData.last_name,
-        role: userData.role,
-        photoURL: userData.photoURL ?? "",
-      });
-
-      setLoading(false);
-    });
-
-    return () => unsub();
-  }, []);
-
-  // 🚀 UI-гаа шууд render хийж байна
   return (
-    <div className="flex">
-      <main className="flex-1">
+      <AdminGuard>
+        <div className="min-h-screen xl:flex">
+      {/* Sidebar and Backdrop */}
+      <AppSidebar />
+      <Backdrop />
+      {/* Main Content Area */}
+      <div
+        className={`flex-1 transition-all  duration-300 ease-in-out ${mainContentMargin}`}
+      >
+        {/* Header */}
         <AppHeader />
-        {children}
-      </main>
+        {/* Page Content */}
+        <div className="p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6">{children}</div>
+      </div>
     </div>
+      </AdminGuard>
+    
   );
 }

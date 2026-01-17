@@ -1,9 +1,4 @@
 "use client";
-
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { ThemeProvider } from "@/context/ThemeContext";
 import GridShape from "@/components/common/GridShape";
 import Link from "next/link";
@@ -12,15 +7,6 @@ import SignInForm from "./SignInForm";
 import Image from "next/image";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const router = useRouter();
-
-  const login = async () => {
-    await signInWithEmailAndPassword(auth, email, password);
-    router.replace("/");
-  };
-
   return (
     <div className="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
       <ThemeProvider>

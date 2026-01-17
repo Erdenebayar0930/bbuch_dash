@@ -7,7 +7,7 @@ import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";  
 import router from "next/router";
-import { useUser } from "@/app/(auth)/UserContext";
+import { useUser } from "@/app/(auth)/UserProvider";
 
 
 export default function UserDropdown() {
