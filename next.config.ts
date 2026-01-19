@@ -2,8 +2,6 @@ const withPWA = require("next-pwa")({
   dest: "public",
   register: true,
   skipWaiting: true,
-  basePath: '/bbuch_daamal',       // subfolder
-  assetPrefix: '/bbuch_daamal',    // static assets
   experimental: { appDir: true },  // Next.js 13+ App Router
   fallbacks: {
     document: "/_offline.html",
