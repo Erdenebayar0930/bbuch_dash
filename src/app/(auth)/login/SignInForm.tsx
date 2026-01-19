@@ -14,7 +14,6 @@ import Input from "@/components/form/input/InputField";
 import Checkbox from "@/components/form/input/Checkbox";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
-import { EyeCloseIcon, EyeIcon } from "@/icons";
 
 export default function SignInForm() {
   const router = useRouter();
@@ -109,11 +108,11 @@ export default function SignInForm() {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute z-30 -translate-y-1/2 cursor-pointer right-4 top-1/2"
                   >
-                    {showPassword ? (
+                    {/* {showPassword ? (
                       <EyeIcon className="fill-gray-500 dark:fill-gray-400" />
                     ) : (
                       <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400" />
-                    )}
+                    )} */}
                   </span>
                 </div>
               </div>

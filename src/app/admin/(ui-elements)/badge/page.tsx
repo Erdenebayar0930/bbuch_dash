@@ -1,6 +1,5 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Badge from "@/components/ui/badge/Badge";
-import { PlusIcon } from "@/icons";
 import { Metadata } from "next";
 import React from "react";
 
@@ -92,27 +91,7 @@ export default function BadgePage() {
           </div>
           <div className="p-6 border-t border-gray-100 dark:border-gray-800 xl:p-10">
             <div className="flex flex-wrap gap-4 sm:items-center sm:justify-center">
-              <Badge variant="light" color="primary" startIcon={<PlusIcon />}>
-                Primary
-              </Badge>
-              <Badge variant="light" color="success" startIcon={<PlusIcon />}>
-                Success
-              </Badge>{" "}
-              <Badge variant="light" color="error" startIcon={<PlusIcon />}>
-                Error
-              </Badge>{" "}
-              <Badge variant="light" color="warning" startIcon={<PlusIcon />}>
-                Warning
-              </Badge>{" "}
-              <Badge variant="light" color="info" startIcon={<PlusIcon />}>
-                Info
-              </Badge>
-              <Badge variant="light" color="light" startIcon={<PlusIcon />}>
-                Light
-              </Badge>
-              <Badge variant="light" color="dark" startIcon={<PlusIcon />}>
-                Dark
-              </Badge>
+              
             </div>
           </div>
         </div>
@@ -125,27 +104,7 @@ export default function BadgePage() {
           </div>
           <div className="p-6 border-t border-gray-100 dark:border-gray-800 xl:p-10">
             <div className="flex flex-wrap gap-4 sm:items-center sm:justify-center">
-              <Badge variant="solid" color="primary" startIcon={<PlusIcon />}>
-                Primary
-              </Badge>
-              <Badge variant="solid" color="success" startIcon={<PlusIcon />}>
-                Success
-              </Badge>{" "}
-              <Badge variant="solid" color="error" startIcon={<PlusIcon />}>
-                Error
-              </Badge>{" "}
-              <Badge variant="solid" color="warning" startIcon={<PlusIcon />}>
-                Warning
-              </Badge>{" "}
-              <Badge variant="solid" color="info" startIcon={<PlusIcon />}>
-                Info
-              </Badge>
-              <Badge variant="solid" color="light" startIcon={<PlusIcon />}>
-                Light
-              </Badge>
-              <Badge variant="solid" color="dark" startIcon={<PlusIcon />}>
-                Dark
-              </Badge>
+              
             </div>
           </div>
         </div>
@@ -158,27 +117,7 @@ export default function BadgePage() {
           </div>
           <div className="p-6 border-t border-gray-100 dark:border-gray-800 xl:p-10">
             <div className="flex flex-wrap gap-4 sm:items-center sm:justify-center">
-              <Badge variant="light" color="primary" endIcon={<PlusIcon />}>
-                Primary
-              </Badge>
-              <Badge variant="light" color="success" endIcon={<PlusIcon />}>
-                Success
-              </Badge>{" "}
-              <Badge variant="light" color="error" endIcon={<PlusIcon />}>
-                Error
-              </Badge>{" "}
-              <Badge variant="light" color="warning" endIcon={<PlusIcon />}>
-                Warning
-              </Badge>{" "}
-              <Badge variant="light" color="info" endIcon={<PlusIcon />}>
-                Info
-              </Badge>
-              <Badge variant="light" color="light" endIcon={<PlusIcon />}>
-                Light
-              </Badge>
-              <Badge variant="light" color="dark" endIcon={<PlusIcon />}>
-                Dark
-              </Badge>
+              
             </div>
           </div>
         </div>
@@ -191,27 +130,7 @@ export default function BadgePage() {
           </div>
           <div className="p-6 border-t border-gray-100 dark:border-gray-800 xl:p-10">
             <div className="flex flex-wrap gap-4 sm:items-center sm:justify-center">
-              <Badge variant="solid" color="primary" endIcon={<PlusIcon />}>
-                Primary
-              </Badge>
-              <Badge variant="solid" color="success" endIcon={<PlusIcon />}>
-                Success
-              </Badge>{" "}
-              <Badge variant="solid" color="error" endIcon={<PlusIcon />}>
-                Error
-              </Badge>{" "}
-              <Badge variant="solid" color="warning" endIcon={<PlusIcon />}>
-                Warning
-              </Badge>{" "}
-              <Badge variant="solid" color="info" endIcon={<PlusIcon />}>
-                Info
-              </Badge>
-              <Badge variant="solid" color="light" endIcon={<PlusIcon />}>
-                Light
-              </Badge>
-              <Badge variant="solid" color="dark" endIcon={<PlusIcon />}>
-                Dark
-              </Badge>
+              
             </div>
           </div>
         </div>
