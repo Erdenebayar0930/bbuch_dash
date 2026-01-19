@@ -2,7 +2,6 @@ const withPWA = require("next-pwa")({
   dest: "public",
   register: true,
   skipWaiting: true,
-  experimental: { appDir: true },  // Next.js 13+ App Router
   fallbacks: {
     document: "/_offline.html",
   },
