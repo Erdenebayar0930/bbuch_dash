@@ -18,12 +18,12 @@ export default function AdminLayout({
   const mainContentMargin = isMobileOpen
     ? "ml-0"
     : isExpanded || isHovered
-    ? "lg:ml-[290px]"
-    : "lg:ml-[90px]";
+    ? "lg:ml-[260px]"
+    : "lg:ml-[88px]";
 
   return (
       <AdminGuard>
-        <div className="min-h-screen xl:flex">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 xl:flex">
       {/* Sidebar and Backdrop */}
       <AppSidebar />
       <Backdrop />

@@ -5,6 +5,7 @@ import "flatpickr/dist/flatpickr.css";
 import { SidebarProvider } from "@/context/SidebarContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { UserProvider } from "@/app/(auth)/UserProvider";
+import NotificationSetup from "@/components/NotificationSetup";
 const outfit = Outfit({
   subsets: ["latin"],
   display: "swap", // ⚡ render blocking болиулна
@@ -17,19 +18,23 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${outfit.className} bg-white dark:bg-gray-900`}>     
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#2563eb" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <UserProvider>
-        <ThemeProvider>
-          <SidebarProvider>
-            {children}
-          </SidebarProvider>
-        </ThemeProvider>
-      </UserProvider>
+      <body suppressHydrationWarning className={`${outfit.className} bg-gray-50 dark:bg-gray-950`}>
+        <NotificationSetup />
+        <UserProvider>
+          <ThemeProvider>
+            <SidebarProvider>
+              {children}
+            </SidebarProvider>
+          </ThemeProvider>
+        </UserProvider>
       </body>
     </html>
   );

@@ -42,6 +42,38 @@ TailAdmin provides essential UI components and layouts for building feature-rich
 
 ### Prerequisites
 
+This project is configured as a full-stack admin platform using:
+
+- Next.js 16 for the web app and API routes
+- PostgreSQL via Drizzle ORM for persistent user and transaction data
+- Firebase Authentication for browser login
+- Firebase Admin SDK for secure server-side token verification and push notifications
+
+### Environment setup
+
+1. Copy [.env.example](.env.example) to .env.local and fill in the values.
+2. Create a PostgreSQL database and set DATABASE_URL.
+3. Run the database migration/schema push:
+
+   ```bash
+   npm run db:push
+   ```
+
+4. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+### Architecture overview
+
+- Client auth flows through Firebase Authentication.
+- Server API routes validate Firebase ID tokens and read/write PostgreSQL data.
+- Admin actions can send FCM notifications through the /api/notifications/send route.
+- User profiles, roles, statuses, and FCM tokens are stored in PostgreSQL.
+
+### Prerequisites
+
 To get started with TailAdmin, ensure you have the following prerequisites installed and set up:
 
 * Node.js 18.x or later (recommended to use Node.js 20.x or later)

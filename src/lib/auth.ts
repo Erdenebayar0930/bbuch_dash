@@ -1,7 +1,12 @@
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "./firebase";
+"use client";
 
-export async function getUserRole(uid: string) {
-  const snap = await getDoc(doc(db, "users", uid));
-  return snap.exists() ? snap.data().role : null;
+import { getCurrentUser } from "./users";
+
+/**
+ * Нэвтэрсэн хэрэглэгчийн эрхийг буцаана.
+ * Профайл Postgres-д байх тул /api/users/me route-оор уншина.
+ */
+export async function getUserRole(): Promise<string | null> {
+  const user = await getCurrentUser().catch(() => null);
+  return user?.role ?? null;
 }

@@ -1,12 +1,24 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { auth } from "@/lib/firebase";
+import { signOut } from "@firebase/auth";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 type UserType = {
+  uid?: string;
   email: string;
   first_name: string;
   last_name: string;
   role: string;
+  /** active | pending | blocked */
+  status?: string;
   photoURL?: string;
 };
 
@@ -30,22 +42,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // 🔹 setUser дээр cache хийж хадгалах
-  const setUser = (u: UserType) => {
+  // useCallback заавал — AdminGuard эдгээрийг effect-ийн хамаарал болгон
+  // ашигладаг тул рендер бүрт шинэ функц үүсвэл шалгалт төгсгөлгүй давтагдана.
+  const setUser = useCallback((u: UserType) => {
     setUserState(u);
     sessionStorage.setItem("user", JSON.stringify(u));
-  };
+  }, []);
 
   // 🔹 logout
-  const logout = () => {
+  const logout = useCallback(() => {
+    signOut(auth);
     setUserState(null);
     sessionStorage.removeItem("user");
-  };
+  }, []);
 
-  return (
-    <UserContext.Provider value={{ user, setUser, logout }}>
-      {children}
-    </UserContext.Provider>
+  const value = useMemo(
+    () => ({ user, setUser, logout }),
+    [user, setUser, logout]
   );
+
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
 
 export function useUser() {

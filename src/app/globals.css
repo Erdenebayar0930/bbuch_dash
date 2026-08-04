@@ -5,6 +5,8 @@
 @theme {
   --font-*: initial;
   --font-outfit: Outfit, sans-serif;
+  --font-num: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
+    monospace;
 
   --breakpoint-*: initial;
   --breakpoint-2xsm: 375px;
@@ -50,6 +52,24 @@
   --color-brand-800: #252dae;
   --color-brand-900: #262e89;
   --color-brand-950: #161950;
+
+  /* Хажуугийн самбар — navy өнгөний хүрээ */
+  --color-navy-500: #4a72ae;
+  --color-navy-600: #375a90;
+  --color-navy-700: #274674;
+  --color-navy-800: #1f3d69;
+  --color-navy-900: #1b355e;
+  --color-navy-950: #132646;
+
+  /* Үйлдлийн үндсэн өнгө */
+  --color-accent-50: #eff6ff;
+  --color-accent-100: #dbeafe;
+  --color-accent-200: #bfdbfe;
+  --color-accent-300: #93c5fd;
+  --color-accent-400: #60a5fa;
+  --color-accent-500: #3b82f6;
+  --color-accent-600: #2563eb;
+  --color-accent-700: #1d4ed8;
 
   --color-blue-light-25: #f5fbff;
   --color-blue-light-50: #f0f9ff;
@@ -189,7 +209,34 @@
   }
   body {
     @apply relative font-normal font-outfit z-1 bg-gray-50;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
+}
+
+/* ── Хажуугийн харанхуй самбарын цэс ───────────────────────────── */
+@utility nav-item {
+  @apply relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-theme-sm font-medium transition-colors duration-150;
+}
+
+@utility nav-item-active {
+  @apply bg-white/10 text-white;
+}
+
+@utility nav-item-inactive {
+  @apply text-white/60 hover:bg-white/5 hover:text-white;
+}
+
+/* ── Самбарын хуудасны нийтлэг гадаргуу ────────────────────────── */
+@utility surface {
+  @apply rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-white/[0.03];
+}
+
+/* Тоон утга — багана нь тэгширсэн, monospace */
+@utility num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 @utility menu-item {
@@ -749,4 +796,18 @@ span.flatpickr-weekday,
     0 1px 2px 0 rgba(16, 24, 40, 0.06);
   opacity: 0.8;
   cursor: grabbing; /* Changes the cursor to indicate dragging */
+}
+
+/* Хорооны өнгөний тэмдэг — гэрэл/харанхуй горимд өөр өөр алхамтай */
+.khoroo-swatch {
+  background-color: var(--khoroo-color);
+}
+.dark .khoroo-swatch {
+  background-color: var(--khoroo-color-dark);
+}
+.khoroo-swatch-border {
+  border-left-color: var(--khoroo-color);
+}
+.dark .khoroo-swatch-border {
+  border-left-color: var(--khoroo-color-dark);
 }

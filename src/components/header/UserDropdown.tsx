@@ -1,20 +1,17 @@
 "use client";
-import Image from "next/image";
-import Link from "next/link";
 import React, { useState } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";  
-import router from "next/router";
+import { useRouter } from "next/navigation";
 import { useUser } from "@/app/(auth)/UserProvider";
 
 
 export default function UserDropdown() {
-  
-  const { user } = useUser();
+  const router = useRouter();
+  const { user, logout } = useUser();
   const [isOpen, setIsOpen] = useState(false);
-  const { logout } = useUser();
 
 function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
   e.stopPropagation();
@@ -35,29 +32,34 @@ function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
       }
   }
 
+  // Товчлуур дээр харагдах нэр ба эхний үсэг
+  const displayName = user
+    ? `${user.last_name?.[0] ? `${user.last_name[0]}.` : ""}${
+        user.first_name ?? ""
+      }`
+    : "";
+  const initial = user?.first_name?.[0] ?? user?.last_name?.[0] ?? "?";
+
   return (
     <div className="relative">
       <button
-        onClick={toggleDropdown} 
-        className="flex items-center text-gray-700 dark:text-gray-400 dropdown-toggle"
+        onClick={toggleDropdown}
+        className="dropdown-toggle flex items-center gap-2 rounded-lg border border-gray-200 py-1.5 pl-1.5 pr-2.5 text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/5"
       >
-        <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <Image
-            width={44}
-            height={44}
-            src="/images/user/owner.jpg"
-            alt="User"
-          />
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-100 text-xs font-semibold uppercase text-gray-600 dark:bg-white/10 dark:text-white/80">
+          {initial}
         </span>
 
-        <span className="block mr-1 font-medium text-theme-sm">{user ? `${user.last_name?.[0] ?? ""}.${user.first_name ?? ""}` : ""}</span>
+        <span className="hidden max-w-[140px] truncate font-medium text-theme-sm sm:block">
+          {displayName}
+        </span>
 
         <svg
-          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
+          className={`stroke-gray-400 dark:stroke-gray-500 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
-          width="18"
-          height="20"
+          width="16"
+          height="16"
           viewBox="0 0 18 20"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"

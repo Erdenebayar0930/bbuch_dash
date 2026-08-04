@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Идэвхтэй админ эсэх — хаагдсан/хүлээгдэж буй админ эрх эдлэхгүй
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (currentUser().role == 'admin' || currentUser().role == 'super') &&
+        currentUser().get('status', 'active') == 'active';
+    }
+
+    // Системийн тохиргоо — анхны админ үүссэн эсэхийг тэмдэглэнэ
+    match /config/app {
+      allow read: if isSignedIn();
+      // Зөвхөн нэг удаа, систем эзэнгүй байхад үүснэ (анхны админтай хамт)
+      allow create: if isSignedIn() &&
+        request.resource.data.hasAdmin == true &&
+        !exists(/databases/$(database)/documents/config/app);
+      allow update, delete: if isAdmin();
+    }
+
+    // User FCM Tokens
+    match /userFCMTokens/{userId} {
+      // User can read/write their own token
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      // Admin can read all tokens
+      allow read: if isAdmin();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+
+      // Өөрийн бүртгэлээ үүсгэх — эрхээ өөрөө сонгож болохгүй
+      allow create: if isSignedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.email is string &&
+        (
+          // Энгийн хэрэглэгч админы зөвшөөрөл хүлээнэ
+          (request.resource.data.role == 'user' &&
+            request.resource.data.status == 'pending')
+          ||
+          // Системийн анхны хэрэглэгч super/admin эрхтэй үүснэ
+          ((request.resource.data.role == 'admin' || request.resource.data.role == 'super') &&
+            request.resource.data.status == 'active' &&
+            !exists(/databases/$(database)/documents/config/app))
+        );
+
+      // Админ бүх талбарыг өөрчилнө.
+      // Хэрэглэгч зөвхөн өөрийн профайлаа — role, status-аа өөрчилж чадахгүй.
+      allow update: if isAdmin() ||
+        (isSignedIn() &&
+          request.auth.uid == userId &&
+          request.resource.data.get('role', '') == resource.data.get('role', '') &&
+          request.resource.data.get('status', 'active') ==
+            resource.data.get('status', 'active'));
+
+      allow delete: if isAdmin();
+    }
+
+    // Орлого / зарлагын гүйлгээ
+    match /transactions/{transactionId} {
+      // Нэвтэрсэн хэрэглэгч уншина, зөвхөн админ бичнэ
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Бүртгэлийн нэрсийн жагсаалт
+    match /registrations/{registrationId} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.uid);
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.uid && request.resource.data.email is string;
+      allow update, delete: if isAdmin();
+    }
+  }
+}

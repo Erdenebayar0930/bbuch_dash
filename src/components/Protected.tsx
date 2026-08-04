@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 
 type Props = {
   children: React.ReactNode;
-  allow?: Array<"admin" | "user">;
+  allow?: Array<"super" | "admin" | "user">;
 };
 
 export default function Protected({ children, allow }: Props) {
@@ -31,9 +31,9 @@ export default function Protected({ children, allow }: Props) {
 
       // 🔑 Role шалгах
       if (allow && allow.length > 0) {
-        const role = await getUserRole(user.uid);
+        const role = await getUserRole();
 
-        if (!role || !allow.includes(role)) {
+        if (!role || !allow.includes(role as (typeof allow)[number])) {
           router.replace("/unauthorized");
           return;
         }

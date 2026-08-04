@@ -6,9 +6,12 @@ interface ButtonProps {
   variant?: "primary" | "outline"; // Button variant
   startIcon?: ReactNode; // Icon before the text
   endIcon?: ReactNode; // Icon after the text
-  onClick?: () => void; // Click handler
+  /** HTML button type attribute */
+  type?: "button" | "submit" | "reset";
+  /** Click handler receives the mouse event from the button */
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean; // Disabled state
-  className?: string; // Disabled state
+  className?: string; // Additional classes
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -17,6 +20,7 @@ const Button: React.FC<ButtonProps> = ({
   variant = "primary",
   startIcon,
   endIcon,
+  type = "submit",
   onClick,
   className = "",
   disabled = false,
@@ -37,6 +41,7 @@ const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
+      type={type}
       className={`inline-flex items-center justify-center font-medium gap-2 rounded-lg transition ${className} ${
         sizeClasses[size]
       } ${variantClasses[variant]} ${

@@ -6,6 +6,8 @@ interface InputProps {
   type?: "text" | "number" | "email" | "password" | "date" | "time" | string;
   id?: string;
   name?: string;
+  autoComplete?: string;
+  inputMode?: "none" | "text" | "tel" | "search" | "email" | "numeric" | "decimal";
   placeholder?: string;
   value?: string | number;
   defaultValue?: string | number;
@@ -25,6 +27,8 @@ const Input: FC<InputProps> = ({
   type = "text",
   id,
   name,
+  autoComplete,
+  inputMode,
   placeholder,
   value,
   defaultValue,
@@ -57,6 +61,8 @@ const Input: FC<InputProps> = ({
         type={type}
         id={id}
         name={name}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
         placeholder={placeholder}
         value={value}
         defaultValue={defaultValue}
