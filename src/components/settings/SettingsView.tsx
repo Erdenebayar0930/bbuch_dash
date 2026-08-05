@@ -1,26 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  Bell,
-  Building2,
-  CreditCard,
-  Palette,
-  Shield,
-  User,
-  type LucideIcon,
-} from "lucide-react";
+import { Bell, Palette, Shield, User, type LucideIcon } from "lucide-react";
 
+import AppearanceSettings from "./AppearanceSettings";
 import NotificationSettings from "./NotificationSettings";
 import ProfileSettings from "./ProfileSettings";
 
-type TabKey =
-  | "profile"
-  | "company"
-  | "notifications"
-  | "security"
-  | "appearance"
-  | "billing";
+type TabKey = "profile" | "notifications" | "security" | "appearance";
 
 type Tab = {
   key: TabKey;
@@ -32,12 +19,6 @@ type Tab = {
 
 const tabs: Tab[] = [
   { key: "profile", name: "Профайл", icon: User },
-  {
-    key: "company",
-    name: "Компани",
-    icon: Building2,
-    placeholder: "Байгууллагын нэр, регистр, хаягийн тохиргоо",
-  },
   { key: "notifications", name: "Мэдэгдэл", icon: Bell },
   {
     key: "security",
@@ -45,18 +26,7 @@ const tabs: Tab[] = [
     icon: Shield,
     placeholder: "Нууц үг, хоёр шатлалт баталгаажуулалт, төхөөрөмжүүд",
   },
-  {
-    key: "appearance",
-    name: "Харагдац",
-    icon: Palette,
-    placeholder: "Өнгөний горим, хэл, огнооны формат",
-  },
-  {
-    key: "billing",
-    name: "Төлбөр",
-    icon: CreditCard,
-    placeholder: "Багц, төлбөрийн хэрэгсэл, нэхэмжлэх",
-  },
+  { key: "appearance", name: "Харагдац", icon: Palette },
 ];
 
 export default function SettingsView({
@@ -103,6 +73,8 @@ export default function SettingsView({
           <ProfileSettings />
         ) : active.key === "notifications" ? (
           <NotificationSettings />
+        ) : active.key === "appearance" ? (
+          <AppearanceSettings />
         ) : (
           <div className="flex min-h-[320px] flex-col items-center justify-center gap-2 text-center">
             <p className="text-base font-medium text-gray-800 dark:text-white/90">

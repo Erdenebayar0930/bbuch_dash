@@ -22,6 +22,24 @@ export type AppUser = {
   position: string;
   /** Firebase Storage дахь профайл зургийн URL — байхгүй бол хоосон мөр */
   photo_url: string;
+
+  /** Чуулган — зөвхөн админ оноодог, хэрэглэгчид харагдана */
+  callings: string[];
+  aimags: string[];
+
+  /** Хувийн */
+  mbti: string;
+  love_language: string;
+  /** Сонгосон темперамент бүр оноотойгоо: { sanguine: 12, choleric: 8 } */
+  temperaments: Record<string, number>;
+  occupation: string;
+  has_car: boolean;
+  car_plate: string;
+
+  /** Гэр бүл */
+  spouse_name: string;
+  spouse_birth_date: string;
+
   role: UserRole;
   status: UserStatus;
   /** Харьяалагдах хорооны дугаар — мэдэгдлийг хороогоор чиглүүлэхэд ашиглана */
@@ -38,6 +56,16 @@ type UserRow = {
   phone: string;
   position: string;
   photoUrl: string | null;
+  callings: string[] | null;
+  aimags: string[] | null;
+  mbti: string | null;
+  loveLanguage: string | null;
+  temperaments: Record<string, number> | null;
+  occupation: string | null;
+  hasCar: boolean | null;
+  carPlate: string | null;
+  spouseName: string | null;
+  spouseBirthDate: string | null;
   role: string;
   status: string;
   khoroo: number | null;
@@ -54,6 +82,16 @@ function toAppUser(row: UserRow): AppUser {
     phone: row.phone ?? "",
     position: row.position ?? "",
     photo_url: row.photoUrl ?? "",
+    callings: Array.isArray(row.callings) ? row.callings : [],
+    aimags: Array.isArray(row.aimags) ? row.aimags : [],
+    mbti: row.mbti ?? "",
+    love_language: row.loveLanguage ?? "",
+    temperaments: row.temperaments ?? {},
+    occupation: row.occupation ?? "",
+    has_car: row.hasCar ?? false,
+    car_plate: row.carPlate ?? "",
+    spouse_name: row.spouseName ?? "",
+    spouse_birth_date: row.spouseBirthDate ?? "",
     role: asRole(row.role),
     status: (row.status ?? "active") as UserStatus,
     khoroo: typeof row.khoroo === "number" ? row.khoroo : null,
@@ -162,12 +200,72 @@ export async function updateCurrentUser(patch: {
   /** Firebase Storage-ийн URL, эсвэл зургийг авахын тулд хоосон мөр */
   photoUrl?: string;
   khoroo?: number | null;
+  mbti?: string;
+  loveLanguage?: string;
+  /** Сонгосон темперамент бүр оноотойгоо; сонгоогүйг огт оруулахгүй */
+  temperaments?: Record<string, number>;
+  occupation?: string;
+  hasCar?: boolean;
+  carPlate?: string;
+  spouseName?: string;
+  /** YYYY-MM-DD, эсвэл хоосон */
+  spouseBirthDate?: string;
 }): Promise<AppUser> {
   const data = await apiFetch<{ user: UserRow }>("/api/users/me", {
     method: "PATCH",
     body: patch,
   });
   return toAppUser(data.user);
+}
+
+/** Гэр бүлийн бүртгэл дэх нэг хүүхэд */
+export type Child = {
+  /** Шинэ мөр дээр серверээс ирээгүй тул түр id байж болно */
+  id: string;
+  name: string;
+  /** YYYY-MM-DD, эсвэл хоосон */
+  birthDate: string;
+  /** male | female | "" */
+  gender: string;
+};
+
+type ChildRow = {
+  id: string;
+  name: string;
+  birthDate: string | null;
+  gender: string | null;
+};
+
+const toChild = (row: ChildRow): Child => ({
+  id: row.id,
+  name: row.name ?? "",
+  birthDate: row.birthDate ?? "",
+  gender: row.gender ?? "",
+});
+
+/** Өөрийн хүүхдийн бүртгэлийг уншина. */
+export async function getChildren(): Promise<Child[]> {
+  const data = await apiFetch<{ children: ChildRow[] }>("/api/users/me/children");
+  return (data.children ?? []).map(toChild);
+}
+
+/** Хүүхдийн бүртгэлийг бүхэлд нь солино. */
+export async function saveChildren(list: Child[]): Promise<Child[]> {
+  const data = await apiFetch<{ children: ChildRow[] }>(
+    "/api/users/me/children",
+    {
+      method: "PUT",
+      body: {
+        children: list.map(({ name, birthDate, gender }) => ({
+          name,
+          birthDate,
+          gender,
+        })),
+      },
+    }
+  );
+
+  return (data.children ?? []).map(toChild);
 }
 
 /** Бүх хэрэглэгчийг жагсаана (зөвхөн админ уншиж чадна). */
@@ -184,6 +282,17 @@ export async function setUserRole(uid: string, role: UserRole) {
 /** Хэрэглэгчийн төлөвийг солино — зөвшөөрөх / блоклох (зөвхөн админ). */
 export async function setUserStatus(uid: string, status: UserStatus) {
   await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: { status } });
+}
+
+/**
+ * Чуулганы харьяалал — аймгууд ба дуудлагууд (зөвхөн админ).
+ * Хэрэглэгч өөрөө эдгээрийг засах боломжгүй.
+ */
+export async function setUserChurchInfo(
+  uid: string,
+  patch: { aimags?: string[]; callings?: string[] }
+) {
+  await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: patch });
 }
 
 /** Хэрэглэгчийн харьяа хороог солино (зөвхөн админ). */

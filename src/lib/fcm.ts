@@ -170,6 +170,7 @@ export type KhorooSendResult = SendResult;
 type Target =
   | { type: "all" }
   | { type: "khoroo"; khoroo: number }
+  | { type: "aimag"; aimag: string }
   | { type: "role"; role: UserRole }
   | { type: "user"; userId: string };
 
@@ -231,6 +232,19 @@ export async function sendNotificationToKhoroo(
   data?: { [key: string]: string }
 ): Promise<SendResult> {
   return postNotification({ type: "khoroo", khoroo }, title, body, data);
+}
+
+/**
+ * Тодорхой аймгийн идэвхтэй хэрэглэгчдэд мэдэгдэл илгээнэ.
+ * users.aimag талбарт тулгуурлан хүлээн авагчдыг сонгоно.
+ */
+export async function sendNotificationToAimag(
+  aimag: string,
+  title: string,
+  body: string,
+  data?: { [key: string]: string }
+): Promise<SendResult> {
+  return postNotification({ type: "aimag", aimag }, title, body, data);
 }
 
 /** Роль дээр тулгуурлан мэдэгдэл илгээнэ. */

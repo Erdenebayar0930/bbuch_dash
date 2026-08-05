@@ -25,6 +25,15 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        {/*
+          Горимыг зурагдахаас ӨМНӨ тавина — эс бөгөөс харанхуй горимтой
+          хэрэглэгчид эхний агшинд цагаан дэлгэц анивчина.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var p=localStorage.getItem("theme");var d=p==="dark"||((!p||p==="system")&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);document.documentElement.style.colorScheme=d?"dark":"light";}catch(e){}})();`,
+          }}
+        />
       </head>
       <body suppressHydrationWarning className={`${outfit.className} bg-gray-50 dark:bg-gray-950`}>
         <NotificationSetup />

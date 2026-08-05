@@ -1,6 +1,7 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import { aimags, isValidOption } from "@/data/profileOptions";
 import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { fcmTokens, notifications, users } from "@/lib/db/schema";
@@ -19,6 +20,7 @@ const FCM_BATCH_SIZE = 500;
 type Target =
   | { type: "all" }
   | { type: "khoroo"; khoroo: number }
+  | { type: "aimag"; aimag: string }
   | { type: "role"; role: string }
   | { type: "user"; userId: string };
 
@@ -38,6 +40,12 @@ async function resolveRecipients(target: Target): Promise<string[]> {
   const where =
     target.type === "khoroo"
       ? and(eq(users.status, "active"), eq(users.khoroo, target.khoroo))
+      : target.type === "aimag"
+      ? // Нэг хүн олон аймагт харьяалагдаж болох тул containment хайлт
+        and(
+          eq(users.status, "active"),
+          sql`${users.aimags} @> ${JSON.stringify([target.aimag])}::jsonb`
+        )
       : target.type === "role"
       ? and(eq(users.status, "active"), eq(users.role, target.role))
       : eq(users.status, "active");
@@ -114,6 +122,14 @@ export async function POST(request: NextRequest) {
       return badRequest("Хүлээн авагчийн чиглэл (target) буруу байна.");
     }
 
+    // Аймаг нь тогтсон жагсаалттай — байхгүй нэр рүү илгээхийг зөвшөөрөхгүй
+    if (
+      target.type === "aimag" &&
+      (!target.aimag || !isValidOption(aimags, target.aimag))
+    ) {
+      return badRequest("Аймаг буруу байна.");
+    }
+
     const uids = await resolveRecipients(target);
 
     const result = {
@@ -161,6 +177,9 @@ export async function POST(request: NextRequest) {
     const payloadData: Record<string, string> = { ...(data ?? {}) };
     if (target.type === "khoroo") {
       payloadData.khoroo = String(target.khoroo);
+    }
+    if (target.type === "aimag") {
+      payloadData.aimag = target.aimag;
     }
 
     const staleUids: string[] = [];

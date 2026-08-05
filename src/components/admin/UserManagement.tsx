@@ -5,7 +5,9 @@ import { Crown, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import { khoroos } from "@/data/khoroos";
+import { aimags, labelOf } from "@/data/profileOptions";
 import { auth } from "@/lib/firebase";
+import ChurchInfoModal from "./ChurchInfoModal";
 import {
   asRole,
   canAssignRoles,
@@ -74,6 +76,8 @@ export default function UserManagement() {
   const [error, setError] = useState("");
   /** Одоо шинэчлэгдэж буй хэрэглэгчийн uid */
   const [savingUid, setSavingUid] = useState<string | null>(null);
+  /** Чуулганы харьяалал засаж буй хэрэглэгч */
+  const [editingUser, setEditingUser] = useState<AppUser | null>(null);
 
   const currentUid = auth.currentUser?.uid ?? contextUser?.uid ?? null;
 
@@ -169,6 +173,16 @@ export default function UserManagement() {
     return apply(user.uid, { khoroo }, () => setUserKhoroo(user.uid, khoroo));
   };
 
+  /** Цонхонд хадгалсны дараа локал жагсаалтыг таарууллана */
+  const applyChurchInfo = (
+    uid: string,
+    patch: { aimags: string[]; callings: string[] }
+  ) => {
+    setUsers((prev) =>
+      prev.map((user) => (user.uid === uid ? { ...user, ...patch } : user))
+    );
+  };
+
   return (
     <div className="flex flex-col gap-5">
       {/* Эрхийн тайлбар — хэн юу хийж чадахыг нэг харцаар */}
@@ -253,6 +267,7 @@ export default function UserManagement() {
               <th className="px-5 py-3.5 font-medium">Хэрэглэгч</th>
               <th className="px-5 py-3.5 font-medium">Утас</th>
               <th className="px-5 py-3.5 font-medium">Эрх</th>
+              <th className="px-5 py-3.5 font-medium">Аймаг</th>
               <th className="px-5 py-3.5 font-medium">Хороо</th>
               <th className="px-5 py-3.5 font-medium">Төлөв</th>
               <th className="px-5 py-3.5 font-medium">Бүртгүүлсэн</th>
@@ -263,7 +278,7 @@ export default function UserManagement() {
           <tbody className="divide-y divide-gray-100 dark:divide-white/5">
             {loading && (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-theme-sm text-gray-500">
+                <td colSpan={8} className="px-5 py-10 text-center text-theme-sm text-gray-500">
                   Ачаалж байна...
                 </td>
               </tr>
@@ -271,7 +286,7 @@ export default function UserManagement() {
 
             {!loading && visible.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-theme-sm text-gray-500">
+                <td colSpan={8} className="px-5 py-10 text-center text-theme-sm text-gray-500">
                   Хэрэглэгч олдсонгүй.
                 </td>
               </tr>
@@ -377,6 +392,40 @@ export default function UserManagement() {
                     </td>
 
                     <td className="px-5 py-4">
+                      <button
+                        type="button"
+                        onClick={() => setEditingUser(user)}
+                        disabled={isSaving || !!khorooReason}
+                        title={
+                          khorooReason ?? "Аймаг, дуудлага оноох (зөвхөн админ)"
+                        }
+                        className="flex max-w-[220px] flex-wrap gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-left transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:hover:bg-white/5"
+                      >
+                        {user.aimags.length === 0 && user.callings.length === 0 ? (
+                          <span className="text-theme-xs text-gray-400">
+                            Оноох
+                          </span>
+                        ) : (
+                          <>
+                            {user.aimags.map((value) => (
+                              <span
+                                key={value}
+                                className="rounded-full bg-accent-50 px-2 py-0.5 text-theme-xs font-medium text-accent-700 dark:bg-accent-500/15 dark:text-accent-300"
+                              >
+                                {labelOf(aimags, value)}
+                              </span>
+                            ))}
+                            {user.callings.length > 0 && (
+                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                                {user.callings.length} дуудлага
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </button>
+                    </td>
+
+                    <td className="px-5 py-4">
                       <select
                         value={user.khoroo ?? ""}
                         disabled={isSaving || !!khorooReason}
@@ -440,6 +489,12 @@ export default function UserManagement() {
           </tbody>
         </table>
       </div>
+
+      <ChurchInfoModal
+        user={editingUser}
+        onClose={() => setEditingUser(null)}
+        onSaved={applyChurchInfo}
+      />
     </div>
   );
 }

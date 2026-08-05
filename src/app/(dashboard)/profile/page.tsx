@@ -3,7 +3,7 @@ import { Metadata } from "next";
 import SettingsView from "@/components/settings/SettingsView";
 
 export const metadata: Metadata = {
-  title: "Профайл | daamal",
+  title: "Профайл | ББУЧ",
   description: "Хэрэглэгчийн мэдээлэл, тохиргоо",
 };
 

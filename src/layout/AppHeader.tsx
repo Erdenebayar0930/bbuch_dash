@@ -47,7 +47,7 @@ const AppHeader: React.FC = () => {
                   href="/"
                   className="text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-white"
                 >
-                  daamal.org
+                  ББУЧ
                 </Link>
               </li>
               <li aria-hidden="true">

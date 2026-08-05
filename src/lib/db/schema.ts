@@ -2,6 +2,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   text,
@@ -24,6 +25,40 @@ export const users = pgTable(
     position: text("position").notNull().default(""),
     /** URL to profile photo stored in Firebase Storage */
     photoUrl: text("photo_url").notNull().default(""),
+
+    // --- Чуулган (зөвхөн админ оноодог) -------------------------------------
+    /** Дуудлагууд — дээд тал нь 5. Хэрэглэгч өөрөө засахгүй, зөвхөн харна. */
+    callings: jsonb("callings").$type<string[]>().notNull().default([]),
+    /**
+     * Харьяалагдах аймгууд — нэг хүн олон аймагт байж болно.
+     * Мэдэгдлийг аймгаар чиглүүлэхэд containment (@>) хайлт хийнэ.
+     */
+    aimags: jsonb("aimags").$type<string[]>().notNull().default([]),
+
+    // --- Хувийн ------------------------------------------------------------
+    /** MBTI 16 төрлийн нэг (ISTJ гэх мэт) */
+    mbti: text("mbti").notNull().default(""),
+    /** Хайрын 5 хэлний нэг */
+    loveLanguage: text("love_language").notNull().default(""),
+    /**
+     * Темперамент — олон төрөл зэрэг байж болох тул сонгосон төрөл бүрийг
+     * оноотой нь хадгална: { "sanguine": 12, "choleric": 8 }.
+     * Сонгоогүй төрөл огт байхгүй байна.
+     */
+    temperaments: jsonb("temperaments")
+      .$type<Record<string, number>>()
+      .notNull()
+      .default({}),
+    occupation: text("occupation").notNull().default(""),
+    hasCar: boolean("has_car").notNull().default(false),
+    /** Тээврийн хэрэгслийн улсын дугаар */
+    carPlate: text("car_plate").notNull().default(""),
+
+    // --- Гэр бүл -----------------------------------------------------------
+    /** Эхнэр / нөхрийн нэр */
+    spouseName: text("spouse_name").notNull().default(""),
+    /** YYYY-MM-DD */
+    spouseBirthDate: text("spouse_birth_date").notNull().default(""),
     /** super | admin | user */
     role: text("role").notNull().default("user"),
     /** active | pending | blocked */
@@ -67,6 +102,33 @@ export const transactions = pgTable(
       .defaultNow(),
   },
   (table) => [index("transactions_date_idx").on(table.date)]
+);
+
+/**
+ * Хүүхдийн бүртгэл — хэрэглэгч тутамд олон мөр.
+ *
+ * Профайл хадгалахад бүх мөрийг солих (replace) зарчмаар бичнэ, тиймээс
+ * дараалал `position`-оор тогтоно.
+ */
+export const children = pgTable(
+  "children",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    uid: text("uid")
+      .notNull()
+      .references(() => users.uid, { onDelete: "cascade" }),
+    name: text("name").notNull().default(""),
+    /** YYYY-MM-DD */
+    birthDate: text("birth_date").notNull().default(""),
+    /** male | female | "" */
+    gender: text("gender").notNull().default(""),
+    /** Маягт дээрх эрэмбэ */
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("children_uid_idx").on(table.uid, table.position)]
 );
 
 /**
@@ -142,3 +204,4 @@ export const appConfig = pgTable("app_config", {
 export type UserRow = typeof users.$inferSelect;
 export type TransactionRow = typeof transactions.$inferSelect;
 export type NotificationRow = typeof notifications.$inferSelect;
+export type ChildRow = typeof children.$inferSelect;

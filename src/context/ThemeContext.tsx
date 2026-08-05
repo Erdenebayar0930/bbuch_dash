@@ -1,49 +1,123 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 
-type Theme = "light" | "dark";
+/** Хэрэглэгчийн сонголт — "system" бол үйлдлийн системийн горимыг дагана */
+export type ThemePreference = "light" | "dark" | "system";
+/** Эцэст нь хэрэглэгдэх бодит горим */
+export type Theme = "light" | "dark";
+
+const STORAGE_KEY = "theme";
+const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 type ThemeContextType = {
+  /** Сонголт: гэрэлтэй / харанхуй / систем */
+  preference: ThemePreference;
+  /** Сонголтоос гарсан бодит горим */
   theme: Theme;
+  setPreference: (preference: ThemePreference) => void;
+  /** Толгойн товчинд ашиглагдана — гэрэлтэй ↔ харанхуй */
   toggleTheme: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+// ---------------------------------------------------------------------------
+// Сонголт нь localStorage дотор, өөрөөр хэлбэл React-ийн ГАДНА байдаг төлөв.
+// Тиймээс useState биш useSyncExternalStore-оор уншина: SSR үед "system"
+// гэсэн серверийн snapshot ашиглагдаж, hydration-ы зөрчилгүйгээр клиент дээр
+// бодит утга руу шилжинэ.
+// ---------------------------------------------------------------------------
+
+let listeners: Array<() => void> = [];
+
+const subscribePreference = (onChange: () => void) => {
+  listeners.push(onChange);
+
+  // Өөр таб дээр солигдвол энэ таб мөн дагана
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY) onChange();
+  };
+  window.addEventListener("storage", onStorage);
+
+  return () => {
+    listeners = listeners.filter((listener) => listener !== onChange);
+    window.removeEventListener("storage", onStorage);
+  };
+};
+
+function readPreference(): ThemePreference {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw === "light" || raw === "dark" || raw === "system"
+      ? raw
+      : "system";
+  } catch {
+    return "system";
+  }
+}
+
+const subscribeSystem = (onChange: () => void) => {
+  const query = window.matchMedia(DARK_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+};
+
+const isSystemDark = () => window.matchMedia(DARK_QUERY).matches;
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
-  const [mounted, setMounted] = useState(false);
+  const preference = useSyncExternalStore(
+    subscribePreference,
+    readPreference,
+    () => "system" as ThemePreference
+  );
 
-  // ✅ Client дээр л theme-г тодорхойлно
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as Theme | null;
-    const initialTheme = savedTheme ?? "light";
+  const systemDark = useSyncExternalStore(
+    subscribeSystem,
+    isSystemDark,
+    () => false
+  );
 
-    setTheme(initialTheme);
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
+  const theme: Theme =
+    preference === "system" ? (systemDark ? "dark" : "light") : preference;
 
-    setMounted(true);
+  const setPreference = useCallback((next: ThemePreference) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // Хувийн горимд бичих боломжгүй байж болно — горим нь тухайн сессид ажиллана
+    }
+    listeners.forEach((listener) => listener());
   }, []);
 
+  // Толгойн товч нь одоо ХАРАГДАЖ буй горимыг эсрэгээр нь эргүүлнэ. "system"
+  // байсан бол ингэснээр тодорхой сонголт болж бэхлэгдэнэ.
+  const toggleTheme = useCallback(() => {
+    setPreference(theme === "dark" ? "light" : "dark");
+  }, [setPreference, theme]);
+
+  // DOM-ыг тохируулах нь гадаад системийг шинэчилж буй хэрэг — эффектийн зөв хэрэглээ
   useEffect(() => {
-    if (!mounted) return;
+    const root = document.documentElement;
+    root.classList.toggle("dark", theme === "dark");
+    // Хөтчийн өөрийн элементүүд (scrollbar, select) ч горимоо дагана
+    root.style.colorScheme = theme;
+  }, [theme]);
 
-    localStorage.setItem("theme", theme);
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme, mounted]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
-  };
-
-  // 🚀 ГОЛ ШИЙДЭЛ → hydration гацалт арилна
-  if (!mounted) return null;
+  const value = useMemo(
+    () => ({ preference, theme, setPreference, toggleTheme }),
+    [preference, theme, setPreference, toggleTheme]
+  );
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
 }
 

@@ -1,35 +1,53 @@
 "use client";
 
 import Image from "next/image";
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { updateProfile } from "firebase/auth";
 import Cropper, { type Area } from "react-easy-crop";
 
 import { useUser } from "@/app/(auth)/UserProvider";
-import { khoroos } from "@/data/khoroos";
+import {
+  aimags,
+  labelOf,
+  loveLanguages,
+  mbtiTypes,
+} from "@/data/profileOptions";
 import { auth } from "@/lib/firebase";
 import {
   MAX_PROFILE_PHOTO_BYTES,
   deleteProfilePhoto,
   uploadProfilePhoto,
 } from "@/lib/storage";
-import { getCurrentUser, updateCurrentUser } from "@/lib/users";
+import {
+  getChildren,
+  getCurrentUser,
+  saveChildren,
+  updateCurrentUser,
+  type Child,
+} from "@/lib/users";
 import { Modal } from "@/components/ui/modal";
+import ChildrenEditor from "./ChildrenEditor";
 import SettingsField from "./SettingsField";
+import SettingsSelect from "./SettingsSelect";
+import TemperamentPicker from "./TemperamentPicker";
 
 type ProfileForm = {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
-  position: string;
-  /** Хорооны дугаар — сонгоогүй бол хоосон */
-  khoroo: string;
+
+
+  /** Хувийн */
+  mbti: string;
+  loveLanguage: string;
+  occupation: string;
+  hasCar: boolean;
+  carPlate: string;
+
+  /** Гэр бүл */
+  spouseName: string;
+  spouseBirthDate: string;
 };
 
 const emptyForm: ProfileForm = {
@@ -37,8 +55,13 @@ const emptyForm: ProfileForm = {
   lastName: "",
   email: "",
   phone: "",
-  position: "",
-  khoroo: "",
+  mbti: "",
+  loveLanguage: "",
+  occupation: "",
+  hasCar: false,
+  carPlate: "",
+  spouseName: "",
+  spouseBirthDate: "",
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -88,13 +111,83 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   });
 }
 
+/** Админ оноодог утгуудыг зөвхөн харуулах шошго */
+function ReadOnlyTags({
+  label,
+  values,
+  empty,
+}: {
+  label: string;
+  values: string[];
+  empty: string;
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 text-theme-sm font-medium text-gray-700 dark:text-gray-300">
+        {label}
+      </p>
+      {values.length === 0 ? (
+        <p className="flex h-11 items-center rounded-lg border border-dashed border-gray-200 px-4 text-theme-sm text-gray-400 dark:border-white/10 dark:text-gray-500">
+          {empty}
+        </p>
+      ) : (
+        <div className="flex min-h-11 flex-wrap items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 dark:border-white/10">
+          {values.map((value) => (
+            <span
+              key={value}
+              className="rounded-full bg-accent-50 px-2.5 py-1 text-theme-xs font-medium text-accent-700 dark:bg-accent-500/15 dark:text-accent-300"
+            >
+              {value}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Маягтын хэсгийн гарчиг */
+function SectionTitle({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="mb-4 border-b border-gray-100 pb-3 dark:border-white/10">
+      <h3 className="text-theme-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+        {title}
+      </h3>
+      {description && (
+        <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">
+          {description}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function ProfileSettings() {
   const { user, setUser } = useUser();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [saved, setSaved] = useState<ProfileForm>(emptyForm);
   const [form, setForm] = useState<ProfileForm>(emptyForm);
+  const [savedChildren, setSavedChildren] = useState<Child[]>([]);
+  const [childList, setChildList] = useState<Child[]>([]);
+  // Объект тул ProfileForm дотор биш тусад нь — харьцуулалт нь өөр
+  const [savedTemperaments, setSavedTemperaments] = useState<
+    Record<string, number>
+  >({});
+  const [temperamentScores, setTemperamentScores] = useState<
+    Record<string, number>
+  >({});
+  // Зөвхөн харагдана — админ оноодог тул маягтын хэсэг биш
+  const [callings, setCallings] = useState<string[]>([]);
+  const [userAimags, setUserAimags] = useState<string[]>([]);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(
     auth.currentUser?.photoURL ?? null
   );
@@ -111,26 +204,41 @@ export default function ProfileSettings() {
 
     const load = async () => {
       const base: ProfileForm = {
+        ...emptyForm,
         firstName: user?.first_name ?? "",
         lastName: user?.last_name ?? "",
         email: user?.email ?? "",
-        phone: "",
-        position: "",
-        khoroo: "",
       };
+
+      let loadedChildren: Child[] = [];
+      let loadedTemperaments: Record<string, number> = {};
+      let loadedCallings: string[] = [];
+      let loadedAimags: string[] = [];
 
       if (auth.currentUser) {
         try {
-          const profile = await getCurrentUser();
+          const [profile, kids] = await Promise.all([
+            getCurrentUser(),
+            getChildren().catch(() => [] as Child[]),
+          ]);
+
+          loadedChildren = kids;
 
           if (profile) {
             base.firstName = profile.first_name || base.firstName;
             base.lastName = profile.last_name || base.lastName;
             base.email = profile.email || base.email;
             base.phone = profile.phone;
-            base.position = profile.position;
-            base.khoroo =
-              typeof profile.khoroo === "number" ? String(profile.khoroo) : "";
+            loadedCallings = profile.callings;
+            loadedAimags = profile.aimags;
+            base.mbti = profile.mbti;
+            base.loveLanguage = profile.love_language;
+            base.occupation = profile.occupation;
+            loadedTemperaments = profile.temperaments ?? {};
+            base.hasCar = profile.has_car;
+            base.carPlate = profile.car_plate;
+            base.spouseName = profile.spouse_name;
+            base.spouseBirthDate = profile.spouse_birth_date;
 
             if (!cancelled && profile.photo_url) {
               setProfilePhotoUrl(profile.photo_url);
@@ -144,6 +252,12 @@ export default function ProfileSettings() {
       if (!cancelled) {
         setSaved(base);
         setForm(base);
+        setSavedChildren(loadedChildren);
+        setChildList(loadedChildren);
+        setSavedTemperaments(loadedTemperaments);
+        setTemperamentScores(loadedTemperaments);
+        setCallings(loadedCallings);
+        setUserAimags(loadedAimags);
       }
     };
 
@@ -162,30 +276,71 @@ export default function ProfileSettings() {
     };
   }, [imageSrc]);
 
-  const update = useCallback((key: keyof ProfileForm, value: string) => {
+  const update = useCallback(
+    <K extends keyof ProfileForm>(key: K, value: ProfileForm[K]) => {
+      setSaveState("idle");
+      setForm((prev) => ({ ...prev, [key]: value }));
+    },
+    []
+  );
+
+  const updateChildren = useCallback((next: Child[]) => {
     setSaveState("idle");
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setChildList(next);
   }, []);
 
-  const isDirty = (Object.keys(form) as (keyof ProfileForm)[]).some(
+  const updateTemperaments = useCallback((next: Record<string, number>) => {
+    setSaveState("idle");
+    setTemperamentScores(next);
+  }, []);
+
+  const formDirty = (Object.keys(form) as (keyof ProfileForm)[]).some(
     (key) => form[key] !== saved[key]
   );
+  const childrenDirty =
+    JSON.stringify(childList.map(({ name, birthDate, gender }) => [name, birthDate, gender])) !==
+    JSON.stringify(savedChildren.map(({ name, birthDate, gender }) => [name, birthDate, gender]));
+  // Түлхүүрийн дараалал хамаагүй тул эрэмбэлж харьцуулна
+  const sortedEntries = (scores: Record<string, number>) =>
+    JSON.stringify(Object.entries(scores).sort(([a], [b]) => a.localeCompare(b)));
+  const temperamentsDirty =
+    sortedEntries(temperamentScores) !== sortedEntries(savedTemperaments);
+
+  const isDirty = formDirty || childrenDirty || temperamentsDirty;
 
   const handleSave = async () => {
     if (!auth.currentUser) return;
 
     setSaveState("saving");
+    setSaveError(null);
 
     try {
       await updateCurrentUser({
         firstName: form.firstName,
         lastName: form.lastName,
         phone: form.phone,
-        position: form.position,
-        khoroo: form.khoroo === "" ? null : Number(form.khoroo),
+        mbti: form.mbti,
+        loveLanguage: form.loveLanguage,
+        temperaments: temperamentScores,
+        occupation: form.occupation,
+        hasCar: form.hasCar,
+        carPlate: form.hasCar ? form.carPlate : "",
+        spouseName: form.spouseName,
+        spouseBirthDate: form.spouseBirthDate,
       });
 
-      setSaved(form);
+      const storedChildren = await saveChildren(childList);
+
+      const nextForm = {
+        ...form,
+        carPlate: form.hasCar ? form.carPlate : "",
+      };
+
+      setSaved(nextForm);
+      setForm(nextForm);
+      setSavedChildren(storedChildren);
+      setChildList(storedChildren);
+      setSavedTemperaments(temperamentScores);
       setSaveState("saved");
 
       if (user) {
@@ -198,6 +353,9 @@ export default function ProfileSettings() {
     } catch (error) {
       console.error("Профайл хадгалж чадсангүй:", error);
       setSaveState("error");
+      setSaveError(
+        error instanceof Error ? error.message : "Хадгалахад алдаа гарлаа."
+      );
     }
   };
 
@@ -250,10 +408,7 @@ export default function ProfileSettings() {
 
     try {
       const blob = await getCroppedImg(imageSrc, croppedAreaPixels);
-      const downloadUrl = await uploadProfilePhoto(
-        auth.currentUser.uid,
-        blob
-      );
+      const downloadUrl = await uploadProfilePhoto(auth.currentUser.uid, blob);
 
       // Firebase Auth дээр — бусад төхөөрөмж дээр шууд харагдана,
       // Postgres дээр — админы жагсаалт зэрэг сервер талын дүрслэлд хэрэгтэй.
@@ -302,7 +457,8 @@ export default function ProfileSettings() {
 
   const fullName = [form.firstName, form.lastName].filter(Boolean).join(" ");
   const initial = form.firstName?.[0] ?? form.lastName?.[0] ?? "?";
-  const currentPhoto = profilePhotoUrl ?? user?.photoURL ?? auth.currentUser?.photoURL;
+  const currentPhoto =
+    profilePhotoUrl ?? user?.photoURL ?? auth.currentUser?.photoURL;
 
   return (
     <div>
@@ -329,7 +485,7 @@ export default function ProfileSettings() {
             {fullName || "Нэр оруулаагүй"}
           </p>
           <p className="mt-0.5 truncate text-theme-xs text-gray-500 dark:text-gray-400">
-            {form.position || user?.role || "—"}
+            {callings[0] || form.occupation || user?.role || "—"}
           </p>
           {form.email && (
             <a
@@ -368,9 +524,7 @@ export default function ProfileSettings() {
             </span>
           )}
           {photoState === "error" && (
-            <span className="text-theme-xs text-error-500">
-              {photoError}
-            </span>
+            <span className="text-theme-xs text-error-500">{photoError}</span>
           )}
         </div>
       </div>
@@ -452,72 +606,161 @@ export default function ProfileSettings() {
         </div>
       </Modal>
 
-      {/* Үндсэн мэдээлэл */}
-      <div className="mt-6 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-        <SettingsField
-          id="first-name"
-          label="Нэр"
-          value={form.firstName}
-          onChange={(value) => update("firstName", value)}
-        />
-        <SettingsField
-          id="last-name"
-          label="Овог"
-          value={form.lastName}
-          onChange={(value) => update("lastName", value)}
-        />
-        <SettingsField
-          id="email"
-          label="Имэйл"
-          type="email"
-          value={form.email}
-          readOnly
-        />
-        <SettingsField
-          id="phone"
-          label="Утас"
-          value={form.phone}
-          placeholder="+976 ...."
-          onChange={(value) => update("phone", value)}
-        />
-        <SettingsField
-          id="position"
-          label="Албан тушаал"
-          value={form.position}
-          placeholder="Жишээ нь: Санхүүгийн захирал"
-          onChange={(value) => update("position", value)}
+      {/* --- Ерөнхий --- */}
+      <section className="mt-8">
+        <SectionTitle title="Ерөнхий" description="Холбоо барих мэдээлэл" />
+
+        <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+          <SettingsField
+            id="first-name"
+            label="Нэр"
+            value={form.firstName}
+            onChange={(value) => update("firstName", value)}
+          />
+          <SettingsField
+            id="last-name"
+            label="Овог"
+            value={form.lastName}
+            onChange={(value) => update("lastName", value)}
+          />
+          <SettingsField
+            id="email"
+            label="Имэйл"
+            type="email"
+            value={form.email}
+            readOnly
+          />
+          <SettingsField
+            id="phone"
+            label="Утас"
+            value={form.phone}
+            placeholder="+976 ...."
+            onChange={(value) => update("phone", value)}
+          />
+        </div>
+      </section>
+
+      {/* --- Чуулган (зөвхөн харагдана) --- */}
+      <section className="mt-8">
+        <SectionTitle
+          title="Чуулган"
+          description="Дуудлага, аймгийн харьяаллыг админ оноодог — та зөвхөн харна."
         />
 
-        {/* Хороогоор мэдэгдэл хүлээн авахад ашиглагдана */}
-        <div>
-          <label
-            htmlFor="khoroo"
-            className="mb-1.5 block text-theme-sm font-medium text-gray-700 dark:text-gray-300"
-          >
-            Харьяа хороо
-          </label>
-          <select
-            id="khoroo"
-            value={form.khoroo}
-            onChange={(event) => update("khoroo", event.target.value)}
-            className="h-11 w-full rounded-lg border border-gray-200 bg-white px-4 text-theme-sm text-gray-800 shadow-theme-xs transition-colors focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90"
-          >
-            <option value="">Сонгоогүй</option>
-            {khoroos.map((khoroo) => (
-              <option key={khoroo.id} value={khoroo.id}>
-                {khoroo.name}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1.5 text-theme-xs text-gray-500 dark:text-gray-400">
-            Хороогоо сонгосноор тухайн хорооны хог тээвэрлэлтийн мэдэгдлийг
-            хүлээн авна.
-          </p>
+        <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+          <ReadOnlyTags
+            label="Дуудлага"
+            values={callings}
+            empty="Дуудлага оноогоогүй байна"
+          />
+          <ReadOnlyTags
+            label="Аймаг"
+            values={userAimags.map((value) => labelOf(aimags, value))}
+            empty="Аймаг оноогоогүй байна"
+          />
         </div>
-      </div>
+      </section>
+
+      {/* --- Хувийн --- */}
+      <section className="mt-8">
+        <SectionTitle
+          title="Хувийн"
+          description="Зан төлөв, ажил мэргэжил, тээврийн хэрэгсэл"
+        />
+
+        <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+          <SettingsSelect
+            id="mbti"
+            label="MBTI"
+            value={form.mbti}
+            options={mbtiTypes}
+            onChange={(value) => update("mbti", value)}
+          />
+          <SettingsSelect
+            id="love-language"
+            label="Хайрын хэл"
+            value={form.loveLanguage}
+            options={loveLanguages}
+            onChange={(value) => update("loveLanguage", value)}
+          />
+          <SettingsField
+            id="occupation"
+            label="Ажил мэргэжил"
+            value={form.occupation}
+            placeholder="Жишээ нь: Багш"
+            onChange={(value) => update("occupation", value)}
+          />
+
+          <div className="sm:col-span-2">
+            <p className="mb-1.5 text-theme-sm font-medium text-gray-700 dark:text-gray-300">
+              Темперамент
+            </p>
+            <TemperamentPicker
+              value={temperamentScores}
+              onChange={updateTemperaments}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="flex w-fit cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 transition-colors hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/[0.03]">
+              <input
+                type="checkbox"
+                checked={form.hasCar}
+                onChange={(event) => update("hasCar", event.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500/30 dark:border-white/20 dark:bg-white/10"
+              />
+              <span className="text-theme-sm font-medium text-gray-700 dark:text-gray-300">
+                Машинтай
+              </span>
+            </label>
+          </div>
+
+          {form.hasCar && (
+            <SettingsField
+              id="car-plate"
+              label="Машины дугаар"
+              value={form.carPlate}
+              placeholder="1234 УБА"
+              onChange={(value) => update("carPlate", value)}
+            />
+          )}
+        </div>
+      </section>
+
+      {/* --- Гэр бүл --- */}
+      <section className="mt-8">
+        <SectionTitle
+          title="Гэр бүлийн бүртгэл"
+          description="Эхнэр / нөхөр болон хүүхдүүдийн мэдээлэл"
+        />
+
+        <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+          <SettingsField
+            id="spouse-name"
+            label="Эхнэр / нөхрийн нэр"
+            value={form.spouseName}
+            placeholder="Нэр"
+            onChange={(value) => update("spouseName", value)}
+          />
+          <SettingsField
+            id="spouse-birth"
+            label="Төрсөн огноо"
+            type="date"
+            value={form.spouseBirthDate}
+            onChange={(value) => update("spouseBirthDate", value)}
+          />
+        </div>
+
+        <div className="mt-5">
+          <p className="mb-3 text-theme-sm font-medium text-gray-700 dark:text-gray-300">
+            Хүүхдүүд
+          </p>
+          <ChildrenEditor value={childList} onChange={updateChildren} />
+        </div>
+      </section>
 
       {/* Үйлдэл */}
-      <div className="mt-6 flex flex-wrap items-center gap-3">
+      <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-5 dark:border-white/10">
         <button
           type="button"
           onClick={handleSave}
@@ -531,7 +774,10 @@ export default function ProfileSettings() {
           type="button"
           onClick={() => {
             setForm(saved);
+            setChildList(savedChildren);
+            setTemperamentScores(savedTemperaments);
             setSaveState("idle");
+            setSaveError(null);
           }}
           disabled={!isDirty}
           className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-theme-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
@@ -546,7 +792,7 @@ export default function ProfileSettings() {
         )}
         {saveState === "error" && (
           <span className="text-theme-sm text-error-500">
-            Хадгалахад алдаа гарлаа
+            {saveError ?? "Хадгалахад алдаа гарлаа"}
           </span>
         )}
       </div>

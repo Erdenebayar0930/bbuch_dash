@@ -4,14 +4,15 @@ import { BellRing, Loader2, Send, Sparkles, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { khoroos } from "@/data/khoroos";
-import { sendNotificationToAllUsers, sendNotificationToKhoroo, sendNotificationToRole, sendNotificationToUser } from "@/lib/fcm";
+import { aimags, labelOf } from "@/data/profileOptions";
+import { sendNotificationToAimag, sendNotificationToAllUsers, sendNotificationToKhoroo, sendNotificationToRole, sendNotificationToUser } from "@/lib/fcm";
 import { listUsers, roleLabels, type AppUser, type UserRole } from "@/lib/users";
 
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 
-type Audience = "all" | "khoroo" | "user" | "role";
+type Audience = "all" | "khoroo" | "aimag" | "user" | "role";
 type Feedback = { type: "success" | "error" | "info"; text: string };
 
 type TemplateItem = {
@@ -54,6 +55,7 @@ export default function SendNotification() {
   const [url, setUrl] = useState("");
   const [selectedKhoroo, setSelectedKhoroo] = useState<number | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>("user");
+  const [selectedAimag, setSelectedAimag] = useState("");
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -91,6 +93,14 @@ export default function SendNotification() {
       ).length;
     }
 
+    if (audience === "aimag") {
+      if (!selectedAimag) return 0;
+      // Нэг хүн олон аймагт харьяалагдаж болно
+      return users.filter(
+        (user) => user.status === "active" && user.aimags.includes(selectedAimag)
+      ).length;
+    }
+
     if (audience === "role") {
       if (!selectedRole) return 0;
       return users.filter(
@@ -99,7 +109,7 @@ export default function SendNotification() {
     }
 
     return users.filter((user) => user.status === "active").length;
-  }, [audience, selectedKhoroo, selectedRole, userId, users]);
+  }, [audience, selectedKhoroo, selectedAimag, selectedRole, userId, users]);
 
   const selectedKhorooName = useMemo(() => {
     return khoroos.find((item) => item.id === selectedKhoroo)?.name ?? "";
@@ -133,6 +143,11 @@ export default function SendNotification() {
       return;
     }
 
+    if (audience === "aimag" && !selectedAimag) {
+      setMessage({ type: "error", text: "Хүлээн авах аймаг сонгоно уу." });
+      return;
+    }
+
     if (audience === "role" && !selectedRole) {
       setMessage({ type: "error", text: "Роль сонгоно уу." });
       return;
@@ -150,6 +165,8 @@ export default function SendNotification() {
         result = await sendNotificationToAllUsers(title.trim(), body.trim(), data);
       } else if (audience === "user") {
         result = await sendNotificationToUser(userId.trim(), title.trim(), body.trim(), data);
+      } else if (audience === "aimag") {
+        result = await sendNotificationToAimag(selectedAimag, title.trim(), body.trim(), data);
       } else if (audience === "role") {
         result = await sendNotificationToRole(selectedRole, title.trim(), body.trim(), data);
       } else {
@@ -235,6 +252,7 @@ export default function SendNotification() {
           <div className="flex flex-wrap gap-2">
             {[
               { value: "all", label: "Бүх хэрэглэгчид" },
+              { value: "aimag", label: "Аймаг" },
               { value: "khoroo", label: "Хороо" },
               { value: "role", label: "Роль" },
               { value: "user", label: "Нэг хэрэглэгч" },
@@ -260,6 +278,13 @@ export default function SendNotification() {
             {audience === "khoroo" && (
               <span>
                 {selectedKhorooName || "Хороо сонгоно уу"} — {recipientCount} хэрэглэгч
+              </span>
+            )}
+            {audience === "aimag" && (
+              <span>
+                {selectedAimag
+                  ? `${labelOf(aimags, selectedAimag)} — ${recipientCount} хэрэглэгч`
+                  : "Аймаг сонгоно уу"}
               </span>
             )}
             {audience === "role" && (
@@ -289,6 +314,28 @@ export default function SendNotification() {
                   }`}
                 >
                   {khoroo.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {audience === "aimag" && (
+          <div>
+            <Label>Аймаг</Label>
+            <div className="flex flex-wrap gap-2">
+              {aimags.map((aimag) => (
+                <button
+                  key={aimag.value}
+                  type="button"
+                  onClick={() => setSelectedAimag(aimag.value)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                    selectedAimag === aimag.value
+                      ? "bg-emerald-600 text-white"
+                      : "bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-700"
+                  }`}
+                >
+                  {aimag.label}
                 </button>
               ))}
             </div>
@@ -421,9 +468,13 @@ export default function SendNotification() {
             <p>
               {audience === "all"
                 ? "Бүх идэвхтэй хэрэглэгчид"
-                : audience === "khoroo"
-                  ? `${selectedKhorooName || "Хороо"} — ${recipientCount} хэрэглэгч`
-                  : `Нэг хэрэглэгч — ${recipientCount > 0 ? "ID бэлэн" : "ID оруулаагүй"}`}
+                : audience === "aimag"
+                  ? `${labelOf(aimags, selectedAimag) || "Аймаг"} — ${recipientCount} хэрэглэгч`
+                  : audience === "khoroo"
+                    ? `${selectedKhorooName || "Хороо"} — ${recipientCount} хэрэглэгч`
+                    : audience === "role"
+                      ? `${roleLabels[selectedRole]} — ${recipientCount} хэрэглэгч`
+                      : `Нэг хэрэглэгч — ${recipientCount > 0 ? "ID бэлэн" : "ID оруулаагүй"}`}
             </p>
           </div>
           <Button type="submit" disabled={loading} className="min-w-[180px]" size="sm">
@@ -437,11 +488,13 @@ export default function SendNotification() {
                 <Send className="h-4 w-4" />
                 {audience === "all"
                   ? "Бүх хэрэглэгчдэд илгээх"
-                  : audience === "khoroo"
-                    ? "Хороонд илгээх"
-                    : audience === "role"
-                      ? "Роль руу илгээх"
-                      : "Нэг хэрэглэгчид илгээх"}
+                  : audience === "aimag"
+                    ? "Аймагт илгээх"
+                    : audience === "khoroo"
+                      ? "Хороонд илгээх"
+                      : audience === "role"
+                        ? "Роль руу илгээх"
+                        : "Нэг хэрэглэгчид илгээх"}
               </>
             )}
           </Button>
