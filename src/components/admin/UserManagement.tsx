@@ -4,14 +4,14 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Crown, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
-import { khoroos } from "@/data/khoroos";
+import ExportButton from "@/components/common/ExportButton";
 import { aimags, labelOf } from "@/data/profileOptions";
 import { auth } from "@/lib/firebase";
 import ChurchInfoModal from "./ChurchInfoModal";
 import {
   asRole,
   canAssignRoles,
-  canChangeKhoroo,
+  canAssignGroups,
   canChangeRole,
   canChangeStatus,
   isSuperRole,
@@ -23,7 +23,6 @@ import {
 import {
   listUsers,
   roleLabels,
-  setUserKhoroo,
   setUserRole,
   setUserStatus,
   statusLabels,
@@ -168,11 +167,6 @@ export default function UserManagement() {
   const changeStatus = (user: AppUser, status: UserStatus) =>
     apply(user.uid, { status }, () => setUserStatus(user.uid, status));
 
-  const changeKhoroo = (user: AppUser, value: string) => {
-    const khoroo = value === "" ? null : Number(value);
-    return apply(user.uid, { khoroo }, () => setUserKhoroo(user.uid, khoroo));
-  };
-
   /** Цонхонд хадгалсны дараа локал жагсаалтыг таарууллана */
   const applyChurchInfo = (
     uid: string,
@@ -211,7 +205,7 @@ export default function UserManagement() {
 
       {!loading && !isSuper && (
         <p className="rounded-lg bg-warning-50 px-4 py-3 text-theme-sm text-warning-700 dark:bg-warning-500/10 dark:text-warning-400">
-          Та админ эрхтэй байна. Бүртгэл зөвшөөрөх, хаах, хороо оноох боломжтой
+          Та админ эрхтэй байна. Бүртгэл зөвшөөрөх, хаах, аймаг оноох боломжтой
           ч эрх олгох, өөрчлөхийг зөвхөн супер админ хийнэ.
         </p>
       )}
@@ -251,6 +245,11 @@ export default function UserManagement() {
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} strokeWidth={1.8} />
           Сэргээх
         </button>
+
+        <ExportButton dataset="users" />
+
+        {/* Бүх бүртгэлийн нэгдсэн татац — админы хуудас хамгийн зохимжтой байр */}
+        <ExportButton dataset="all" label="Бүх бүртгэл татах" />
       </div>
 
       {error && (
@@ -268,7 +267,6 @@ export default function UserManagement() {
               <th className="px-5 py-3.5 font-medium">Утас</th>
               <th className="px-5 py-3.5 font-medium">Эрх</th>
               <th className="px-5 py-3.5 font-medium">Аймаг</th>
-              <th className="px-5 py-3.5 font-medium">Хороо</th>
               <th className="px-5 py-3.5 font-medium">Төлөв</th>
               <th className="px-5 py-3.5 font-medium">Бүртгүүлсэн</th>
               <th className="px-5 py-3.5 text-right font-medium">Үйлдэл</th>
@@ -278,7 +276,7 @@ export default function UserManagement() {
           <tbody className="divide-y divide-gray-100 dark:divide-white/5">
             {loading && (
               <tr>
-                <td colSpan={8} className="px-5 py-10 text-center text-theme-sm text-gray-500">
+                <td colSpan={7} className="px-5 py-10 text-center text-theme-sm text-gray-500">
                   Ачаалж байна...
                 </td>
               </tr>
@@ -286,7 +284,7 @@ export default function UserManagement() {
 
             {!loading && visible.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-10 text-center text-theme-sm text-gray-500">
+                <td colSpan={7} className="px-5 py-10 text-center text-theme-sm text-gray-500">
                   Хэрэглэгч олдсонгүй.
                 </td>
               </tr>
@@ -326,8 +324,8 @@ export default function UserManagement() {
                       )
                     : undefined);
 
-                const khorooReason = actor
-                  ? reasonOf(canChangeKhoroo(actor, target))
+                const groupReason = actor
+                  ? reasonOf(canAssignGroups(actor, target))
                   : "Эрх тодорхойлогдоогүй байна.";
 
                 return (
@@ -395,9 +393,9 @@ export default function UserManagement() {
                       <button
                         type="button"
                         onClick={() => setEditingUser(user)}
-                        disabled={isSaving || !!khorooReason}
+                        disabled={isSaving || !!groupReason}
                         title={
-                          khorooReason ?? "Аймаг, дуудлага оноох (зөвхөн админ)"
+                          groupReason ?? "Аймаг, дуудлага оноох (зөвхөн админ)"
                         }
                         className="flex max-w-[220px] flex-wrap gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-left transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:hover:bg-white/5"
                       >
@@ -423,23 +421,6 @@ export default function UserManagement() {
                           </>
                         )}
                       </button>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <select
-                        value={user.khoroo ?? ""}
-                        disabled={isSaving || !!khorooReason}
-                        onChange={(e) => changeKhoroo(user, e.target.value)}
-                        title={khorooReason ?? "Мэдэгдэл хүлээн авах хороо"}
-                        className="h-9 rounded-lg border border-gray-300 bg-white px-2.5 text-theme-sm text-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-gray-900 dark:text-white/90"
-                      >
-                        <option value="">—</option>
-                        {khoroos.map((khoroo) => (
-                          <option key={khoroo.id} value={khoroo.id}>
-                            {khoroo.name}
-                          </option>
-                        ))}
-                      </select>
                     </td>
 
                     <td className="px-5 py-4">

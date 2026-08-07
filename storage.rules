@@ -12,6 +12,20 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
+    // Эд хөрөнгийн зураг.
+    //
+    // ⚠ Storage дүрэм нь Postgres дэх role-ыг харж чадахгүй тул "зөвхөн админ"
+    // гэдгийг ЭНД шалгах боломжгүй. Жинхэнэ хамгаалалт нь /api/assets route
+    // дээр: зөвхөн админ зургийг бүртгэлд холбож чадна. Энд нэвтэрсэн хүнд
+    // бичихийг зөвшөөрч, хэмжээ болон төрлөөр хязгаарлана.
+    match /assets/{assetId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null;
+    }
+
     // Бусад бүх зам хаалттай.
     match /{allPaths=**} {
       allow read, write: if false;

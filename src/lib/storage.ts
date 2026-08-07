@@ -41,6 +41,63 @@ export async function uploadProfilePhoto(
   return getDownloadURL(snapshot.ref);
 }
 
+// ---------------------------------------------------------------------------
+// Эд хөрөнгийн зураг — нэг хөрөнгөд олон файл
+// ---------------------------------------------------------------------------
+
+/** Эд хөрөнгийн зургийн дээд хэмжээ — storage.rules-тэй ижил байлгана */
+export const MAX_ASSET_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/** Файлын нэрнээс өргөтгөлийг гаргана (зөвхөн үсэг, тоо) */
+function extensionOf(file: File): string {
+  const match = /\.([a-zA-Z0-9]{1,5})$/.exec(file.name);
+  return match ? match[1].toLowerCase() : "jpg";
+}
+
+export type UploadedImage = {
+  url: string;
+  /** Storage доторх зам — устгахад хэрэгтэй */
+  path: string;
+};
+
+/**
+ * Эд хөрөнгийн зургийг байршуулна.
+ *
+ * Файл бүр өөрийн нэртэй тул нэг хөрөнгөд олон зураг зэрэг байрлана.
+ * Нэрийг санамсаргүй үүсгэснээр ижил нэртэй файл бие биенээ дарахгүй.
+ */
+export async function uploadAssetImage(
+  assetId: string,
+  file: File
+): Promise<UploadedImage> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Зөвхөн зураг оруулах боломжтой.");
+  }
+  if (file.size > MAX_ASSET_IMAGE_BYTES) {
+    throw new Error("Зургийн хэмжээ 10MB-аас хэтэрч болохгүй.");
+  }
+
+  const path = `assets/${assetId}/${crypto.randomUUID()}.${extensionOf(file)}`;
+  const objectRef = ref(storage, path);
+
+  const snapshot = await uploadBytes(objectRef, file, {
+    contentType: file.type,
+    cacheControl: "public, max-age=31536000",
+  });
+
+  return { url: await getDownloadURL(snapshot.ref), path };
+}
+
+/** Эд хөрөнгийн зургийн файлыг Storage-оос устгана. */
+export async function deleteAssetImageFile(path: string): Promise<void> {
+  try {
+    await deleteObject(ref(storage, path));
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code !== "storage/object-not-found") throw error;
+  }
+}
+
 /** Профайлын зургийг устгана. Байхгүй байсан ч алдаа шидэхгүй. */
 export async function deleteProfilePhoto(uid: string): Promise<void> {
   try {

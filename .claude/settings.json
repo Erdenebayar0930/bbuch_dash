@@ -6,7 +6,12 @@
       "Bash(NODE_PATH=\"d:/Coderman/bbuch_dash/node_modules\" node \"C:/Users/Coderman/AppData/Local/Temp/claude/d--Coderman-bbuch-dash/e461d97f-7dd4-44d6-ad0d-a2b50fa5b410/scratchpad/check-photo-col.js\")",
       "Bash(NODE_PATH=\"d:/Coderman/bbuch_dash/node_modules\" node \"C:/Users/Coderman/AppData/Local/Temp/claude/d--Coderman-bbuch-dash/e461d97f-7dd4-44d6-ad0d-a2b50fa5b410/scratchpad/check-schema.js\")",
       "Bash(node -e \"const p=require\\('d:/Coderman/bbuch_dash/package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,1\\)\\); console.log\\('tsx:', !!\\(p.devDependencies?.tsx||p.dependencies?.tsx\\), 'jest:', !!p.devDependencies?.jest, 'vitest:', !!p.devDependencies?.vitest\\)\")",
-      "Bash(NODE_PATH=\"d:/Coderman/bbuch_dash/node_modules\" node \"C:/Users/Coderman/AppData/Local/Temp/claude/d--Coderman-bbuch-dash/e461d97f-7dd4-44d6-ad0d-a2b50fa5b410/scratchpad/list-users.js\")"
+      "Bash(NODE_PATH=\"d:/Coderman/bbuch_dash/node_modules\" node \"C:/Users/Coderman/AppData/Local/Temp/claude/d--Coderman-bbuch-dash/e461d97f-7dd4-44d6-ad0d-a2b50fa5b410/scratchpad/list-users.js\")",
+      "Bash(printf 'export type AssetCheckRow = typeof assetChecks.$inferSelect;\\\\n')",
+      "Bash(npx drizzle-kit *)",
+      "Bash(NODE_PATH=d:/Coderman/bbuch_dash/node_modules node -e ' *)",
+      "Read(//tmp/**)",
+      "Bash(grep -vE \"source map|^$\")"
     ]
   }
 }

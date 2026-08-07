@@ -3,16 +3,15 @@
 import { BellRing, Loader2, Send, Sparkles, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { khoroos } from "@/data/khoroos";
 import { aimags, labelOf } from "@/data/profileOptions";
-import { sendNotificationToAimag, sendNotificationToAllUsers, sendNotificationToKhoroo, sendNotificationToRole, sendNotificationToUser } from "@/lib/fcm";
+import { sendNotificationToAimag, sendNotificationToAllUsers, sendNotificationToRole, sendNotificationToUser } from "@/lib/fcm";
 import { listUsers, roleLabels, type AppUser, type UserRole } from "@/lib/users";
 
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 
-type Audience = "all" | "khoroo" | "aimag" | "user" | "role";
+type Audience = "all" | "aimag" | "user" | "role";
 type Feedback = { type: "success" | "error" | "info"; text: string };
 
 type TemplateItem = {
@@ -32,11 +31,11 @@ const notificationTemplates: TemplateItem[] = [
     body: "Системийн шинэчлэл дууссаны дараа үйлчилгээг илүү тогтвортой ажиллуулна.",
   },
   {
-    key: "schedule",
-    label: "Хог тээвэрлэлт",
-    audience: "khoroo",
-    title: "{khoroo} — хог тээвэрлэлтийн хуваарь",
-    body: "Маргааш 08:00–10:00 цагт хог ачих машин ирнэ. Хогоо цагтаа гаргана уу.",
+    key: "gathering",
+    label: "Аймгийн цуглаан",
+    audience: "aimag",
+    title: "Аймгийн цуглаан",
+    body: "Энэ долоо хоногийн цуглааны цаг, байршлыг доорх холбоосоос харна уу.",
   },
   {
     key: "reminder",
@@ -53,7 +52,6 @@ export default function SendNotification() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [url, setUrl] = useState("");
-  const [selectedKhoroo, setSelectedKhoroo] = useState<number | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>("user");
   const [selectedAimag, setSelectedAimag] = useState("");
   const [users, setUsers] = useState<AppUser[]>([]);
@@ -86,13 +84,6 @@ export default function SendNotification() {
       return userId.trim() ? 1 : 0;
     }
 
-    if (audience === "khoroo") {
-      if (!selectedKhoroo) return 0;
-      return users.filter(
-        (user) => user.status === "active" && user.khoroo === selectedKhoroo
-      ).length;
-    }
-
     if (audience === "aimag") {
       if (!selectedAimag) return 0;
       // Нэг хүн олон аймагт харьяалагдаж болно
@@ -109,19 +100,12 @@ export default function SendNotification() {
     }
 
     return users.filter((user) => user.status === "active").length;
-  }, [audience, selectedKhoroo, selectedAimag, selectedRole, userId, users]);
-
-  const selectedKhorooName = useMemo(() => {
-    return khoroos.find((item) => item.id === selectedKhoroo)?.name ?? "";
-  }, [selectedKhoroo]);
+  }, [audience, selectedAimag, selectedRole, userId, users]);
 
   const applyTemplate = (template: TemplateItem) => {
     setAudience(template.audience);
-    if (template.audience === "khoroo") {
-      setSelectedKhoroo((prev) => prev ?? 1);
-    }
-    setTitle(template.title.replace("{khoroo}", selectedKhorooName || "Хороо"));
-    setBody(template.body.replace("{khoroo}", selectedKhorooName || "Хороо"));
+    setTitle(template.title);
+    setBody(template.body);
     setMessage(null);
   };
 
@@ -135,11 +119,6 @@ export default function SendNotification() {
 
     if (audience === "user" && !userId.trim()) {
       setMessage({ type: "error", text: "Хүлээн авагчийн User ID оруулна уу." });
-      return;
-    }
-
-    if (audience === "khoroo" && !selectedKhoroo) {
-      setMessage({ type: "error", text: "Хүлээн авах хороо сонгоно уу." });
       return;
     }
 
@@ -167,15 +146,8 @@ export default function SendNotification() {
         result = await sendNotificationToUser(userId.trim(), title.trim(), body.trim(), data);
       } else if (audience === "aimag") {
         result = await sendNotificationToAimag(selectedAimag, title.trim(), body.trim(), data);
-      } else if (audience === "role") {
-        result = await sendNotificationToRole(selectedRole, title.trim(), body.trim(), data);
       } else {
-        result = await sendNotificationToKhoroo(
-          selectedKhoroo as number,
-          title.trim(),
-          body.trim(),
-          data
-        );
+        result = await sendNotificationToRole(selectedRole, title.trim(), body.trim(), data);
       }
 
       // Мэдэгдэл нь DB-д бичигдсэн бол хүрсэнд тооцно — push нь зөвхөн
@@ -253,7 +225,6 @@ export default function SendNotification() {
             {[
               { value: "all", label: "Бүх хэрэглэгчид" },
               { value: "aimag", label: "Аймаг" },
-              { value: "khoroo", label: "Хороо" },
               { value: "role", label: "Роль" },
               { value: "user", label: "Нэг хэрэглэгч" },
             ].map((option) => (
@@ -275,11 +246,6 @@ export default function SendNotification() {
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
             <Users className="h-4 w-4" />
             {audience === "all" && <span>Идэвхтэй бүх хэрэглэгчид</span>}
-            {audience === "khoroo" && (
-              <span>
-                {selectedKhorooName || "Хороо сонгоно уу"} — {recipientCount} хэрэглэгч
-              </span>
-            )}
             {audience === "aimag" && (
               <span>
                 {selectedAimag
@@ -297,28 +263,6 @@ export default function SendNotification() {
             )}
           </div>
         </div>
-
-        {audience === "khoroo" && (
-          <div>
-            <Label>Хороо</Label>
-            <div className="flex flex-wrap gap-2">
-              {khoroos.map((khoroo) => (
-                <button
-                  key={khoroo.id}
-                  type="button"
-                  onClick={() => setSelectedKhoroo(khoroo.id)}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                    selectedKhoroo === khoroo.id
-                      ? "bg-emerald-600 text-white"
-                      : "bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-700"
-                  }`}
-                >
-                  {khoroo.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {audience === "aimag" && (
           <div>
@@ -470,11 +414,9 @@ export default function SendNotification() {
                 ? "Бүх идэвхтэй хэрэглэгчид"
                 : audience === "aimag"
                   ? `${labelOf(aimags, selectedAimag) || "Аймаг"} — ${recipientCount} хэрэглэгч`
-                  : audience === "khoroo"
-                    ? `${selectedKhorooName || "Хороо"} — ${recipientCount} хэрэглэгч`
-                    : audience === "role"
-                      ? `${roleLabels[selectedRole]} — ${recipientCount} хэрэглэгч`
-                      : `Нэг хэрэглэгч — ${recipientCount > 0 ? "ID бэлэн" : "ID оруулаагүй"}`}
+                  : audience === "role"
+                    ? `${roleLabels[selectedRole]} — ${recipientCount} хэрэглэгч`
+                    : `Нэг хэрэглэгч — ${recipientCount > 0 ? "ID бэлэн" : "ID оруулаагүй"}`}
             </p>
           </div>
           <Button type="submit" disabled={loading} className="min-w-[180px]" size="sm">
@@ -490,11 +432,9 @@ export default function SendNotification() {
                   ? "Бүх хэрэглэгчдэд илгээх"
                   : audience === "aimag"
                     ? "Аймагт илгээх"
-                    : audience === "khoroo"
-                      ? "Хороонд илгээх"
-                      : audience === "role"
-                        ? "Роль руу илгээх"
-                        : "Нэг хэрэглэгчид илгээх"}
+                    : audience === "role"
+                      ? "Роль руу илгээх"
+                      : "Нэг хэрэглэгчид илгээх"}
               </>
             )}
           </Button>

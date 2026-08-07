@@ -77,7 +77,6 @@ async function migrateUsers() {
         position: str(data.position),
         role: str(data.role, "user"),
         status: str(data.status, "active"),
-        khoroo: typeof data.khoroo === "number" ? data.khoroo : null,
         createdAt: toDate(data.createdAt),
         updatedAt: toDate(data.updatedAt ?? data.createdAt),
       })
@@ -91,8 +90,7 @@ async function migrateUsers() {
           position: str(data.position),
           role: str(data.role, "user"),
           status: str(data.status, "active"),
-          khoroo: typeof data.khoroo === "number" ? data.khoroo : null,
-        },
+          },
       });
 
     count += 1;

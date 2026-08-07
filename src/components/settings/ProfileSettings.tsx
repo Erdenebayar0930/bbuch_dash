@@ -3,7 +3,7 @@
 import Image from "next/image";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { updateProfile } from "firebase/auth";
-import Cropper, { type Area } from "react-easy-crop";
+import ImageCropModal from "@/components/common/ImageCropModal";
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import {
@@ -25,7 +25,6 @@ import {
   updateCurrentUser,
   type Child,
 } from "@/lib/users";
-import { Modal } from "@/components/ui/modal";
 import ChildrenEditor from "./ChildrenEditor";
 import SettingsField from "./SettingsField";
 import SettingsSelect from "./SettingsSelect";
@@ -65,51 +64,6 @@ const emptyForm: ProfileForm = {
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
-
-async function createImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    // next/image-ийн `Image`-ээс ялгахын тулд DOM элементийг шууд үүсгэнэ.
-    const image = document.createElement("img");
-    image.addEventListener("load", () => resolve(image));
-    image.addEventListener("error", (error) => reject(error));
-    image.crossOrigin = "anonymous";
-    image.src = url;
-  });
-}
-
-async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
-  const image = await createImage(imageSrc);
-  const canvas = document.createElement("canvas");
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Canvas context is not available");
-  }
-
-  ctx.drawImage(
-    image,
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height,
-    0,
-    0,
-    pixelCrop.width,
-    pixelCrop.height
-  );
-
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob);
-      } else {
-        reject(new Error("Зураг боловсруулахад алдаа гарлаа."));
-      }
-    }, "image/jpeg", 0.92);
-  });
-}
 
 /** Админ оноодог утгуудыг зөвхөн харуулах шошго */
 function ReadOnlyTags({
@@ -191,11 +145,8 @@ export default function ProfileSettings() {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(
     auth.currentUser?.photoURL ?? null
   );
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
-  const [isCropOpen, setIsCropOpen] = useState(false);
+  /** Тайрахаар хүлээж буй файл — null бол цонх хаалттай */
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
   const [photoState, setPhotoState] = useState<SaveState>("idle");
   const [photoError, setPhotoError] = useState<string | null>(null);
 
@@ -267,14 +218,6 @@ export default function ProfileSettings() {
       cancelled = true;
     };
   }, [user]);
-
-  useEffect(() => {
-    return () => {
-      if (imageSrc) {
-        URL.revokeObjectURL(imageSrc);
-      }
-    };
-  }, [imageSrc]);
 
   const update = useCallback(
     <K extends keyof ProfileForm>(key: K, value: ProfileForm[K]) => {
@@ -381,33 +324,19 @@ export default function ProfileSettings() {
 
     setPhotoState("idle");
     setPhotoError(null);
-    setImageSrc(URL.createObjectURL(file));
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setIsCropOpen(true);
+    setPendingPhoto(file);
   };
 
-  const onCropComplete = useCallback((_: Area, croppedArea: Area) => {
-    setCroppedAreaPixels(croppedArea);
-  }, []);
+  /** Тайрсан зургийг Storage-д тавьж, Auth ба Postgres-д хоёуланд нь бичнэ */
+  const handleCropDone = async (blob: Blob) => {
+    setPendingPhoto(null);
 
-  const resetCropper = () => {
-    setImageSrc(null);
-    setCroppedAreaPixels(null);
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setIsCropOpen(false);
-    setPhotoError(null);
-  };
-
-  const handleUploadSave = async () => {
-    if (!auth.currentUser || !imageSrc || !croppedAreaPixels) return;
+    if (!auth.currentUser) return;
 
     setPhotoState("saving");
     setPhotoError(null);
 
     try {
-      const blob = await getCroppedImg(imageSrc, croppedAreaPixels);
       const downloadUrl = await uploadProfilePhoto(auth.currentUser.uid, blob);
 
       // Firebase Auth дээр — бусад төхөөрөмж дээр шууд харагдана,
@@ -419,7 +348,6 @@ export default function ProfileSettings() {
       if (user) {
         setUser({ ...user, photoURL: downloadUrl });
       }
-      resetCropper();
       setPhotoState("saved");
     } catch (error) {
       console.error("Профайл зураг хадгалах үед алдаа гарлаа:", error);
@@ -537,74 +465,14 @@ export default function ProfileSettings() {
         onChange={handleImageSelect}
       />
 
-      <Modal isOpen={isCropOpen} onClose={resetCropper} className="max-w-4xl p-4">
-        <div className="grid gap-4">
-          <div className="relative h-[420px] w-full overflow-hidden rounded-3xl bg-black">
-            {imageSrc ? (
-              <Cropper
-                image={imageSrc}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-white/70">
-                Зураг ачаалж байна...
-              </div>
-            )}
-          </div>
-
-          <div className="grid gap-3 rounded-3xl bg-white p-4 shadow-theme-sm dark:bg-gray-900">
-            <div className="space-y-2">
-              <p className="text-theme-sm font-semibold text-gray-900 dark:text-white">
-                Зургийг тайрах
-              </p>
-              <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                Зөвшөөрөгдсөн талбар: квадрат дүрс. Хайлтын хэсгийг тааруулна.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-theme-sm font-medium text-gray-700 dark:text-gray-300">
-                Томруулалт
-              </label>
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.01}
-                value={zoom}
-                onChange={(event) => setZoom(Number(event.target.value))}
-                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-200 dark:bg-white/10"
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={resetCropper}
-                className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-theme-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
-              >
-                Буцах
-              </button>
-              <button
-                type="button"
-                onClick={handleUploadSave}
-                disabled={photoState === "saving"}
-                className="rounded-lg bg-accent-600 px-4 py-2 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {photoState === "saving" ? "Хадгалж байна..." : "Зургийг хадгалах"}
-              </button>
-            </div>
-            {photoError && (
-              <p className="text-theme-xs text-error-500">{photoError}</p>
-            )}
-          </div>
-        </div>
-      </Modal>
+      {/* Профайл зураг — квадрат, 512px хүртэл багасгана */}
+      <ImageCropModal
+        file={pendingPhoto}
+        aspect={1}
+        maxDimension={512}
+        onCancel={() => setPendingPhoto(null)}
+        onDone={handleCropDone}
+      />
 
       {/* --- Ерөнхий --- */}
       <section className="mt-8">

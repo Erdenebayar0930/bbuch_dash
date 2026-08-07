@@ -1,21 +1,30 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { isLocalLoggedIn } from "@/lib/biometric";
 
+// localStorage бол React-ийн гаднах store — effect дотор setState дуудахын оронд
+// useSyncExternalStore-оор уншина. Server дээр `null` = "хараахан мэдэгдэхгүй".
+function subscribe(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  return () => window.removeEventListener("storage", onStoreChange);
+}
+
 export default function LocalAuthGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const loggedIn = useSyncExternalStore(
+    subscribe,
+    () => isLocalLoggedIn(),
+    () => null
+  );
 
   useEffect(() => {
-    if (!isLocalLoggedIn()) {
+    if (loggedIn === false) {
       router.replace("/login");
-      return;
     }
-    setLoading(false);
-  }, [router]);
+  }, [loggedIn, router]);
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loggedIn !== true) return <div className="p-6">Loading...</div>;
   return <>{children}</>;
 }

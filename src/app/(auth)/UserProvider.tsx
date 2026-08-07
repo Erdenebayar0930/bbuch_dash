@@ -6,9 +6,8 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useState,
+  useSyncExternalStore,
 } from "react";
 
 type UserType = {
@@ -30,30 +29,57 @@ type UserContextType = {
 
 const UserContext = createContext<UserContextType | null>(null);
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUserState] = useState<UserType | null>(null);
+const STORAGE_KEY = "user";
 
-  // 🔹 SessionStorage-аас user сэргээх
-  useEffect(() => {
-    const cached = sessionStorage.getItem("user");
-    if (cached) {
-      setUserState(JSON.parse(cached));
+// 🔹 SessionStorage бол React-ийн гаднах store тул useSyncExternalStore-оор
+// уншина. Ингэснээр effect дотор setState дуудахгүй, SSR/hydration зөрөхгүй.
+const listeners = new Set<() => void>();
+let cachedRaw: string | null = null;
+let cachedUser: UserType | null = null;
+
+function readCachedUser(): UserType | null {
+  const raw = sessionStorage.getItem(STORAGE_KEY);
+  // getSnapshot нь тогтвортой утга буцаах ёстой тул parse-ийг memo-лно.
+  if (raw !== cachedRaw) {
+    cachedRaw = raw;
+    try {
+      cachedUser = raw ? (JSON.parse(raw) as UserType) : null;
+    } catch {
+      cachedUser = null;
     }
-  }, []);
+  }
+  return cachedUser;
+}
+
+function subscribe(onStoreChange: () => void) {
+  listeners.add(onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    listeners.delete(onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+function writeCachedUser(u: UserType | null) {
+  if (u) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+  else sessionStorage.removeItem(STORAGE_KEY);
+  listeners.forEach((l) => l());
+}
+
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  const user = useSyncExternalStore(subscribe, readCachedUser, () => null);
 
   // 🔹 setUser дээр cache хийж хадгалах
   // useCallback заавал — AdminGuard эдгээрийг effect-ийн хамаарал болгон
   // ашигладаг тул рендер бүрт шинэ функц үүсвэл шалгалт төгсгөлгүй давтагдана.
   const setUser = useCallback((u: UserType) => {
-    setUserState(u);
-    sessionStorage.setItem("user", JSON.stringify(u));
+    writeCachedUser(u);
   }, []);
 
   // 🔹 logout
   const logout = useCallback(() => {
     signOut(auth);
-    setUserState(null);
-    sessionStorage.removeItem("user");
+    writeCachedUser(null);
   }, []);
 
   const value = useMemo(

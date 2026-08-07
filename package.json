@@ -28,6 +28,7 @@
     "apexcharts": "^4.7.0",
     "autoprefixer": "^10.4.22",
     "drizzle-orm": "^0.45.2",
+    "exceljs": "^4.4.0",
     "firebase": "^12.7.0",
     "firebase-admin": "^13.10.0",
     "flatpickr": "^4.6.13",

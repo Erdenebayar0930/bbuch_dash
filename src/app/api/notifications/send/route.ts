@@ -19,7 +19,6 @@ const FCM_BATCH_SIZE = 500;
 
 type Target =
   | { type: "all" }
-  | { type: "khoroo"; khoroo: number }
   | { type: "aimag"; aimag: string }
   | { type: "role"; role: string }
   | { type: "user"; userId: string };
@@ -38,9 +37,7 @@ async function resolveRecipients(target: Target): Promise<string[]> {
   }
 
   const where =
-    target.type === "khoroo"
-      ? and(eq(users.status, "active"), eq(users.khoroo, target.khoroo))
-      : target.type === "aimag"
+    target.type === "aimag"
       ? // Нэг хүн олон аймагт харьяалагдаж болох тул containment хайлт
         and(
           eq(users.status, "active"),
@@ -115,7 +112,6 @@ export async function POST(request: NextRequest) {
 
     if (
       !target ||
-      (target.type === "khoroo" && typeof target.khoroo !== "number") ||
       (target.type === "role" && !target.role) ||
       (target.type === "user" && !target.userId)
     ) {
@@ -175,9 +171,6 @@ export async function POST(request: NextRequest) {
     }
 
     const payloadData: Record<string, string> = { ...(data ?? {}) };
-    if (target.type === "khoroo") {
-      payloadData.khoroo = String(target.khoroo);
-    }
     if (target.type === "aimag") {
       payloadData.aimag = target.aimag;
     }

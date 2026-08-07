@@ -42,8 +42,6 @@ export type AppUser = {
 
   role: UserRole;
   status: UserStatus;
-  /** Харьяалагдах хорооны дугаар — мэдэгдлийг хороогоор чиглүүлэхэд ашиглана */
-  khoroo: number | null;
   createdAt: Date | null;
 };
 
@@ -68,7 +66,6 @@ type UserRow = {
   spouseBirthDate: string | null;
   role: string;
   status: string;
-  khoroo: number | null;
   createdAt: string | null;
 };
 
@@ -94,7 +91,6 @@ function toAppUser(row: UserRow): AppUser {
     spouse_birth_date: row.spouseBirthDate ?? "",
     role: asRole(row.role),
     status: (row.status ?? "active") as UserStatus,
-    khoroo: typeof row.khoroo === "number" ? row.khoroo : null,
     createdAt: row.createdAt ? new Date(row.createdAt) : null,
   };
 }
@@ -199,7 +195,6 @@ export async function updateCurrentUser(patch: {
   position?: string;
   /** Firebase Storage-ийн URL, эсвэл зургийг авахын тулд хоосон мөр */
   photoUrl?: string;
-  khoroo?: number | null;
   mbti?: string;
   loveLanguage?: string;
   /** Сонгосон темперамент бүр оноотойгоо; сонгоогүйг огт оруулахгүй */
@@ -293,19 +288,6 @@ export async function setUserChurchInfo(
   patch: { aimags?: string[]; callings?: string[] }
 ) {
   await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: patch });
-}
-
-/** Хэрэглэгчийн харьяа хороог солино (зөвхөн админ). */
-export async function setUserKhoroo(uid: string, khoroo: number | null) {
-  await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: { khoroo } });
-}
-
-/** Тухайн хорооны идэвхтэй хэрэглэгчид (жагсаалт, тооллого харуулахад). */
-export async function listUsersByKhoroo(khoroo: number): Promise<AppUser[]> {
-  const users = await listUsers();
-  return users.filter(
-    (user) => user.khoroo === khoroo && user.status === "active"
-  );
 }
 
 export { roleLabels, roleDescriptions, statusLabels } from "./permissions";

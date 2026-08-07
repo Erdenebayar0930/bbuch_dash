@@ -164,12 +164,8 @@ export type SendResult = {
   removedTokens: number;
 };
 
-/** Хуучин нэр — хойшдын нийцтэй байдлын үүднээс үлдээв */
-export type KhorooSendResult = SendResult;
-
 type Target =
   | { type: "all" }
-  | { type: "khoroo"; khoroo: number }
   | { type: "aimag"; aimag: string }
   | { type: "role"; role: UserRole }
   | { type: "user"; userId: string };
@@ -222,21 +218,9 @@ export async function sendNotificationToAllUsers(
 }
 
 /**
- * Тодорхой хорооны идэвхтэй хэрэглэгчдэд мэдэгдэл илгээнэ.
- * users/{uid}.khoroo талбарт тулгуурлан хүлээн авагчдыг сонгоно.
- */
-export async function sendNotificationToKhoroo(
-  khoroo: number,
-  title: string,
-  body: string,
-  data?: { [key: string]: string }
-): Promise<SendResult> {
-  return postNotification({ type: "khoroo", khoroo }, title, body, data);
-}
-
-/**
  * Тодорхой аймгийн идэвхтэй хэрэглэгчдэд мэдэгдэл илгээнэ.
- * users.aimag талбарт тулгуурлан хүлээн авагчдыг сонгоно.
+ * users.aimags жагсаалтад тулгуурлан хүлээн авагчдыг сонгоно — нэг хүн
+ * олон аймагт харьяалагдаж болно.
  */
 export async function sendNotificationToAimag(
   aimag: string,

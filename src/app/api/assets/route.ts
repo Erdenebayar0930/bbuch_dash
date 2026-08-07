@@ -1,0 +1,136 @@
+import { asc, desc, eq, sql } from "drizzle-orm";
+import { NextResponse } from "next/server";
+
+import { aimags, isValidOption } from "@/data/profileOptions";
+import { readAsset } from "@/lib/api/assetInput";
+import {
+  badRequest,
+  requireActiveUser,
+  requireAdmin,
+  serverError,
+} from "@/lib/api/auth";
+import { db } from "@/lib/db";
+import {
+  assetCategories,
+  assetImages,
+  assets,
+  warehouses,
+} from "@/lib/db/schema";
+
+import type { NextRequest } from "next/server";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+/**
+ * Бүх эд хөрөнгө — агуулах, төрлийн нэртэй хамт.
+ *
+ * `?aimag=praise` өгвөл зөвхөн тухайн аймгийн хөрөнгө буцна. Аймгийн тусдаа
+ * цэс (жишээ нь Магтаалын аймаг) эндээс уншина.
+ */
+export async function GET(request: NextRequest) {
+  const result = await requireActiveUser(request);
+  if ("error" in result) return result.error;
+
+  // Хүсэлтээр ирсэн аймаг тогтсон жагсаалтад байх ёстой — таарахгүй бол
+  // чимээгүй бүгдийг буцаахын оронд алдаа өгнө.
+  const aimagParam = request.nextUrl.searchParams.get("aimag");
+  if (aimagParam !== null && !isValidOption(aimags, aimagParam)) {
+    return badRequest("Аймаг буруу байна.");
+  }
+
+  try {
+    const rows = await db
+      .select({
+        id: assets.id,
+        name: assets.name,
+        aimag: assets.aimag,
+        categoryId: assets.categoryId,
+        categoryName: assetCategories.name,
+        warehouseId: assets.warehouseId,
+        warehouseName: warehouses.name,
+        quantity: assets.quantity,
+        unit: assets.unit,
+        code: assets.code,
+        note: assets.note,
+        createdAt: assets.createdAt,
+      })
+      .from(assets)
+      .leftJoin(assetCategories, eq(assets.categoryId, assetCategories.id))
+      .leftJoin(warehouses, eq(assets.warehouseId, warehouses.id))
+      .where(aimagParam === null ? undefined : eq(assets.aimag, aimagParam))
+      .orderBy(desc(assets.createdAt));
+
+    // Зургийг тусад нь татаад бүлэглэнэ — join хийвэл хөрөнгийн мөр давхардана
+    const imageRows = await db
+      .select()
+      .from(assetImages)
+      .orderBy(asc(assetImages.position));
+
+    const byAsset = new Map<string, typeof imageRows>();
+    for (const image of imageRows) {
+      const list = byAsset.get(image.assetId) ?? [];
+      list.push(image);
+      byAsset.set(image.assetId, list);
+    }
+
+    // Хөрөнгө тус бүрийн ХАМГИЙН СҮҮЛИЙН шалгалт — DISTINCT ON нь Postgres дээр
+    // хамгийн хямд арга, бүх түүхийг татаад шүүх шаардлагагүй.
+    const latestChecks = await db.execute<{
+      asset_id: string;
+      status: string;
+      found_quantity: number;
+      checked_at: string;
+    }>(sql`
+      select distinct on (asset_id)
+        asset_id, status, found_quantity, checked_at
+      from asset_checks
+      order by asset_id, checked_at desc
+    `);
+
+    const checkByAsset = new Map(
+      latestChecks.rows.map((row) => [
+        row.asset_id,
+        {
+          status: row.status,
+          foundQuantity: row.found_quantity,
+          checkedAt: row.checked_at,
+        },
+      ])
+    );
+
+    return NextResponse.json({
+      assets: rows.map((row) => ({
+        ...row,
+        images: byAsset.get(row.id) ?? [],
+        lastCheck: checkByAsset.get(row.id) ?? null,
+      })),
+    });
+  } catch (error) {
+    return serverError(error, "Эд хөрөнгө уншихад алдаа гарлаа");
+  }
+}
+
+/** Шинэ эд хөрөнгө бүртгэнэ (зөвхөн админ). */
+export async function POST(request: NextRequest) {
+  const result = await requireAdmin(request);
+  if ("error" in result) return result.error;
+
+  try {
+    const parsed = await readAsset(await request.json().catch(() => ({})), false);
+    if (!parsed.ok) return badRequest(parsed.error);
+
+    const [created] = await db
+      .insert(assets)
+      .values({
+        ...parsed.value,
+        name: parsed.value.name as string,
+        createdBy: result.caller.uid,
+      })
+      .returning();
+
+    return NextResponse.json({ asset: created });
+  } catch (error) {
+    return serverError(error, "Эд хөрөнгө бүртгэхэд алдаа гарлаа");
+  }
+}

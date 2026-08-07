@@ -191,13 +191,6 @@ export async function PATCH(request: NextRequest) {
       patch.photoUrl = body.photoUrl;
     }
 
-    if (body.khoroo !== undefined) {
-      if (body.khoroo !== null && typeof body.khoroo !== "number") {
-        return badRequest("khoroo нь тоо эсвэл null байна.");
-      }
-      patch.khoroo = body.khoroo;
-    }
-
     if (Object.keys(patch).length === 1) {
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }

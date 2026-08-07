@@ -13,7 +13,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import {
   asRole,
-  canChangeKhoroo,
+  canAssignGroups,
   canChangeRole,
   canChangeStatus,
   keepsLastSuper,
@@ -166,7 +166,7 @@ export async function PATCH(
       const parsed = readAimags(body.aimags);
       if (!parsed.ok) return badRequest(parsed.error);
 
-      checks.push(canChangeKhoroo(actor, target));
+      checks.push(canAssignGroups(actor, target));
       patch.aimags = parsed.value;
     }
 
@@ -174,17 +174,8 @@ export async function PATCH(
       const parsed = readCallings(body.callings);
       if (!parsed.ok) return badRequest(parsed.error);
 
-      checks.push(canChangeKhoroo(actor, target));
+      checks.push(canAssignGroups(actor, target));
       patch.callings = parsed.value;
-    }
-
-    if (body.khoroo !== undefined) {
-      if (body.khoroo !== null && typeof body.khoroo !== "number") {
-        return badRequest("khoroo нь тоо эсвэл null байна.");
-      }
-
-      checks.push(canChangeKhoroo(actor, target));
-      patch.khoroo = body.khoroo;
     }
 
     if (Object.keys(patch).length === 1) {

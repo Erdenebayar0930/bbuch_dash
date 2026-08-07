@@ -108,8 +108,12 @@ export function canChangeStatus(actor: Actor, target: Target): Permission {
   return allow;
 }
 
-/** Хороо оноох — төлөвтэй ижил шатлал, гэхдээ өөрийнхөө хороог зөвшөөрнө. */
-export function canChangeKhoroo(actor: Actor, target: Target): Permission {
+/**
+ * Бүлэг оноох (аймаг, дуудлага) — төлөвтэй ижил шатлал, гэхдээ өөрийнхөө
+ * мэдээллийг зөвшөөрнө. Эдгээр нь эрхийн шатлалд нөлөөлөхгүй тул эрх олгохоос
+ * илүү сул шалгалттай.
+ */
+export function canAssignGroups(actor: Actor, target: Target): Permission {
   if (!isAdminRole(actor.role)) {
     return deny("Зөвхөн админ хийх боломжтой үйлдэл.");
   }

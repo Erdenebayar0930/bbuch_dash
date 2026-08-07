@@ -4,7 +4,6 @@ import { MapPin, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import LeafletMap from "./LeafletMap";
-import SendKhorooNotification from "./SendKhorooNotification";
 import { allWastePoints, khoroos, tonnage } from "@/data/khoroos";
 
 export default function MapPage() {
@@ -42,11 +41,6 @@ export default function MapPage() {
           />
         </div>
       </div>
-
-      <SendKhorooNotification
-        selectedKhorooId={selectedKhorooId}
-        onSelectKhoroo={setSelectedKhorooId}
-      />
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
