@@ -19,6 +19,11 @@ type UserType = {
   /** active | pending | blocked */
   status?: string;
   photoURL?: string;
+  /**
+   * Харьяалагдах аймгуудын түлхүүр. Цэсийг аймгаар шүүхэд ашиглана —
+   * хуучин сессийн кэшэд байхгүй байж болох тул заавал биш.
+   */
+  aimags?: string[];
 };
 
 type UserContextType = {

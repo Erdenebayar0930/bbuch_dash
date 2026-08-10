@@ -4,8 +4,8 @@ import { NextResponse } from "next/server";
 import { isVisitStatus } from "@/data/donationBoxOptions";
 import {
   badRequest,
-  requireActiveUser,
   requireAdmin,
+  requireAimag,
   serverError,
 } from "@/lib/api/auth";
 import { db } from "@/lib/db";
@@ -15,6 +15,9 @@ import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** Хандивын хайрцаг нь Туслах үйлчлэх аймгийн хариуцлага */
+const AIMAG = "service";
 
 /** Нэг хайрцгийн түүхэнд буцаах эргэлтийн дээд тоо */
 const HISTORY_LIMIT = 20;
@@ -30,7 +33,7 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireActiveUser(request);
+  const result = await requireAimag(request, AIMAG);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;

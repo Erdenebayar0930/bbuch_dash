@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 
+import AimagGuard from "@/components/AimagGuard";
 import DonationBoxMap from "@/components/finance/DonationBoxMap";
 
 export const metadata: Metadata = {
@@ -20,7 +21,9 @@ export default function DonationBoxPage() {
       </div>
 
       {/* Хайрцаг хаана байрлаж байгаа нь — газрын зураг дээрх тэмдэглэгээ */}
-      <DonationBoxMap />
+      <AimagGuard aimag="service">
+        <DonationBoxMap />
+      </AimagGuard>
     </div>
   );
 }

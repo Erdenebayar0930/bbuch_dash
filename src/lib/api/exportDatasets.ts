@@ -51,6 +51,11 @@ export type Dataset = {
   /** Татагдах файлын харагдах нэр */
   label: string;
   adminOnly: boolean;
+  /**
+   * Аль аймгийн өгөгдөл вэ. Заасан бол тухайн аймгийн гишүүн (эсвэл админ) л
+   * татна — эс бөгөөс цэс, хуудсыг хаачихаад татацаар нь бүгд гоожно.
+   */
+  aimag?: string;
   // Хуудас бүр өөр мөрийн төрөлтэй — гетероген массивт `any` зайлшгүй
   build: () => Promise<Sheet<any>[]>;
 };
@@ -60,6 +65,7 @@ const welfareDataset: Dataset = {
   key: "welfare",
   label: "Халамжийн үйлчлэл",
   adminOnly: false,
+  aimag: "tahilt",
   build: async () => {
     const households = await db
       .select()
@@ -129,6 +135,7 @@ const donationBoxDataset: Dataset = {
   key: "donation-boxes",
   label: "Хандивын хайрцаг",
   adminOnly: false,
+  aimag: "service",
   build: async () => {
     const boxes = await db
       .select()
@@ -252,6 +259,7 @@ const purchaseDataset: Dataset = {
   key: "purchases",
   label: "Худалдан авах жагсаалт",
   adminOnly: false,
+  aimag: "supply",
   build: async () => {
     const rows = await db
       .select({
@@ -423,6 +431,7 @@ const scheduleDatasets: Dataset[] = scheduleKinds.map((kind) => {
     key: `schedule-${kind}`,
     label: `${config.label} — хуваарь`,
     adminOnly: false,
+    aimag: "commission",
     build: async () => {
       const rows = await db
         .select({

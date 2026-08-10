@@ -5,8 +5,8 @@ import {
   badRequest,
   forbidden,
   isAdminRole,
-  requireActiveUser,
   requireAdmin,
+  requireAimag,
   serverError,
 } from "@/lib/api/auth";
 import { assigneeJoin, shiftColumns } from "@/lib/api/schedule";
@@ -18,6 +18,9 @@ import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** Мод услах ба Дулаанхаан нь Агуу захирамжийн аймгийн хариуцлага */
+const AIMAG = "commission";
 
 const notFound = () => NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
 
@@ -32,7 +35,7 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireActiveUser(request);
+  const result = await requireAimag(request, AIMAG);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;

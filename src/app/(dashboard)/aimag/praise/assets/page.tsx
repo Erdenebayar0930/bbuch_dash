@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 
+import AimagGuard from "@/components/AimagGuard";
 import AssetRegistry from "@/components/assets/AssetRegistry";
 import { aimags, labelOf } from "@/data/profileOptions";
 
@@ -23,7 +24,9 @@ export default function PraiseAssetsPage() {
         </p>
       </div>
 
-      <AssetRegistry aimag={AIMAG} />
+      <AimagGuard aimag={AIMAG}>
+        <AssetRegistry aimag={AIMAG} />
+      </AimagGuard>
     </div>
   );
 }

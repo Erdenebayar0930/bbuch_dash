@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 
+import AimagGuard from "@/components/AimagGuard";
 import ScheduleBoard from "@/components/schedule/ScheduleBoard";
 
 export const metadata: Metadata = {
@@ -19,7 +20,9 @@ export default function WateringPage() {
         </p>
       </div>
 
-      <ScheduleBoard kind="watering" />
+      <AimagGuard aimag="commission">
+        <ScheduleBoard kind="watering" />
+      </AimagGuard>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 
+import AimagGuard from "@/components/AimagGuard";
 import PurchaseList from "@/components/supply/PurchaseList";
 
 export const metadata: Metadata = {
@@ -19,7 +20,9 @@ export default function PurchasesPage() {
         </p>
       </div>
 
-      <PurchaseList />
+      <AimagGuard aimag="supply">
+        <PurchaseList />
+      </AimagGuard>
     </div>
   );
 }

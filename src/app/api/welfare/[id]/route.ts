@@ -1,10 +1,16 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
+import {
+  badRequest,
+  forbidden,
+  isSuperRole,
+  requireAdmin,
+  serverError,
+} from "@/lib/api/auth";
 import { readWelfareHousehold } from "@/lib/api/welfareInput";
 import { db } from "@/lib/db";
-import { welfareHouseholds } from "@/lib/db/schema";
+import { welfareAids, welfareHouseholds } from "@/lib/db/schema";
 
 import type { NextRequest } from "next/server";
 
@@ -48,7 +54,14 @@ export async function PATCH(
   }
 }
 
-/** Өрхийг устгана (зөвхөн админ). Халамжийн түүх нь дагаж устана. */
+/**
+ * Өрхийг устгана.
+ *
+ * Халамжийн түүх нь `cascade`-ээр дагаж устдаг тул ХАЛАМЖ ҮЗҮҮЛСЭН өрхийг
+ * устгах нь зарцуулсан мөнгөний бүртгэлийг хамт арилгана — ийм устгалыг
+ * зөвхөн super эрхтэй хүн хийнэ. Түүхгүй өрхийг админ устгаж болно
+ * (алдаатай бүртгэлийг цэвэрлэх нь өдөр тутмын ажил).
+ */
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -59,6 +72,17 @@ export async function DELETE(
   const { id } = await context.params;
 
   try {
+    const [{ aidCount }] = await db
+      .select({ aidCount: sql<number>`count(*)::int` })
+      .from(welfareAids)
+      .where(eq(welfareAids.householdId, id));
+
+    if (aidCount > 0 && !isSuperRole(result.caller.user?.role)) {
+      return forbidden(
+        `Энэ өрхөд ${aidCount} халамжийн бүртгэл байна. Түүхтэй өрхийг зөвхөн super эрхтэй хэрэглэгч устгана.`
+      );
+    }
+
     const [deleted] = await db
       .delete(welfareHouseholds)
       .where(eq(welfareHouseholds.id, id))

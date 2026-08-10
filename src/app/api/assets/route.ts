@@ -7,6 +7,7 @@ import {
   badRequest,
   requireActiveUser,
   requireAdmin,
+  requireAimag,
   serverError,
 } from "@/lib/api/auth";
 import { db } from "@/lib/db";
@@ -25,16 +26,22 @@ export const dynamic = "force-dynamic";
 /**
  * Бүх эд хөрөнгө — агуулах, төрлийн нэртэй хамт.
  *
- * `?aimag=praise` өгвөл зөвхөн тухайн аймгийн хөрөнгө буцна. Аймгийн тусдаа
- * цэс (жишээ нь Магтаалын аймаг) эндээс уншина.
+ * `?aimag=praise` өгвөл зөвхөн тухайн аймгийн хөрөнгө буцна; ийм хүсэлтийг
+ * тухайн аймгийн гишүүн (эсвэл админ) л хийж чадна. Аймаггүй хүсэлт нь
+ * чуулган нийтийн бүртгэл тул бүх идэвхтэй хэрэглэгчид нээлттэй.
  */
 export async function GET(request: NextRequest) {
-  const result = await requireActiveUser(request);
-  if ("error" in result) return result.error;
-
   // Хүсэлтээр ирсэн аймаг тогтсон жагсаалтад байх ёстой — таарахгүй бол
   // чимээгүй бүгдийг буцаахын оронд алдаа өгнө.
   const aimagParam = request.nextUrl.searchParams.get("aimag");
+
+  const result =
+    aimagParam && isValidOption(aimags, aimagParam)
+      ? await requireAimag(request, aimagParam)
+      : await requireActiveUser(request);
+
+  if ("error" in result) return result.error;
+
   if (aimagParam !== null && !isValidOption(aimags, aimagParam)) {
     return badRequest("Аймаг буруу байна.");
   }

@@ -7,7 +7,7 @@ import { Crosshair, Loader2, MapPin, Plus, RefreshCw, X } from "lucide-react";
 import { useUser } from "@/app/(auth)/UserProvider";
 import ExportButton from "@/components/common/ExportButton";
 import { getCurrentCoords } from "@/lib/geolocation";
-import { isAdminRole } from "@/lib/permissions";
+import { isAdminRole, isSuperRole } from "@/lib/permissions";
 import {
   deleteHousehold,
   listHouseholds,
@@ -44,6 +44,15 @@ const LeafletMap = dynamic(() => import("./WelfareLeafletMap"), {
 export default function WelfareMap() {
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
+  const isSuper = isSuperRole(user?.role);
+
+  /**
+   * Халамжийн түүхтэй өрхийг устгах нь зарцуулсан мөнгөний бүртгэлийг хамт
+   * арилгана (cascade) — тиймээс зөвхөн super. Түүхгүйг админ устгана.
+   * Сервер тал мөн үүнийг шалгадаг; энэ нь зөвхөн UI-н тусгал.
+   */
+  const canDelete = (household: WelfareHousehold) =>
+    isAdmin && (household.aidCount === 0 || isSuper);
 
   const [households, setHouseholds] = useState<WelfareHousehold[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,13 +124,13 @@ export default function WelfareMap() {
   };
 
   const handleDelete = async (household: WelfareHousehold) => {
-    if (
-      !window.confirm(
-        `"${household.name}" өрхийг халамжийн түүхтэй нь хамт устгах уу?`
-      )
-    ) {
-      return;
-    }
+    // Хэдэн бүртгэл алдагдахыг нэрлэж хэлнэ — "хамт устгах уу?" гэдэг нь
+    // хэр том алдагдал болохыг харуулахгүй
+    const warning = household.aidCount
+      ? `"${household.name}" өрхийг устгавал ${household.aidCount} халамжийн бүртгэл (нийт ${money.format(household.totalAmount)}₮) хамт устана. Үргэлжлүүлэх үү?`
+      : `"${household.name}" өрхийг устгах уу?`;
+
+    if (!window.confirm(warning)) return;
 
     setError("");
 
@@ -229,6 +238,7 @@ export default function WelfareMap() {
           onDelete={handleDelete}
           onAid={setAiding}
           canManage={isAdmin}
+          canDelete={canDelete}
         />
       </div>
 

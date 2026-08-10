@@ -4,8 +4,8 @@ import { NextResponse } from "next/server";
 import { isScheduleKind, scheduleConfigs } from "@/data/scheduleOptions";
 import {
   badRequest,
-  requireActiveUser,
   requireAdmin,
+  requireAimag,
   serverError,
 } from "@/lib/api/auth";
 import { notifyUsers } from "@/lib/api/notify";
@@ -19,6 +19,9 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Мод услах ба Дулаанхаан нь Агуу захирамжийн аймгийн хариуцлага */
+const AIMAG = "commission";
+
 const isDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 /**
@@ -27,10 +30,10 @@ const isDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
  * `?kind=watering|dulaankhaan` заавал: хоёр хуваарь нэг хүснэгтэд сууна.
  * `?from=YYYY-MM-DD&to=YYYY-MM-DD` — хугацааны хязгаар. Огноо нь текст боловч
  * ISO хэлбэр лексикографаар зөв эрэмбэлэгддэг тул шууд харьцуулж болно.
- * Уншихыг бүх идэвхтэй хэрэглэгчид нээлттэй — хуваарь бол нийтийн мэдээлэл.
+ * Зөвхөн Агуу захирамжийн аймгийн гишүүд ба админ уншина.
  */
 export async function GET(request: NextRequest) {
-  const result = await requireActiveUser(request);
+  const result = await requireAimag(request, AIMAG);
   if ("error" in result) return result.error;
 
   const { searchParams } = new URL(request.url);

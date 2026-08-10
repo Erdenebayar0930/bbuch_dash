@@ -8,7 +8,7 @@ import { BarChart3, ChevronDown, LogOut, Settings } from "lucide-react";
 import { useSidebar } from "../context/SidebarContext";
 import { useUser } from "@/app/(auth)/UserProvider";
 import { auth } from "@/lib/firebase";
-import { navItems } from "./navigation";
+import { canSeeNavItem, navItems } from "./navigation";
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
@@ -25,9 +25,9 @@ const AppSidebar: React.FC = () => {
   // Дэлгэрэнгүй (тексттэй) горимд байгаа эсэх
   const showLabels = isExpanded || isHovered || isMobileOpen;
 
-  // Админы цэсийг зөвхөн админд харуулна
-  const visibleNavItems = navItems.filter(
-    (item) => !item.adminOnly || user?.role === "admin" || user?.role === "super"
+  // Админы цэс зөвхөн админд; аймгийн цэс зөвхөн тухайн аймгийн гишүүдэд
+  const visibleNavItems = navItems.filter((item) =>
+    canSeeNavItem(item, { role: user?.role, aimags: user?.aimags })
   );
 
   const isActive = (path: string) =>

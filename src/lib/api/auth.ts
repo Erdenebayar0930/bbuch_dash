@@ -102,6 +102,30 @@ export async function requireAdmin(request: NextRequest) {
   return result;
 }
 
+/**
+ * Тухайн аймагт харьяалагдах эсэхийг шаардана.
+ *
+ * Админ ба super бүх аймагт нэвтэрнэ — тэд бүхнийг хянадаг. Цэс нуух нь
+ * зөвхөн UI; жинхэнэ хаалт нь ЭНЭ функц: хаягаар нь шууд орсон ч, API руу
+ * гараар хүсэлт явуулсан ч аймгийн гишүүн биш бол өгөгдөл гарахгүй.
+ */
+export async function requireAimag(request: NextRequest, aimag: string) {
+  const result = await requireActiveUser(request);
+
+  if ("error" in result) return result;
+  if (isAdminRole(result.caller.user?.role)) return result;
+
+  const aimags = result.caller.user?.aimags ?? [];
+
+  if (!aimags.includes(aimag)) {
+    return {
+      error: forbidden("Энэ хэсэг таны харьяалагдах аймагт хамаарахгүй."),
+    } as const;
+  }
+
+  return result;
+}
+
 /** Зөвхөн супер админ — эрх олгох зэрэг шатлал өөрчлөх үйлдэлд. */
 export async function requireSuper(request: NextRequest) {
   const result = await requireActiveUser(request);

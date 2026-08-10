@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -95,6 +96,19 @@ export const transactions = pgTable(
     status: text("status").notNull().default("approved"),
     /** Үргэлж эерэг — тэмдгийг type тодорхойлно */
     amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    /**
+     * Аль данснаас орсон — `data/donationAccounts.ts` дахь дансны дугаар.
+     * Хоосон бол данстай холбоогүй (гараар оруулсан) гүйлгээ.
+     */
+    account: text("account").notNull().default(""),
+    /**
+     * Банкны хуулгаас уншсан мөрийг давхардуулахгүй барих түлхүүр.
+     *
+     * Гараар оруулсан гүйлгээнд NULL — Postgres нь NULL-уудыг ялгаатай гэж
+     * үздэг тул unique индекс тэднийг хөндөхгүй. Нэг хуулгыг хоёр удаа
+     * уншуулбал ижил түлхүүр үүсэж, давхар мөр бичигдэхгүй.
+     */
+    importKey: text("import_key"),
     createdBy: text("created_by"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -103,7 +117,11 @@ export const transactions = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index("transactions_date_idx").on(table.date)]
+  (table) => [
+    index("transactions_date_idx").on(table.date),
+    index("transactions_account_idx").on(table.account),
+    uniqueIndex("transactions_import_key_idx").on(table.importKey),
+  ]
 );
 
 /**

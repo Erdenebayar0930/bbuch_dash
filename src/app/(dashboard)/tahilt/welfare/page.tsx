@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 
+import AimagGuard from "@/components/AimagGuard";
 import WelfareMap from "@/components/welfare/WelfareMap";
 
 export const metadata: Metadata = {
@@ -19,7 +20,9 @@ export default function WelfarePage() {
         </p>
       </div>
 
-      <WelfareMap />
+      <AimagGuard aimag="tahilt">
+        <WelfareMap />
+      </AimagGuard>
     </div>
   );
 }

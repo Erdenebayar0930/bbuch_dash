@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 
 import {
   badRequest,
-  requireActiveUser,
   requireAdmin,
+  requireAimag,
   serverError,
 } from "@/lib/api/auth";
 import { readDonationBox } from "@/lib/api/donationBoxInput";
@@ -16,6 +16,9 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Хандивын хайрцаг нь Туслах үйлчлэх аймгийн хариуцлага */
+const AIMAG = "service";
+
 /**
  * Хандивын хайрцгийн байршлууд — сүүлийн эргэлт ба нийт хураалттай хамт.
  *
@@ -23,7 +26,7 @@ export const dynamic = "force-dynamic";
  * боломжтой байх ёстой. Шүүхийг клиент тал хийнэ.
  */
 export async function GET(request: NextRequest) {
-  const result = await requireActiveUser(request);
+  const result = await requireAimag(request, AIMAG);
   if ("error" in result) return result.error;
 
   try {

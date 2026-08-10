@@ -5,7 +5,7 @@ import {
   badRequest,
   forbidden,
   isAdminRole,
-  requireActiveUser,
+  requireAimag,
   serverError,
 } from "@/lib/api/auth";
 import { purchaseColumns, requesterJoin } from "@/lib/api/purchases";
@@ -17,6 +17,9 @@ import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** Худалдан авалт нь Хангамжийн аймгийн хариуцлага */
+const AIMAG = "supply";
 
 const notFound = () => NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
 
@@ -31,7 +34,7 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireActiveUser(request);
+  const result = await requireAimag(request, AIMAG);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;
@@ -99,7 +102,7 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireActiveUser(request);
+  const result = await requireAimag(request, AIMAG);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;

@@ -22,6 +22,8 @@ type WelfareLeafletMapProps = {
   /** Халамжийн бүртгэл ба түүхийн цонхыг нээнэ */
   onAid: (household: WelfareHousehold) => void;
   canManage: boolean;
+  /** Устгах эрх нь өрх тус бүрээр өөр — түүхтэй нь зөвхөн super */
+  canDelete: (household: WelfareHousehold) => boolean;
 };
 
 export default function WelfareLeafletMap({
@@ -32,6 +34,7 @@ export default function WelfareLeafletMap({
   onDelete,
   onAid,
   canManage,
+  canDelete,
 }: WelfareLeafletMapProps) {
   return (
     <PointPickerMap
@@ -105,14 +108,19 @@ export default function WelfareLeafletMap({
             </button>
 
             {canManage && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => onEdit(household)}
-                  className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Засах
-                </button>
+              <button
+                type="button"
+                onClick={() => onEdit(household)}
+                className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Засах
+              </button>
+            )}
+
+            {/* Халамжийн түүхтэй өрхийг зөвхөн super устгана — эрхгүй бол
+                товч огт харагдахгүй, шалтгааныг нь тайлбарлана */}
+            {canManage &&
+              (canDelete(household) ? (
                 <button
                   type="button"
                   onClick={() => onDelete(household)}
@@ -120,8 +128,11 @@ export default function WelfareLeafletMap({
                 >
                   Устгах
                 </button>
-              </>
-            )}
+              ) : (
+                <span className="self-center text-xs text-gray-400">
+                  Түүхтэй — устгахад super эрх
+                </span>
+              ))}
           </div>
         </div>
       )}

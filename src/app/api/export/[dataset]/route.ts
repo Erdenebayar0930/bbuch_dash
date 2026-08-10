@@ -52,6 +52,21 @@ export async function GET(
     return forbidden("Энэ багцыг зөвхөн админ татна.");
   }
 
+  // Аймгийн багцыг зөвхөн тухайн аймгийн гишүүн татна — эс бөгөөс цэс, хуудсыг
+  // хаачихаад Excel татацаар нь бүх өгөгдөл гоожно
+  if (!isAdmin) {
+    const mine = result.caller.user?.aimags ?? [];
+    const blocked = selected.find(
+      (item) => item!.aimag && !mine.includes(item!.aimag)
+    );
+
+    if (blocked) {
+      return forbidden(
+        `«${blocked.label}» багц таны харьяалагдах аймагт хамаарахгүй.`
+      );
+    }
+  }
+
   try {
     const sheets = (
       await Promise.all(selected.map((item) => item!.build()))

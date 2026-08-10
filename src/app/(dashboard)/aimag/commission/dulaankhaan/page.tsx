@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 
+import AimagGuard from "@/components/AimagGuard";
 import ScheduleBoard from "@/components/schedule/ScheduleBoard";
 
 export const metadata: Metadata = {
@@ -19,7 +20,9 @@ export default function DulaankhaanPage() {
         </p>
       </div>
 
-      <ScheduleBoard kind="dulaankhaan" />
+      <AimagGuard aimag="commission">
+        <ScheduleBoard kind="dulaankhaan" />
+      </AimagGuard>
     </div>
   );
 }

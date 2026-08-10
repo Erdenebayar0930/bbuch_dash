@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 
 import {
   badRequest,
-  requireActiveUser,
   requireAdmin,
+  requireAimag,
   serverError,
 } from "@/lib/api/auth";
 import { readWelfareHousehold } from "@/lib/api/welfareInput";
@@ -16,13 +16,16 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Халамжийн үйлчлэл нь Тахилтын хариуцлага */
+const AIMAG = "tahilt";
+
 /**
  * Халамжийн үйлчлэлд хамрагдах өрхүүд — сүүлийн тусламж ба нийт дүнтэй хамт.
  *
  * Идэвхгүй болсныг ч буцаана — админ дахин идэвхжүүлэх боломжтой байх ёстой.
  */
 export async function GET(request: NextRequest) {
-  const result = await requireActiveUser(request);
+  const result = await requireAimag(request, AIMAG);
   if ("error" in result) return result.error;
 
   try {

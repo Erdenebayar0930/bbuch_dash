@@ -2,11 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { isPurchaseStatus } from "@/data/supplyOptions";
-import {
-  badRequest,
-  requireActiveUser,
-  serverError,
-} from "@/lib/api/auth";
+import { badRequest, requireAimag, serverError } from "@/lib/api/auth";
 import { purchaseColumns, requesterJoin } from "@/lib/api/purchases";
 import { readPurchase } from "@/lib/api/purchaseInput";
 import { db } from "@/lib/db";
@@ -17,14 +13,17 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Худалдан авалт нь Хангамжийн аймгийн хариуцлага */
+const AIMAG = "supply";
+
 /**
  * Худалдан авах жагсаалт — шинэ хүсэлт эхэндээ.
  *
- * `?status=requested` — нэг төлөвөөр шүүнэ. Уншихыг бүх идэвхтэй хэрэглэгчид
- * нээлттэй: жагсаалт нь чуулганы нийтийн хэрэгцээг харуулна.
+ * `?status=requested` — нэг төлөвөөр шүүнэ. Зөвхөн Хангамжийн аймгийн гишүүд
+ * ба админ уншина.
  */
 export async function GET(request: NextRequest) {
-  const result = await requireActiveUser(request);
+  const result = await requireAimag(request, AIMAG);
   if ("error" in result) return result.error;
 
   const status = request.nextUrl.searchParams.get("status");
@@ -49,12 +48,12 @@ export async function GET(request: NextRequest) {
 /**
  * Шинэ хүсэлт нэмнэ.
  *
- * Админ биш ч хүсэлт гаргаж болно — хэрэгцээг мэдэх хүн нь ихэвчлэн
- * ашиглагч өөрөө. Гэхдээ төлөвийг эхнээс нь өөрөө сонгож чадахгүй: бүх шинэ
- * мөр `requested` төлөвөөр орж, зөвшөөрөхийг админ шийднэ.
+ * Аймгийн гишүүн бол админ биш ч хүсэлт гаргаж болно — хэрэгцээг мэдэх хүн нь
+ * ихэвчлэн ашиглагч өөрөө. Гэхдээ төлөвийг эхнээс нь өөрөө сонгож чадахгүй:
+ * бүх шинэ мөр `requested` төлөвөөр орж, зөвшөөрөхийг админ шийднэ.
  */
 export async function POST(request: NextRequest) {
-  const result = await requireActiveUser(request);
+  const result = await requireAimag(request, AIMAG);
   if ("error" in result) return result.error;
 
   try {
