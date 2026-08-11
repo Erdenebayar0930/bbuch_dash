@@ -97,5 +97,7 @@ export const seedTransactionRows: TransactionInput[] = seed.map(
     type,
     amount,
     status,
+    // Жишиг өгөгдөл нь аль ч хандивын данстай холбоогүй
+    account: "",
   })
 );

@@ -4,14 +4,19 @@ import {
   Boxes,
   Church,
   ClipboardList,
+  FileSpreadsheet,
+  FileVideo,
   HandCoins,
   HandHeart,
   HeartHandshake,
+  Landmark,
   LayoutGrid,
   MapPin,
   Megaphone,
   Music2,
   Package,
+  PieChart,
+  ReceiptText,
   Shield,
   ShoppingCart,
   Sprout,
@@ -51,8 +56,31 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   { name: "Үндсэн цэс", path: "/", icon: LayoutGrid },
   { name: "Ажлууд", path: "/tasks", icon: ClipboardList },
-  { name: "Санхүү", path: "/transactions", icon: Wallet },
+  {
+    // Эцэг мөр нь хуудасгүй — `/finance` нь зөвхөн бүлгийн түлхүүр.
+    // Хүүхдүүдийн зам давхцахгүй байх ёстой: `isActive` нь `startsWith`-ээр
+    // шалгадаг тул /transactions/... доор байрлуулбал хоёулаа идэвхтэй болно.
+    name: "Санхүү",
+    path: "/finance",
+    icon: Wallet,
+    children: [
+      { name: "Хандивын данс", path: "/transactions", icon: Landmark },
+      { name: "1/10 ба өргөл", path: "/tithe", icon: PieChart },
+      { name: "Гүйлгээний бүртгэл", path: "/ledger", icon: ReceiptText },
+      {
+        // Гараар нэмэх ба хуулга уншуулах хоёулаа энд — гүйлгээ бааз руу орох
+        // цорын ганц цэг
+        name: "Гүйлгээ оруулах",
+        path: "/statement",
+        icon: FileSpreadsheet,
+        adminOnly: true,
+      },
+    ],
+  },
   { name: "Гарын авлага", path: "/handbook", icon: BookOpen },
+  // Хэрэглэгчийн төхөөрөмж дээр ажилладаг хэрэгсэл — өгөгдөл хөндөхгүй тул
+  // хязгаарлалтгүй
+  { name: "Бичлэг шахах", path: "/compress", icon: FileVideo },
   {
     name: "Харуулын аймаг",
     path: "/aimag/guard",

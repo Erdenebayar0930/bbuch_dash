@@ -1,4 +1,4 @@
-import { count, desc } from "drizzle-orm";
+import { count, desc, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
@@ -7,6 +7,10 @@ import {
   requireAdmin,
   serverError,
 } from "@/lib/api/auth";
+import {
+  accessibleAccountNumbers,
+  readDonationAccounts,
+} from "@/lib/api/donationAccounts";
 import { parseTransactionInput, toTransaction } from "@/lib/api/transactions";
 import { db } from "@/lib/db";
 import { transactions } from "@/lib/db/schema";
@@ -19,19 +23,41 @@ export const dynamic = "force-dynamic";
 /** Нэг дор татах дээд хязгаар */
 const MAX_ITEMS = 2000;
 
-/** Гүйлгээний жагсаалт — нэвтэрсэн идэвхтэй хэрэглэгч уншина. */
+/**
+ * Гүйлгээний жагсаалт.
+ *
+ * Хэн хэдийг өргөсөн нь хувийн мэдээлэл тул зөвхөн ЭРХ ОЛГОГДСОН дансны
+ * гүйлгээ буцна — админ бүгдийг харна. Данстай холбоогүй мөр (бэлэн мөнгө)
+ * нь ямар ч дансны эрхэд хамаарахгүй тул зөвхөн админд харагдана.
+ */
 export async function GET(request: NextRequest) {
   const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
 
   try {
+    const allowed = await accessibleAccountNumbers(result.caller.user);
+
+    // Нэг ч данс оноогдоогүй бол хоосон буцаана — бааз руу дэмий очихгүй
+    if (allowed?.length === 0) {
+      return NextResponse.json({ transactions: [], total: 0 });
+    }
+
+    const scope =
+      allowed === null
+        ? undefined
+        : inArray(transactions.account, allowed);
+
     const rows = await db
       .select()
       .from(transactions)
+      .where(scope)
       .orderBy(desc(transactions.date), desc(transactions.createdAt))
       .limit(MAX_ITEMS);
 
-    const [total] = await db.select({ value: count() }).from(transactions);
+    const [total] = await db
+      .select({ value: count() })
+      .from(transactions)
+      .where(scope);
 
     return NextResponse.json({
       transactions: rows.map(toTransaction),
@@ -53,9 +79,13 @@ export async function POST(request: NextRequest) {
 
     if (rows.length === 0) return badRequest("Бичих гүйлгээ алга.");
 
+    const known = new Set(
+      (await readDonationAccounts()).map((item) => item.number)
+    );
+
     const values = [];
     for (const row of rows) {
-      const parsed = parseTransactionInput(row);
+      const parsed = parseTransactionInput(row, known);
       if (!parsed.ok) return badRequest(parsed.error);
       values.push({ ...parsed.values, createdBy: result.caller.uid });
     }

@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 
 import { Modal } from "@/components/ui/modal";
+import { useDonationAccounts } from "@/hooks/useDonationAccounts";
 import {
   expenseCategories,
   incomeCategories,
@@ -17,6 +18,8 @@ type TransactionFormModalProps = {
   onClose: () => void;
   /** Утга өгвөл засварлах горим */
   editing?: Transaction | null;
+  /** Шинээр нэмэхэд урьдчилж сонгогдох данс — хоосон бол «данстай холбоогүй» */
+  defaultAccount?: string;
   onSubmit: (input: TransactionInput) => Promise<void>;
 };
 
@@ -27,6 +30,7 @@ type FormState = {
   description: string;
   amount: string;
   status: TransactionStatus;
+  account: string;
 };
 
 const statusOptions: { value: TransactionStatus; label: string }[] = [
@@ -41,7 +45,10 @@ const fieldClass =
 const labelClass =
   "mb-1.5 block text-theme-sm font-medium text-gray-700 dark:text-gray-300";
 
-function initialForm(editing?: Transaction | null): FormState {
+function initialForm(
+  editing?: Transaction | null,
+  defaultAccount = ""
+): FormState {
   if (editing) {
     return {
       date: editing.date,
@@ -50,6 +57,7 @@ function initialForm(editing?: Transaction | null): FormState {
       description: editing.description,
       amount: String(editing.amount),
       status: editing.status,
+      account: editing.account,
     };
   }
 
@@ -60,6 +68,8 @@ function initialForm(editing?: Transaction | null): FormState {
     description: "",
     amount: "",
     status: "approved",
+    // Данс сонгосон байхад нэмж буй бол тэр данс руу нь бичихийг хүсч байна
+    account: defaultAccount,
   };
 }
 
@@ -71,21 +81,31 @@ export default function TransactionFormModal({
   isOpen,
   onClose,
   editing,
+  defaultAccount,
   onSubmit,
 }: TransactionFormModalProps) {
   if (!isOpen) return null;
 
   return (
-    <TransactionForm editing={editing} onClose={onClose} onSubmit={onSubmit} />
+    <TransactionForm
+      editing={editing}
+      defaultAccount={defaultAccount}
+      onClose={onClose}
+      onSubmit={onSubmit}
+    />
   );
 }
 
 function TransactionForm({
   onClose,
   editing,
+  defaultAccount,
   onSubmit,
 }: Omit<TransactionFormModalProps, "isOpen">) {
-  const [form, setForm] = useState<FormState>(() => initialForm(editing));
+  const { accounts } = useDonationAccounts();
+  const [form, setForm] = useState<FormState>(() =>
+    initialForm(editing, defaultAccount)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -125,6 +145,7 @@ function TransactionForm({
         description: form.description.trim(),
         amount,
         status: form.status,
+        account: form.account,
       });
       onClose();
     } catch (submitError) {
@@ -233,6 +254,26 @@ function TransactionForm({
               {statusOptions.map((item) => (
                 <option key={item.value} value={item.value}>
                   {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label htmlFor="tx-account" className={labelClass}>
+              Данс
+            </label>
+            <select
+              id="tx-account"
+              value={form.account}
+              onChange={(event) => update("account", event.target.value)}
+              className={fieldClass}
+            >
+              {/* Бэлнээр авсан өргөл ямар ч данс дамжаагүй байдаг */}
+              <option value="">Данстай холбоогүй</option>
+              {accounts.map((item) => (
+                <option key={item.number} value={item.number}>
+                  {item.title}
                 </option>
               ))}
             </select>

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
+import { readDonationAccounts } from "@/lib/api/donationAccounts";
 import { parseTransactionInput, toTransaction } from "@/lib/api/transactions";
 import { db } from "@/lib/db";
 import { transactions } from "@/lib/db/schema";
@@ -25,7 +26,11 @@ export async function PUT(
   const { id } = await context.params;
 
   try {
-    const parsed = parseTransactionInput(await request.json());
+    const known = new Set(
+      (await readDonationAccounts()).map((item) => item.number)
+    );
+
+    const parsed = parseTransactionInput(await request.json(), known);
     if (!parsed.ok) return badRequest(parsed.error);
 
     const [updated] = await db

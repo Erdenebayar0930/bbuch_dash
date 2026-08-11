@@ -5,11 +5,12 @@ import { Check, Copy, Landmark } from "lucide-react";
 
 import {
   bankAppSchemes,
-  bankNames,
-  donationAccounts,
+  bankLabel,
   formatAccountNumber,
+  isBank,
   type DonationAccount,
 } from "@/data/donationAccounts";
+import { useDonationAccounts } from "@/hooks/useDonationAccounts";
 
 /** "Хуулагдлаа" тэмдэглэгээ хэдэн миллисекунд харагдах вэ */
 const COPIED_MS = 2000;
@@ -38,6 +39,7 @@ async function copyToClipboard(value: string): Promise<boolean> {
 }
 
 export default function DonationAccounts() {
+  const { accounts, loading } = useDonationAccounts();
   const [copied, setCopied] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -53,8 +55,8 @@ export default function DonationAccounts() {
 
     // Дараа нь банкны аппыг нээхийг оролдоно. Апп суулгаагүй бол хуудас
     // байрандаа үлдэнэ — хэрэглэгчийн гарт хуулсан дугаар үлдсэн байна.
+    if (!isBank(account.bank)) return;
     const scheme = bankAppSchemes[account.bank];
-    if (!scheme) return;
 
     try {
       window.location.assign(scheme);
@@ -80,8 +82,20 @@ export default function DonationAccounts() {
         </div>
       </div>
 
+      {loading && accounts.length === 0 && (
+        <p className="text-theme-sm text-gray-500 dark:text-gray-400">
+          Ачаалж байна...
+        </p>
+      )}
+
+      {!loading && accounts.length === 0 && (
+        <p className="rounded-lg border border-dashed border-gray-200 px-4 py-6 text-center text-theme-sm text-gray-400 dark:border-white/10">
+          Данс бүртгэгдээгүй байна.
+        </p>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2">
-        {donationAccounts.map((account) => {
+        {accounts.map((account) => {
           const isCopied = copied === account.number;
 
           return (
@@ -101,7 +115,9 @@ export default function DonationAccounts() {
                 </span>
 
                 <span className="mt-1 block text-theme-xs text-gray-500 dark:text-gray-400">
-                  {bankNames[account.bank]} · {account.holder}
+                  {[bankLabel(account.bank), account.holder]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
               </span>
 

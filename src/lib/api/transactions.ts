@@ -14,6 +14,7 @@ export const toTransaction = (row: typeof transactions.$inferSelect) => ({
   type: row.type as "income" | "expense",
   status: row.status as "approved" | "pending" | "rejected",
   amount: Math.abs(Number(row.amount)),
+  account: row.account,
 });
 
 export type TransactionValues = {
@@ -23,15 +24,22 @@ export type TransactionValues = {
   type: string;
   status: string;
   amount: string;
+  account: string;
 };
 
 export type ParseResult =
   | { ok: false; error: string }
   | { ok: true; values: TransactionValues };
 
-/** Оролтыг шалгаад Postgres-д бичих хэлбэрт хөрвүүлнэ */
+/**
+ * Оролтыг шалгаад Postgres-д бичих хэлбэрт хөрвүүлнэ.
+ *
+ * `knownAccounts` нь бүртгэлтэй хандивын дансны дугаарууд — данс баазад
+ * сууж байгаа тул дуудагч тал уншиж өгнө.
+ */
 export function parseTransactionInput(
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  knownAccounts: Set<string>
 ): ParseResult {
   const date = String(body.date ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -53,6 +61,13 @@ export function parseTransactionInput(
     return { ok: false, error: "amount нь тоо байх ёстой." };
   }
 
+  // Хоосон = данстай холбоогүй гүйлгээ. Утга өгсөн бол бүртгэлтэй данс байх
+  // ёстой: буруу дугаартай мөр нь аль ч дансны бүртгэлд харагдахгүй үлдэнэ.
+  const account = String(body.account ?? "");
+  if (account !== "" && !knownAccounts.has(account)) {
+    return { ok: false, error: "account нь бүртгэлтэй дансны дугаар байна." };
+  }
+
   return {
     ok: true,
     values: {
@@ -62,6 +77,7 @@ export function parseTransactionInput(
       type,
       status,
       amount: Math.abs(amount).toFixed(2),
+      account,
     },
   };
 }

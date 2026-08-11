@@ -1,7 +1,7 @@
 {
-  "name": "My Next.js App",
-  "short_name": "NextApp",
-  "description": "Next.js Progressive Web App",
+  "name": "ББУЧ — Чуулганы удирдлага",
+  "short_name": "ББУЧ",
+  "description": "Чуулганы санхүү, хөрөнгө, үйлчлэлийн удирдлагын систем",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -19,6 +19,39 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "share_target": {
+    "action": "/statement",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "files": [
+        {
+          "name": "file",
+          "accept": [
+            ".xlsx",
+            ".xls",
+            ".csv",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-excel",
+            "text/csv"
+          ]
+        }
+      ]
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "/statement",
+      "accept": {
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+          ".xlsx"
+        ],
+        "application/vnd.ms-excel": [".xls"]
+      }
     }
   ]
 }

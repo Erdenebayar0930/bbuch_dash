@@ -84,12 +84,25 @@ const AppSidebar: React.FC = () => {
 
             // Дэд цэстэй мөр — задардаг бүлэг
             if (item.children?.length) {
+              // Хүүхэд бүр өөрийн хязгаарлалттай байж болно (жишээ нь Дансны
+              // хуулга нь зөвхөн админд) — эцгийг нь харж болох нь хүүхдийг
+              // нь харж болно гэсэн үг биш
+              const children = item.children.filter((child) =>
+                canSeeNavItem(
+                  { ...child, aimag: child.aimag ?? item.aimag },
+                  { role: user?.role, aimags: user?.aimags }
+                )
+              );
+
+              // Бүх хүүхэд нь нуугдвал хоосон бүлэг үлдэх учир мөрийг алгасна
+              if (children.length === 0) return null;
+
               // Хумигдсан горимд задлах зай байхгүй тул эхний хүүхэд рүү шууд
-              const collapsedHref = item.children[0].path;
+              const collapsedHref = children[0].path;
               // Хүүхэд нь эцгийнхээ замын доор байх албагүй (Газрын зураг →
               // /map) тул идэвхтэй эсэхийг хүүхдүүдээр нь ч шалгана
               const groupActive =
-                active || item.children.some((child) => isActive(child.path));
+                active || children.some((child) => isActive(child.path));
               const open = openMenus[item.path] ?? groupActive;
 
               return (
@@ -141,7 +154,7 @@ const AppSidebar: React.FC = () => {
 
                   {showLabels && open && (
                     <ul className="mt-1 flex flex-col gap-1 border-l border-white/10 pl-3 ml-5">
-                      {item.children.map((child) => {
+                      {children.map((child) => {
                         const ChildIcon = child.icon;
                         const childActive = isActive(child.path);
 

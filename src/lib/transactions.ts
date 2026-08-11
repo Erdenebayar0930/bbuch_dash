@@ -15,6 +15,11 @@ export type Transaction = {
   status: TransactionStatus;
   /** Үргэлж эерэг тоо — тэмдгийг `type` тодорхойлно */
   amount: number;
+  /**
+   * Аль хандивын данснаас орсон — `data/donationAccounts.ts` дахь дугаар.
+   * Хоосон бол данстай холбоогүй (бэлнээр, гараар бүртгэсэн) гүйлгээ.
+   */
+  account: string;
 };
 
 export type TransactionInput = Omit<Transaction, "id">;

@@ -102,6 +102,18 @@ export const transactions = pgTable(
      */
     account: text("account").notNull().default(""),
     /**
+     * Харьцсан данс — хуулгад «харьцсан дансны дугаар» гэж ирдэг талбар.
+     * Хандивлагчийг нэрээр нь биш ЭНЭ дугаараар таньдаг: нэр нь хуулга
+     * болгонд өөр бичигдэж болох ч данс нь тогтмол.
+     */
+    donorAccount: text("donor_account").notNull().default(""),
+    /**
+     * Гүйлгээ бүртгэгдэх үеийн данс эзэмшигчийн нэр. `donors` бүртгэлээс
+     * хойш нэрийг нь засвал энэ мөрийнх хэвээр үлдэнэ — тайланд юу гарсныг
+     * дараа нь сэргээж чадна.
+     */
+    donorName: text("donor_name").notNull().default(""),
+    /**
      * Банкны хуулгаас уншсан мөрийг давхардуулахгүй барих түлхүүр.
      *
      * Гараар оруулсан гүйлгээнд NULL — Postgres нь NULL-уудыг ялгаатай гэж
@@ -120,8 +132,55 @@ export const transactions = pgTable(
   (table) => [
     index("transactions_date_idx").on(table.date),
     index("transactions_account_idx").on(table.account),
+    index("transactions_donor_account_idx").on(table.donorAccount),
     uniqueIndex("transactions_import_key_idx").on(table.importKey),
   ]
+);
+
+/**
+ * Данс эзэмшигчийн нэрийн бүртгэл.
+ *
+ * Хуулга уншуулахад харьцсан данс бүрийн нэрийг энд хуримтлуулна. Дараагийн
+ * хуулгад ижил данс тааралдвал нэр нь ШУУД гарч ирнэ — банк заримдаа нэрийг
+ * товчлох, орхих зэргээр өөрөөр өгдөг тул нэг удаа зассан нэр цаашид хэвээр
+ * хэрэглэгдэнэ.
+ */
+export const donors = pgTable(
+  "donors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Харьцсан дансны дугаар — таних цорын ганц түлхүүр */
+    accountNumber: text("account_number").notNull(),
+    name: text("name").notNull(),
+    note: text("note").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [uniqueIndex("donors_account_number_idx").on(table.accountNumber)]
+);
+
+/**
+ * «1/10» гэж таних загварууд.
+ *
+ * Хүн бүр өөрөөр бичдэг («1/10», «аравны нэг», «10 хувь»...) тул тогтмол
+ * жагсаалт кодод хатуу бичих нь болохгүй — админ энд нэмж, хасаж чадна.
+ * Загварт таарсан гүйлгээний утга «1/10», бусад нь «Өргөл» болно.
+ */
+export const tithePatterns = pgTable(
+  "tithe_patterns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Хайх хэсэг — жижиг үсэг, зайгүй болгож харьцуулна */
+    pattern: text("pattern").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [uniqueIndex("tithe_patterns_pattern_idx").on(table.pattern)]
 );
 
 /**
@@ -484,10 +543,71 @@ export const purchaseRequests = pgTable(
 );
 
 /**
+ * Хандивын дансууд.
+ *
+ * Дугаар, эзэмшигч өөрчлөгддөг, шинэ данс нэмэгддэг тул кодод биш баазад
+ * сууна — админ өөрөө удирдана.
+ *
+ * ХОЁР ТҮВШИНГИЙН ХАРАГДАЦ:
+ *  • Дансны КАРТ (нэр, дугаар, банк) нь бүх хүнд харагдана — хандив өгөхийн
+ *    тулд дугаар нь хэрэгтэй.
+ *  • Дансны ГҮЙЛГЭЭ нь анхдагчаар мөн нээлттэй; `allowedUids` эсвэл
+ *    `allowedAimags`-д утга оруулмагц зөвхөн тэдгээрт (ба админд) харагдана.
+ */
+export const donationAccounts = pgTable(
+  "donation_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Дансны зориулалт — «1/10 ба өргөл» гэх мэт */
+    title: text("title").notNull(),
+    /** IBAN хэлбэрийн дугаар. Гүйлгээ энэ утгаар холбогддог тул давхцахгүй */
+    number: text("number").notNull(),
+    /** `data/donationAccounts.ts` дахь банкны түлхүүр (khan | state) */
+    bank: text("bank").notNull().default(""),
+    holder: text("holder").notNull().default(""),
+    /** Жагсаалтын дараалал — бага нь эхэндээ */
+    position: integer("position").notNull().default(0),
+    /**
+     * «1/10 ба өргөл» хуудас аль дансыг харуулах вэ. Яг нэг данс тэмдэглэгдэнэ
+     * — шинээр тэмдэглэхэд өмнөхийнх нь автоматаар арилна.
+     */
+    isTithe: boolean("is_tithe").notNull().default(false),
+    /**
+     * Энэ дансны гүйлгээг харж болох хэрэглэгчийн uid-ууд.
+     *
+     * Админ ба super нь жагсаалтад байхаас үл хамааран бүгдийг хардаг тул
+     * тэднийг энд нэмэх шаардлагагүй.
+     */
+    allowedUids: jsonb("allowed_uids").$type<string[]>().notNull().default([]),
+    /**
+     * Эрх олгогдсон аймгууд (`data/profileOptions.ts` дахь түлхүүр).
+     *
+     * Хүн тус бүрээр оноох нь олон гишүүнтэй үед ажил ихтэй — аймгаар нь
+     * олгоод, шинэ гишүүн нэмэгдэхэд эрх нь өөрөө дагана.
+     *
+     * ⚠ `allowedUids` ба энэ ХОЁУЛАА хоосон бол данс нь БҮХ идэвхтэй
+     * хэрэглэгчид нээлттэй — хязгаарлалт тавиагүй гэсэн үг. Хаалттай болгохыг
+     * хүсвэл ядаж нэг хүн эсвэл аймаг сонгоно.
+     */
+    allowedAimags: jsonb("allowed_aimags")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [uniqueIndex("donation_accounts_number_idx").on(table.number)]
+);
+
+/**
  * Хандивын хайрцгийн байршил — газрын зураг дээрх тэмдэглэгээ.
  *
- * Дансууд нь `data/donationAccounts.ts`-д тогтмолоор сууж байгаа ч хайрцаг нь
- * хөдөлдөг, нэмэгддэг тул баазад хадгална — админ зургаас шууд байршуулна.
+ * Хайрцаг нь хөдөлдөг, нэмэгддэг тул баазад хадгална — админ зургаас шууд
+ * байршуулна.
  * Координатыг `double precision`-оор: numeric нь текст болж буцдаг тул
  * Leaflet руу дамжуулах бүрд хөрвүүлэлт шаардана.
  */
@@ -651,6 +771,9 @@ export const appConfig = pgTable("app_config", {
 
 export type UserRow = typeof users.$inferSelect;
 export type TransactionRow = typeof transactions.$inferSelect;
+export type DonorRow = typeof donors.$inferSelect;
+export type DonationAccountRow = typeof donationAccounts.$inferSelect;
+export type TithePatternRow = typeof tithePatterns.$inferSelect;
 export type NotificationRow = typeof notifications.$inferSelect;
 export type ChildRow = typeof children.$inferSelect;
 export type WarehouseRow = typeof warehouses.$inferSelect;

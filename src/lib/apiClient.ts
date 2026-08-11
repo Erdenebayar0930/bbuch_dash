@@ -25,7 +25,11 @@ export async function apiFetch<T = unknown>(
     headers.Authorization = `Bearer ${await currentUser.getIdToken()}`;
   }
 
-  if (body !== undefined) {
+  // FormData-г JSON болгож болохгүй: Content-Type-ыг хөтөч өөрөө boundary-тай
+  // нь тавина, бид гараар тавьбал сервер хэсгүүдийг нь салгаж чадахгүй болно
+  const isForm = body instanceof FormData;
+
+  if (body !== undefined && !isForm) {
     headers["Content-Type"] = "application/json";
   }
 
@@ -35,7 +39,8 @@ export async function apiFetch<T = unknown>(
     response = await fetch(path, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body:
+        body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch (error) {
     console.error("Сервертэй холбогдож чадсангүй:", error);

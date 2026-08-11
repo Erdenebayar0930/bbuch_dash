@@ -1,3 +1,5 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
 
@@ -8,6 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { accountTitle } from "@/data/donationAccounts";
+import { useDonationAccounts } from "@/hooks/useDonationAccounts";
 import {
   formatCurrency,
   type Transaction,
@@ -50,6 +54,8 @@ export default function TransactionsTable({
   onDelete,
   emptyAction,
 }: TransactionsTableProps) {
+  // Дансны нэрийг харуулахад — hook нь кэштэй тул нэмэлт хүсэлт үүсгэхгүй
+  const { accounts } = useDonationAccounts();
   const showActions = !compact && Boolean(onEdit || onDelete);
 
   if (items.length === 0) {
@@ -115,6 +121,13 @@ export default function TransactionsTable({
 
                 <TableCell className="px-5 py-4 text-theme-sm font-medium text-gray-800 dark:text-white/90">
                   {item.description}
+                  {/* Бүх дансыг зэрэг харах үед мөр хаанахынх нь мэдэгдэхгүй
+                      бол дүнгүүд хоорондоо холилдоно */}
+                  {!compact && item.account && (
+                    <span className="mt-0.5 block text-theme-xs font-normal text-gray-400">
+                      {accountTitle(accounts, item.account)}
+                    </span>
+                  )}
                 </TableCell>
 
                 <TableCell className="px-5 py-4">
