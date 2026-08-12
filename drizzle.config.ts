@@ -34,4 +34,8 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
+  // website/ апп нь ЭНЭ ЛЭЭ САНГ хуваалцаж, "site_" угтвартай өөрийн
+  // хүснэгтүүдтэй. Тэдгээрийг эндээс хасахгүй бол `drizzle-kit push` нь
+  // "схемд алга" гэж үзээд DROP TABLE site_posts/site_categories үүсгэнэ.
+  tablesFilter: ["!site_*"],
 });

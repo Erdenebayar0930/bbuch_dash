@@ -36,6 +36,10 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "out",
+    // website/ нь тусдаа Next.js апп — өөрийн tsconfig, өөрийн "@/*" alias-тай.
+    // Энд оруулбал root-ын alias-аар шалгаад "Cannot find module" гэж унана.
+    "website"
   ]
 }
