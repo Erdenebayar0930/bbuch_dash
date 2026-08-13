@@ -13,8 +13,8 @@
  */
 import { drizzle } from "drizzle-orm/mysql2";
 import { eq } from "drizzle-orm";
-import mysql from "mysql2/promise";
 
+import { createDbPool } from "../src/lib/db/createPool";
 import { appConfig, users } from "../src/lib/db/schema";
 import { roleLabels, type UserRole } from "../src/lib/permissions";
 
@@ -39,17 +39,7 @@ if (!connectionString) {
   process.exit(1);
 }
 
-const pool = mysql.createPool({
-  uri: connectionString,
-  timezone: "Z",
-  decimalNumbers: false,
-  ssl:
-    process.env.DATABASE_SSL === "relaxed"
-      ? { rejectUnauthorized: false }
-      : process.env.DATABASE_SSL === "require"
-        ? {}
-        : undefined,
-});
+const pool = createDbPool(connectionString);
 const db = drizzle(pool, { mode: "default" });
 
 async function main() {

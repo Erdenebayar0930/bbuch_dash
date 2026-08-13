@@ -1,9 +1,11 @@
 import "server-only";
 
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
-import mysql from "mysql2/promise";
 
+import { createDbPool } from "./createPool";
 import * as schema from "./schema";
+
+import type { Pool } from "mysql2/promise";
 
 type Database = MySql2Database<typeof schema>;
 
@@ -15,7 +17,7 @@ type Database = MySql2Database<typeof schema>;
  * Мөн serverless орчинд холболт хуримтлагдахаас сэргийлж global дээр кэшлэнэ.
  */
 const globalForDb = globalThis as unknown as {
-  __mysqlPool?: mysql.Pool;
+  __mysqlPool?: Pool;
   __drizzle?: Database;
 };
 
@@ -30,36 +32,7 @@ function getDb(): Database {
     );
   }
 
-  const pool =
-    globalForDb.__mysqlPool ??
-    mysql.createPool({
-      uri: connectionString,
-      connectionLimit: Number(process.env.DATABASE_POOL_MAX ?? 5),
-      idleTimeout: 10_000,
-      connectTimeout: 10_000,
-      /**
-       * ЗААВАЛ UTC. mysql2 нь анхдагчаар серверийн локал цагийн бүсээр Date
-       * объектыг хөрвүүлдэг — ингэвэл бичих, унших хоёрын хооронд огноо
-       * зөрнө. Схемийн бүх TIMESTAMP-ыг UTC гэж үзнэ.
-       */
-      timezone: "Z",
-      /**
-       * DECIMAL-ыг тоо БИШ мөрөөр буцаана (mysql2-ийн анхдагч). `amount` нь
-       * decimal(14,2) — JS-ийн float болговол мөнгөн дүн алдаатай болно.
-       */
-      decimalNumbers: false,
-      /**
-       * DATABASE_SSL: "require" — жинхэнэ сертификат шалгана
-       *               "relaxed" — өөрийн гарын үсэгтэй сертификат зөвшөөрнө
-       *               тохируулаагүй — SSL хэрэглэхгүй (нэг серверийн дотор)
-       */
-      ssl:
-        process.env.DATABASE_SSL === "relaxed"
-          ? { rejectUnauthorized: false }
-          : process.env.DATABASE_SSL === "require"
-            ? {}
-            : undefined,
-    });
+  const pool = globalForDb.__mysqlPool ?? createDbPool(connectionString);
 
   globalForDb.__mysqlPool = pool;
   globalForDb.__drizzle = drizzle(pool, { schema, mode: "default" });

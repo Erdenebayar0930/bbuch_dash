@@ -59,7 +59,18 @@ This project is configured as a full-stack admin platform using:
    npm run db:push
    ```
 
-4. Start the development server:
+4. Verify the connection is configured correctly:
+
+   ```bash
+   npm run db:check
+   ```
+
+   This asserts the invariants the app depends on — UTC session timezone,
+   `DECIMAL` returned as strings, `utf8mb4` charset, JSON round-trip, and that
+   every table in the schema exists. It exits non-zero on failure, so it can be
+   dropped into a deploy script.
+
+5. Start the development server:
 
    ```bash
    npm run dev

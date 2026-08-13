@@ -14,7 +14,8 @@
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { drizzle } from "drizzle-orm/mysql2";
-import mysql from "mysql2/promise";
+
+import { createDbPool } from "../src/lib/db/createPool";
 
 import {
   appConfig,
@@ -41,11 +42,7 @@ if (getApps().length === 0) {
 }
 
 const firestore = getFirestore();
-const pool = mysql.createPool({
-  uri: requireEnv("DATABASE_URL"),
-  timezone: "Z",
-  decimalNumbers: false,
-});
+const pool = createDbPool(requireEnv("DATABASE_URL"));
 const db = drizzle(pool, { mode: "default" });
 
 /** Firestore Timestamp | ISO текст → Date */

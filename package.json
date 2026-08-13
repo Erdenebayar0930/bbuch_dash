@@ -10,6 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:check": "tsx --env-file=.env.local scripts/db-check.ts",
     "migrate:firestore": "tsx --env-file=.env.local scripts/migrate-firestore-to-mysql.ts",
     "grant:role": "tsx --env-file=.env.local scripts/grant-role.ts"
   },
