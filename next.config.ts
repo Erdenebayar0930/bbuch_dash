@@ -91,8 +91,13 @@ const isDev = process.env.NODE_ENV === "development";
  *   2. Зөрчил гарвал доорх жагсаалтад тухайн хостыг нэмнэ
  *   3. Цэвэр бол CSP_MODE=enforce
  *
- * Хувьсагч солих бүрд аппыг дахин асаана — `headers()` нь серверийн
- * эхлэлд нэг л удаа уншигддаг.
+ * ⚠ Хувьсагч солисны дараа ЗААВАЛ ДАХИН DEPLOY хийнэ — restart хангалтгүй.
+ * Next нь `headers()`-ийг BUILD ҮЕД дуудаж, үр дүнг нь
+ * `.next/routes-manifest.json`-д шигтгэдэг; ажиллах үеийн процесс тэр бэлэн
+ * жагсаалтыг л уншина. Тиймээс зөвхөн restart.txt-ээр сэргээвэл хуучин
+ * толгой хэвээр үлдэж, "яагаад өөрчлөгдөхгүй байна аа" гэсэн будлиан үүснэ.
+ * (Hostinger нь hPanel дээрх хувьсагчийг build-д ч дамжуулдаг тул
+ * Redeploy дархад л хангалттай.)
  */
 const cspMode = process.env.CSP_MODE ?? "report-only";
 
@@ -137,7 +142,13 @@ const csp = [
   "worker-src 'self' blob:",
   "media-src 'self' blob: data:",
   "manifest-src 'self'",
-  ...(isDev ? [] : ["upgrade-insecure-requests"]),
+  // ⚠ `upgrade-insecure-requests` нь report-only бодлогод УТГАГҮЙ — хөтөч
+  // түүнийг үл тоомсорлоод console-д алдаа бичдэг ("is ignored when delivered
+  // in a report-only policy"). Тайлагнах гэдэг нь юу ч хийхгүй гэсэн үг тул
+  // "http-г https болго" гэсэн үйлдэл шаардсан директив утга алдана.
+  // Тиймээс ЗӨВХӨН албадах горимд. Дев дээр localhost нь http тул хэзээ ч
+  // оруулахгүй.
+  ...(!isDev && cspMode === "enforce" ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 /**
