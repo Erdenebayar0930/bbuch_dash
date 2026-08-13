@@ -75,15 +75,22 @@ export async function POST(request: NextRequest) {
       .select({ next: sql<number>`coalesce(max(${projects.position}), -1) + 1` })
       .from(projects);
 
+    // MySQL нь INSERT ... RETURNING дэмждэггүй тул ID-г урьдчилж үүсгээд,
+    // оруулсны дараа мөрөө буцааж уншина.
+    const id = crypto.randomUUID();
+
+    await db.insert(projects).values({
+      ...parsed.value,
+      id,
+      name,
+      position: next,
+      createdBy: result.caller.uid,
+    });
+
     const [created] = await db
-      .insert(projects)
-      .values({
-        ...parsed.value,
-        name,
-        position: next,
-        createdBy: result.caller.uid,
-      })
-      .returning();
+      .select()
+      .from(projects)
+      .where(eq(projects.id, id));
 
     return NextResponse.json({
       project: { ...created, taskCount: 0, openCount: 0 },

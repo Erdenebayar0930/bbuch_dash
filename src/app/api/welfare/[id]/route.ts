@@ -40,11 +40,17 @@ export async function PATCH(
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
-    const [updated] = await db
+    // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина
+    await db
       .update(welfareHouseholds)
       .set({ ...parsed.value, updatedAt: new Date() })
+      .where(eq(welfareHouseholds.id, id));
+
+    const [updated] = await db
+      .select()
+      .from(welfareHouseholds)
       .where(eq(welfareHouseholds.id, id))
-      .returning();
+      .limit(1);
 
     if (!updated) return notFound();
 
@@ -83,12 +89,16 @@ export async function DELETE(
       );
     }
 
-    const [deleted] = await db
-      .delete(welfareHouseholds)
+    // MySQL нь DELETE ... RETURNING дэмждэггүй — эхлээд байгаа эсэхийг шалгана
+    const [existing] = await db
+      .select({ id: welfareHouseholds.id })
+      .from(welfareHouseholds)
       .where(eq(welfareHouseholds.id, id))
-      .returning({ id: welfareHouseholds.id });
+      .limit(1);
 
-    if (!deleted) return notFound();
+    if (!existing) return notFound();
+
+    await db.delete(welfareHouseholds).where(eq(welfareHouseholds.id, id));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

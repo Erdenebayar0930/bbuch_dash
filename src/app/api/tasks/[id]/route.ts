@@ -160,14 +160,18 @@ export async function DELETE(
   const { id } = await context.params;
 
   try {
-    const [deleted] = await db
-      .delete(tasks)
+    // MySQL нь DELETE ... RETURNING дэмждэггүй — эхлээд байгаа эсэхийг шалгана
+    const [existing] = await db
+      .select({ id: tasks.id })
+      .from(tasks)
       .where(eq(tasks.id, id))
-      .returning({ id: tasks.id });
+      .limit(1);
 
-    if (!deleted) {
+    if (!existing) {
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
     }
+
+    await db.delete(tasks).where(eq(tasks.id, id));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

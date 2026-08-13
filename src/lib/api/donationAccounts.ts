@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc } from "drizzle-orm";
+import { asc, sql } from "drizzle-orm";
 
 import { seedDonationAccounts } from "@/data/donationAccounts";
 import { db } from "@/lib/db";
@@ -24,15 +24,19 @@ export async function readDonationAccounts(): Promise<DonationAccountRow[]> {
 
   if (rows.length > 0) return rows;
 
+  // Анхны дансуудыг нэг удаа суулгана. MySQL-д onConflictDoNothing байхгүй тул
+  // `number`-ыг өөр дээр нь оноох no-op update-ээр давхардлыг залгина
+  // (number дээр unique индекстэй).
   await db
     .insert(donationAccounts)
     .values(
       seedDonationAccounts.map((item, index) => ({
         ...item,
+        id: crypto.randomUUID(),
         position: index,
       }))
     )
-    .onConflictDoNothing();
+    .onDuplicateKeyUpdate({ set: { number: sql`number` } });
 
   return db
     .select()

@@ -185,11 +185,14 @@ export async function PATCH(
     const denied = checks.find((check) => !check.allowed);
     if (denied && !denied.allowed) return forbidden(denied.reason);
 
+    // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина
+    await db.update(users).set(patch).where(eq(users.uid, uid));
+
     const [updated] = await db
-      .update(users)
-      .set(patch)
+      .select()
+      .from(users)
       .where(eq(users.uid, uid))
-      .returning();
+      .limit(1);
 
     return NextResponse.json({ user: updated });
   } catch (error) {

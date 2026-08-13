@@ -81,22 +81,32 @@ export async function GET(request: NextRequest) {
       byAsset.set(image.assetId, list);
     }
 
-    // Хөрөнгө тус бүрийн ХАМГИЙН СҮҮЛИЙН шалгалт — DISTINCT ON нь Postgres дээр
-    // хамгийн хямд арга, бүх түүхийг татаад шүүх шаардлагагүй.
-    const latestChecks = await db.execute<{
+    // Хөрөнгө тус бүрийн ХАМГИЙН СҮҮЛИЙН шалгалт. Postgres дээр энэ нь
+    // `distinct on (asset_id)` байсан — MySQL-д тийм бүтэц байхгүй тул
+    // цонхны функцээр мөр бүрийг дугаарлаад эхнийхийг нь авна. Хоёул бүх
+    // түүхийг татаад санах ойд шүүхээс хямд.
+    type LatestCheck = {
       asset_id: string;
       status: string;
       found_quantity: number;
-      checked_at: string;
-    }>(sql`
-      select distinct on (asset_id)
-        asset_id, status, found_quantity, checked_at
-      from asset_checks
-      order by asset_id, checked_at desc
+      checked_at: Date;
+    };
+
+    const [latestCheckRows] = await db.execute(sql`
+      select asset_id, status, found_quantity, checked_at
+      from (
+        select
+          asset_id, status, found_quantity, checked_at,
+          row_number() over (
+            partition by asset_id order by checked_at desc
+          ) as rn
+        from asset_checks
+      ) ranked
+      where rn = 1
     `);
 
     const checkByAsset = new Map(
-      latestChecks.rows.map((row) => [
+      (latestCheckRows as unknown as LatestCheck[]).map((row) => [
         row.asset_id,
         {
           status: row.status,
@@ -127,14 +137,17 @@ export async function POST(request: NextRequest) {
     const parsed = await readAsset(await request.json().catch(() => ({})), false);
     if (!parsed.ok) return badRequest(parsed.error);
 
-    const [created] = await db
-      .insert(assets)
-      .values({
-        ...parsed.value,
-        name: parsed.value.name as string,
-        createdBy: result.caller.uid,
-      })
-      .returning();
+    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
+    const id = crypto.randomUUID();
+
+    await db.insert(assets).values({
+      ...parsed.value,
+      id,
+      name: parsed.value.name as string,
+      createdBy: result.caller.uid,
+    });
+
+    const [created] = await db.select().from(assets).where(eq(assets.id, id));
 
     return NextResponse.json({ asset: created });
   } catch (error) {

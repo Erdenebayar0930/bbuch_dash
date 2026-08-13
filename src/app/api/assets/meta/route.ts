@@ -87,10 +87,15 @@ export async function POST(request: NextRequest) {
       .select({ next: sql<number>`coalesce(max(${table.position}), -1) + 1` })
       .from(table);
 
+    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
+    const newId = crypto.randomUUID();
+
+    await db.insert(table).values({ id: newId, name, position: next });
+
     const [created] = await db
-      .insert(table)
-      .values({ name, position: next })
-      .returning();
+      .select()
+      .from(table)
+      .where(eq(table.id, newId));
 
     return NextResponse.json({ item: created });
   } catch (error) {
@@ -117,14 +122,20 @@ export async function DELETE(request: NextRequest) {
     if (!id) return badRequest("id шаардлагатай.");
 
     const table = tables[kind];
-    const [deleted] = await db
-      .delete(table)
-      .where(eq(table.id, id))
-      .returning({ id: table.id });
 
-    if (!deleted) {
+    // MySQL нь DELETE ... RETURNING дэмждэггүй тул эхлээд байгаа эсэхийг
+    // шалгаад дараа нь устгана.
+    const [existing] = await db
+      .select({ id: table.id })
+      .from(table)
+      .where(eq(table.id, id))
+      .limit(1);
+
+    if (!existing) {
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
     }
+
+    await db.delete(table).where(eq(table.id, id));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

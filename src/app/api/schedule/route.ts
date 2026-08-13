@@ -85,21 +85,22 @@ export async function POST(request: NextRequest) {
     const parsed = await readScheduleShift(body, false);
     if (!parsed.ok) return badRequest(parsed.error);
 
-    const [created] = await db
-      .insert(scheduleShifts)
-      .values({
-        ...parsed.value,
-        kind: body.kind,
-        date: parsed.value.date as string,
-        createdBy: result.caller.uid,
-      })
-      .returning({ id: scheduleShifts.id });
+    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
+    const id = crypto.randomUUID();
+
+    await db.insert(scheduleShifts).values({
+      ...parsed.value,
+      id,
+      kind: body.kind,
+      date: parsed.value.date as string,
+      createdBy: result.caller.uid,
+    });
 
     const [row] = await db
       .select(shiftColumns)
       .from(scheduleShifts)
       .leftJoin(users, assigneeJoin)
-      .where(eq(scheduleShifts.id, created.id))
+      .where(eq(scheduleShifts.id, id))
       .limit(1);
 
     // Хариуцагчид шууд мэдэгдэнэ — өөрөө өөрийгөө оновол шаардлагагүй

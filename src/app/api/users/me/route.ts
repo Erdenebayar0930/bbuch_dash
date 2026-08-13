@@ -195,11 +195,14 @@ export async function PATCH(request: NextRequest) {
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
+    // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина
+    await db.update(users).set(patch).where(eq(users.uid, caller.uid));
+
     const [updated] = await db
-      .update(users)
-      .set(patch)
+      .select()
+      .from(users)
       .where(eq(users.uid, caller.uid))
-      .returning();
+      .limit(1);
 
     return NextResponse.json({ user: updated });
   } catch (error) {

@@ -30,12 +30,12 @@ loadEnvLocal();
 export default defineConfig({
   schema: "./src/lib/db/schema.ts",
   out: "./drizzle",
-  dialect: "postgresql",
+  dialect: "mysql",
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
-  // website/ апп нь ЭНЭ ЛЭЭ САНГ хуваалцаж, "site_" угтвартай өөрийн
-  // хүснэгтүүдтэй. Тэдгээрийг эндээс хасахгүй бол `drizzle-kit push` нь
-  // "схемд алга" гэж үзээд DROP TABLE site_posts/site_categories үүсгэнэ.
+  // website/ апп нь өөрийн "site_" угтвартай хүснэгтүүдтэй. Хэрэв нэг санг
+  // хуваалцах болвол эдгээрийг хасахгүй үед `drizzle-kit push` нь "схемд алга"
+  // гэж үзээд DROP TABLE site_posts/site_categories үүсгэнэ.
   tablesFilter: ["!site_*"],
 });

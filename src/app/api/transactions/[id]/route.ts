@@ -33,11 +33,17 @@ export async function PUT(
     const parsed = parseTransactionInput(await request.json(), known);
     if (!parsed.ok) return badRequest(parsed.error);
 
-    const [updated] = await db
+    // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина
+    await db
       .update(transactions)
       .set({ ...parsed.values, updatedAt: new Date() })
+      .where(eq(transactions.id, id));
+
+    const [updated] = await db
+      .select()
+      .from(transactions)
       .where(eq(transactions.id, id))
-      .returning();
+      .limit(1);
 
     if (!updated) return notFound();
 
@@ -58,12 +64,16 @@ export async function DELETE(
   const { id } = await context.params;
 
   try {
-    const [deleted] = await db
-      .delete(transactions)
+    // MySQL нь DELETE ... RETURNING дэмждэггүй — эхлээд байгаа эсэхийг шалгана
+    const [existing] = await db
+      .select({ id: transactions.id })
+      .from(transactions)
       .where(eq(transactions.id, id))
-      .returning();
+      .limit(1);
 
-    if (!deleted) return notFound();
+    if (!existing) return notFound();
+
+    await db.delete(transactions).where(eq(transactions.id, id));
 
     return NextResponse.json({ success: true });
   } catch (error) {

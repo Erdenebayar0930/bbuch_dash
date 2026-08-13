@@ -101,16 +101,22 @@ export async function POST(
       );
     }
 
+    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
+    const checkId = crypto.randomUUID();
+
+    await db.insert(assetChecks).values({
+      id: checkId,
+      assetId: id,
+      status: body.status,
+      foundQuantity: found,
+      note,
+      checkedBy: result.caller.uid,
+    });
+
     const [created] = await db
-      .insert(assetChecks)
-      .values({
-        assetId: id,
-        status: body.status,
-        foundQuantity: found,
-        note,
-        checkedBy: result.caller.uid,
-      })
-      .returning();
+      .select()
+      .from(assetChecks)
+      .where(eq(assetChecks.id, checkId));
 
     return NextResponse.json({ check: created });
   } catch (error) {

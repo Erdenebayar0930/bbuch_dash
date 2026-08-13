@@ -43,17 +43,31 @@ Deployment/Node.js → Environment variables** хэсэгт оруулна. Эд
 
 Шаардлагатай хувьсагчдын жагсаалтыг [.env.example](../.env.example)-аас үзнэ үү.
 
-### Өгөгдлийн сан
+### Өгөгдлийн сан — MySQL
 
-Shared hosting дээр **PostgreSQL байхгүй** (зөвхөн MySQL). Апп нь Postgres-д
-тулгуурладаг тул `DATABASE_URL` нь **гадны** сан руу заана (Neon, Supabase,
-эсвэл өөрийн VPS). Гаралтын 5432 порт нээлттэй эсэхийг шалгасан — ажиллана.
-
-Гадны сан нь SSL шаарддаг тул:
+Shared hosting дээр PostgreSQL байхгүй тул апп нь **MySQL** дээр ажиллана
+(hPanel → Databases хэсгээс сан, хэрэглэгчийг үүсгэнэ). Апптай нэг сервер
+дээр байгаа тул host нь `localhost`, SSL шаардлагагүй:
 
 ```ini
-DATABASE_SSL=require
+DATABASE_URL=mysql://u192470510_xxx:нууцүг@localhost:3306/u192470510_bbuch
+DATABASE_SSL=
 ```
+
+Схемийг үүсгэх (локалаас, эсвэл серверийн SSH-аас):
+
+```bash
+npm run db:push
+```
+
+**MySQL-ийн шаардлага:** схем нь цонхны функц (`row_number() over`) болон
+`JSON_CONTAINS` ашигладаг тул **MySQL 8.0+ эсвэл MariaDB 10.2+** байх ёстой.
+
+Postgres-ээс хөрвүүлэхэд гарсан гол ялгаанууд [src/lib/db/schema.ts](../src/lib/db/schema.ts)-ийн
+толгой хэсэгт тэмдэглэгдсэн: UUID → `varchar(36)`, индекслэгдсэн бүх `text` →
+`varchar(n)`, `jsonb` → `json`, DB талын default-ыг `$defaultFn`-ээр
+орлуулсан, `INSERT/UPDATE/DELETE ... RETURNING` байхгүй тул бичсэний дараа
+буцааж уншдаг болсон.
 
 ### Шалгах
 
@@ -64,7 +78,7 @@ curl https://dash.bbuchmongol.com/api/health
 Хүлээгдэх хариу:
 
 ```json
-{"timestamp":"...","postgres":"ok","firebase":{"status":"configured","projectId":"bbuch-edba7"}}
+{"timestamp":"...","mysql":"ok","firebase":{"status":"configured","projectId":"bbuch-edba7"}}
 ```
 
 ### Лог

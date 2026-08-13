@@ -83,14 +83,30 @@ export async function POST(request: NextRequest) {
       (await readDonationAccounts()).map((item) => item.number)
     );
 
+    // MySQL нь INSERT ... RETURNING дэмждэггүй тул ID-г урьдчилж үүсгээд,
+    // оруулсны дараа тэдгээрээр нь буцааж уншина.
     const values = [];
+    const ids: string[] = [];
     for (const row of rows) {
       const parsed = parseTransactionInput(row, known);
       if (!parsed.ok) return badRequest(parsed.error);
-      values.push({ ...parsed.values, createdBy: result.caller.uid });
+      const id = crypto.randomUUID();
+      ids.push(id);
+      values.push({ ...parsed.values, id, createdBy: result.caller.uid });
     }
 
-    const inserted = await db.insert(transactions).values(values).returning();
+    await db.insert(transactions).values(values);
+
+    const insertedRows = await db
+      .select()
+      .from(transactions)
+      .where(inArray(transactions.id, ids));
+
+    // Хүсэлтэд ирсэн дарааллыг хадгална — select нь дарааллыг баталгаажуулдаггүй
+    const byId = new Map(insertedRows.map((row) => [row.id, row]));
+    const inserted = ids
+      .map((id) => byId.get(id))
+      .filter((row): row is (typeof insertedRows)[number] => Boolean(row));
 
     return NextResponse.json({
       transactions: inserted.map(toTransaction),

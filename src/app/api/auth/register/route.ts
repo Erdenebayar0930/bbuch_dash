@@ -37,10 +37,13 @@ export async function POST(request: NextRequest) {
 
     const created = await db.transaction(async (tx) => {
       // Тохиргооны мөр байхгүй бол үүсгэнэ
+      // MySQL-ийн "мөр байхгүй бол үүсгэ" — Postgres-ийн onConflictDoNothing
+      // нь энд `onDuplicateKeyUpdate`-аар илэрхийлэгдэнэ. `id`-г өөр дээр нь
+      // онооно: жинхэнэ өөрчлөлт хийхгүй, зөвхөн алдааг залгина.
       await tx
         .insert(appConfig)
         .values({ id: "app", hasAdmin: false })
-        .onConflictDoNothing();
+        .onDuplicateKeyUpdate({ set: { id: "app" } });
 
       const [config] = await tx
         .select()
@@ -52,18 +55,23 @@ export async function POST(request: NextRequest) {
       const role = isFirstAdmin ? "super" : "user";
       const status = isFirstAdmin ? "active" : "pending";
 
+      // MySQL нь INSERT ... RETURNING дэмждэггүй. `uid` нь Firebase-ээс
+      // ирсэн үндсэн түлхүүр тул мөрөө шууд буцааж уншиж болно.
+      await tx.insert(users).values({
+        uid: caller.uid,
+        email,
+        firstName,
+        lastName,
+        phone,
+        role,
+        status,
+      });
+
       const [user] = await tx
-        .insert(users)
-        .values({
-          uid: caller.uid,
-          email,
-          firstName,
-          lastName,
-          phone,
-          role,
-          status,
-        })
-        .returning();
+        .select()
+        .from(users)
+        .where(eq(users.uid, caller.uid))
+        .limit(1);
 
       await tx.insert(registrations).values({
         uid: caller.uid,

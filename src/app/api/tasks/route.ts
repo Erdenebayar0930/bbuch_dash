@@ -90,25 +90,26 @@ export async function POST(request: NextRequest) {
       .from(tasks)
       .where(and(eq(tasks.projectId, projectId), eq(tasks.status, status)));
 
-    const [created] = await db
-      .insert(tasks)
-      .values({
-        ...parsed.value,
-        projectId,
-        title: parsed.value.title as string,
-        status,
-        position: next,
-        completedAt: status === "done" ? new Date() : null,
-        createdBy: result.caller.uid,
-      })
-      .returning({ id: tasks.id });
+    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
+    const id = crypto.randomUUID();
+
+    await db.insert(tasks).values({
+      ...parsed.value,
+      id,
+      projectId,
+      title: parsed.value.title as string,
+      status,
+      position: next,
+      completedAt: status === "done" ? new Date() : null,
+      createdBy: result.caller.uid,
+    });
 
     const [row] = await db
       .select(taskColumns)
       .from(tasks)
       .innerJoin(projects, eq(tasks.projectId, projects.id))
       .leftJoin(users, eq(tasks.assignedTo, users.uid))
-      .where(eq(tasks.id, created.id))
+      .where(eq(tasks.id, id))
       .limit(1);
 
     // Оноогдсон хүнд шууд мэдэгдэнэ — өөрөө өөртөө оновол мэдэгдэх шаардлагагүй

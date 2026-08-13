@@ -31,11 +31,17 @@ export async function PATCH(
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
-    const [updated] = await db
+    // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина
+    await db
       .update(donationBoxes)
       .set({ ...parsed.value, updatedAt: new Date() })
+      .where(eq(donationBoxes.id, id));
+
+    const [updated] = await db
+      .select()
+      .from(donationBoxes)
       .where(eq(donationBoxes.id, id))
-      .returning();
+      .limit(1);
 
     if (!updated) return notFound();
 
@@ -56,12 +62,16 @@ export async function DELETE(
   const { id } = await context.params;
 
   try {
-    const [deleted] = await db
-      .delete(donationBoxes)
+    // MySQL нь DELETE ... RETURNING дэмждэггүй — эхлээд байгаа эсэхийг шалгана
+    const [existing] = await db
+      .select({ id: donationBoxes.id })
+      .from(donationBoxes)
       .where(eq(donationBoxes.id, id))
-      .returning({ id: donationBoxes.id });
+      .limit(1);
 
-    if (!deleted) return notFound();
+    if (!existing) return notFound();
+
+    await db.delete(donationBoxes).where(eq(donationBoxes.id, id));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

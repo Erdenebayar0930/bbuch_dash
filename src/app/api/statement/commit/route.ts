@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { donationKinds } from "@/data/titheOptions";
@@ -125,20 +125,43 @@ export async function POST(request: NextRequest) {
       values.push(parsed.value);
     }
 
-    const inserted = await db
-      .insert(transactions)
-      .values(
-        values.map((value) => ({
+    // Давхардсаныг алгасна — уншуулсан бүрд шинэчлэхгүй: хэрэглэгч гараар
+    // зассан хуучин мөрийг хуулга дарж бичих нь алдагдал болно.
+    //
+    // Postgres дээр энэ нь `onConflictDoNothing(import_key).returning()` байв.
+    // MySQL-д INSERT ... RETURNING байхгүй, `INSERT IGNORE` нь бусад алдааг ч
+    // чимээгүй залгидаг тул аль түлхүүр аль хэдийн байгааг УРЬДЧИЛЖ уншаад
+    // шүүнэ. Ингэснээр хадгалсан/алгассан тоо ч яг гарна.
+    const importKeys = values.map((value) => value.importKey);
+
+    const existingRows =
+      importKeys.length > 0
+        ? await db
+            .select({ importKey: transactions.importKey })
+            .from(transactions)
+            .where(inArray(transactions.importKey, importKeys))
+        : [];
+
+    const seen = new Set(existingRows.map((row) => row.importKey));
+
+    // Нэг файл дотроо давхардсан мөрийг ч шүүнэ — эхнийх нь ялна
+    const fresh = values.filter((value) => {
+      if (seen.has(value.importKey)) return false;
+      seen.add(value.importKey);
+      return true;
+    });
+
+    if (fresh.length > 0) {
+      await db.insert(transactions).values(
+        fresh.map((value) => ({
           ...value,
+          id: crypto.randomUUID(),
           status: "approved",
           account,
           createdBy: result.caller.uid,
         }))
-      )
-      // Давхардсаныг алгасна — уншуулсан бүрд шинэчлэхгүй: хэрэглэгч гараар
-      // зассан хуучин мөрийг хуулга дарж бичих нь алдагдал болно
-      .onConflictDoNothing({ target: transactions.importKey })
-      .returning({ id: transactions.id });
+      );
+    }
 
     // Нэг данс нэг л удаа орно — ON CONFLICT нэг мөрийг хоёр удаа хөндөж
     // чадахгүй тул давхардлыг урьдчилж арилгана. Сүүлийн нэр ялна.
@@ -153,19 +176,22 @@ export async function POST(request: NextRequest) {
         .insert(donors)
         .values(
           [...byAccount].map(([accountNumber, name]) => ({
+            id: crypto.randomUUID(),
             accountNumber,
             name,
           }))
         )
-        .onConflictDoUpdate({
-          target: donors.accountNumber,
-          set: { name: sql`excluded.name`, updatedAt: new Date() },
+        // Postgres-ийн `onConflictDoUpdate(... excluded.name)`-ийн MySQL дүйцэл.
+        // `values(name)` нь оруулах гэсэн мөрийн утгыг (Postgres-ийн `excluded`)
+        // заана.
+        .onDuplicateKeyUpdate({
+          set: { name: sql`values(name)`, updatedAt: new Date() },
         });
     }
 
     return NextResponse.json({
-      saved: inserted.length,
-      skipped: values.length - inserted.length,
+      saved: fresh.length,
+      skipped: values.length - fresh.length,
       donors: byAccount.size,
     });
   } catch (error) {

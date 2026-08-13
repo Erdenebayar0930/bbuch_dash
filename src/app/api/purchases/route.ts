@@ -63,23 +63,24 @@ export async function POST(request: NextRequest) {
     );
     if (!parsed.ok) return badRequest(parsed.error);
 
-    const [created] = await db
-      .insert(purchaseRequests)
-      .values({
-        ...parsed.value,
-        name: parsed.value.name as string,
-        status: "requested",
-        // Хүсэгчийг клиентээс биш токеноос авна — өөр хүний нэрээр бичихээс сэргийлнэ
-        requestedBy: result.caller.uid,
-        createdBy: result.caller.uid,
-      })
-      .returning({ id: purchaseRequests.id });
+    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
+    const id = crypto.randomUUID();
+
+    await db.insert(purchaseRequests).values({
+      ...parsed.value,
+      id,
+      name: parsed.value.name as string,
+      status: "requested",
+      // Хүсэгчийг клиентээс биш токеноос авна — өөр хүний нэрээр бичихээс сэргийлнэ
+      requestedBy: result.caller.uid,
+      createdBy: result.caller.uid,
+    });
 
     const [row] = await db
       .select(purchaseColumns)
       .from(purchaseRequests)
       .leftJoin(users, requesterJoin)
-      .where(eq(purchaseRequests.id, created.id))
+      .where(eq(purchaseRequests.id, id))
       .limit(1);
 
     return NextResponse.json({ purchase: row });

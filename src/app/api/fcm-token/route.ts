@@ -31,13 +31,12 @@ export async function POST(request: NextRequest) {
       return badRequest("token шаардлагатай.");
     }
 
+    // MySQL-ийн upsert — Postgres-ийн onConflictDoUpdate-ийн дүйцэл.
+    // Мөнх түлхүүр нь uid тул давхардвал token-ыг шинэчилнэ.
     await db
       .insert(fcmTokens)
       .values({ uid: caller.uid, token })
-      .onConflictDoUpdate({
-        target: fcmTokens.uid,
-        set: { token, updatedAt: new Date() },
-      });
+      .onDuplicateKeyUpdate({ set: { token, updatedAt: new Date() } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

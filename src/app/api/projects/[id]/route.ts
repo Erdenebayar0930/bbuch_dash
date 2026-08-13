@@ -29,11 +29,17 @@ export async function PATCH(
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
-    const [updated] = await db
+    // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина
+    await db
       .update(projects)
       .set({ ...parsed.value, updatedAt: new Date() })
+      .where(eq(projects.id, id));
+
+    const [updated] = await db
+      .select()
+      .from(projects)
       .where(eq(projects.id, id))
-      .returning();
+      .limit(1);
 
     if (!updated) {
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
@@ -59,14 +65,18 @@ export async function DELETE(
   const { id } = await context.params;
 
   try {
-    const [deleted] = await db
-      .delete(projects)
+    // MySQL нь DELETE ... RETURNING дэмждэггүй — эхлээд байгаа эсэхийг шалгана
+    const [existing] = await db
+      .select({ id: projects.id })
+      .from(projects)
       .where(eq(projects.id, id))
-      .returning({ id: projects.id });
+      .limit(1);
 
-    if (!deleted) {
+    if (!existing) {
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
     }
+
+    await db.delete(projects).where(eq(projects.id, id));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

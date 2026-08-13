@@ -1,4 +1,4 @@
-import { asc, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
@@ -34,36 +34,49 @@ export async function GET(request: NextRequest) {
       .from(welfareHouseholds)
       .orderBy(asc(welfareHouseholds.createdAt));
 
-    // Өрх тус бүрийн ХАМГИЙН СҮҮЛИЙН тусламж — DISTINCT ON нь Postgres дээр
-    // хамгийн хямд арга, бүх түүхийг татаад шүүх шаардлагагүй.
-    const latest = await db.execute<{
+    // Өрх тус бүрийн ХАМГИЙН СҮҮЛИЙН тусламж — бүх түүхийг татаад санах ойд
+    // шүүхийн оронд баазад бодуулна.
+    type LatestAid = {
       household_id: string;
       description: string;
       amount: number;
-      provided_at: string;
-    }>(sql`
-      select distinct on (household_id)
-        household_id, description, amount, provided_at
-      from welfare_aids
-      order by household_id, provided_at desc
-    `);
+      provided_at: Date;
+    };
 
-    // Нийт зарцуулалт ба тусламжийн тоо — тайлангийн үндсэн тоо тул баазад
-    const totals = await db.execute<{
+    type HouseholdTotal = {
       household_id: string;
       total: number;
       times: number;
-    }>(sql`
+    };
+
+    // Postgres дээр `distinct on (household_id)` байсан — MySQL-д ийм бүтэц
+    // байхгүй тул цонхны функцээр мөр бүрийг дугаарлаад эхнийхийг нь авна.
+    const [latest] = await db.execute(sql`
+      select household_id, description, amount, provided_at
+      from (
+        select
+          household_id, description, amount, provided_at,
+          row_number() over (
+            partition by household_id order by provided_at desc
+          ) as rn
+        from welfare_aids
+      ) ranked
+      where rn = 1
+    `);
+
+    // Нийт зарцуулалт ба тусламжийн тоо — тайлангийн үндсэн тоо тул баазад.
+    // Postgres-ийн `::int` cast нь MySQL-д `cast(... as signed)`.
+    const [totals] = await db.execute(sql`
       select
         household_id,
-        coalesce(sum(amount), 0)::int as total,
-        count(*)::int as times
+        cast(coalesce(sum(amount), 0) as signed) as total,
+        cast(count(*) as signed) as times
       from welfare_aids
       group by household_id
     `);
 
     const lastByHousehold = new Map(
-      latest.rows.map((row) => [
+      (latest as unknown as LatestAid[]).map((row) => [
         row.household_id,
         {
           description: row.description,
@@ -74,7 +87,7 @@ export async function GET(request: NextRequest) {
     );
 
     const totalByHousehold = new Map(
-      totals.rows.map((row) => [
+      (totals as unknown as HouseholdTotal[]).map((row) => [
         row.household_id,
         { total: row.total, times: row.times },
       ])
@@ -109,16 +122,22 @@ export async function POST(request: NextRequest) {
     );
     if (!parsed.ok) return badRequest(parsed.error);
 
+    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
+    const id = crypto.randomUUID();
+
+    await db.insert(welfareHouseholds).values({
+      ...parsed.value,
+      id,
+      name: parsed.value.name as string,
+      lat: parsed.value.lat as number,
+      lng: parsed.value.lng as number,
+      createdBy: result.caller.uid,
+    });
+
     const [created] = await db
-      .insert(welfareHouseholds)
-      .values({
-        ...parsed.value,
-        name: parsed.value.name as string,
-        lat: parsed.value.lat as number,
-        lng: parsed.value.lng as number,
-        createdBy: result.caller.uid,
-      })
-      .returning();
+      .select()
+      .from(welfareHouseholds)
+      .where(eq(welfareHouseholds.id, id));
 
     return NextResponse.json({ household: created });
   } catch (error) {

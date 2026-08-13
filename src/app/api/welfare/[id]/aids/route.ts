@@ -111,16 +111,22 @@ export async function POST(
       return NextResponse.json({ error: "Өрх олдсонгүй." }, { status: 404 });
     }
 
+    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
+    const aidId = crypto.randomUUID();
+
+    await db.insert(welfareAids).values({
+      id: aidId,
+      householdId: id,
+      description,
+      amount,
+      note,
+      providedBy: result.caller.uid,
+    });
+
     const [created] = await db
-      .insert(welfareAids)
-      .values({
-        householdId: id,
-        description,
-        amount,
-        note,
-        providedBy: result.caller.uid,
-      })
-      .returning();
+      .select()
+      .from(welfareAids)
+      .where(eq(welfareAids.id, aidId));
 
     return NextResponse.json({ aid: created });
   } catch (error) {

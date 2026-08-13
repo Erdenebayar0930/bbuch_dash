@@ -1,5 +1,5 @@
 /**
- * Firestore → PostgreSQL нэг удаагийн шилжүүлэлт.
+ * Firestore → MySQL нэг удаагийн шилжүүлэлт.
  *
  * Ажиллуулах:
  *   npm run db:push                 # эхлээд хүснэгтүүдийг үүсгэнэ
@@ -13,8 +13,8 @@
  */
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
 
 import {
   appConfig,
@@ -41,8 +41,12 @@ if (getApps().length === 0) {
 }
 
 const firestore = getFirestore();
-const pool = new Pool({ connectionString: requireEnv("DATABASE_URL") });
-const db = drizzle(pool);
+const pool = mysql.createPool({
+  uri: requireEnv("DATABASE_URL"),
+  timezone: "Z",
+  decimalNumbers: false,
+});
+const db = drizzle(pool, { mode: "default" });
 
 /** Firestore Timestamp | ISO текст → Date */
 function toDate(value: unknown): Date {
@@ -80,9 +84,7 @@ async function migrateUsers() {
         createdAt: toDate(data.createdAt),
         updatedAt: toDate(data.updatedAt ?? data.createdAt),
       })
-      .onConflictDoUpdate({
-        target: users.uid,
-        set: {
+      .onDuplicateKeyUpdate({ set: {
           email: str(data.email).toLowerCase(),
           firstName: str(data.first_name),
           lastName: str(data.last_name),
@@ -123,7 +125,7 @@ async function migrateTransactions() {
 
   if (rows.length === 0) return 0;
 
-  // Гүйлгээний id нь Postgres-д шинээр үүсэх тул давтан ажиллуулбал
+  // Гүйлгээний id нь шинээр үүсэх тул давтан ажиллуулбал
   // давхардана — эхлээд хүснэгтийг хоослоно.
   await db.delete(transactions);
 
@@ -155,7 +157,7 @@ async function migrateFcmTokens() {
     await db
       .insert(fcmTokens)
       .values({ uid: doc.id, token, updatedAt: toDate(doc.data().updatedAt) })
-      .onConflictDoUpdate({ target: fcmTokens.uid, set: { token } });
+      .onDuplicateKeyUpdate({ set: { token } });
 
     count += 1;
   }
@@ -200,7 +202,7 @@ async function migrateConfig() {
   await db
     .insert(appConfig)
     .values({ id: "app", hasAdmin })
-    .onConflictDoUpdate({ target: appConfig.id, set: { hasAdmin } });
+    .onDuplicateKeyUpdate({ set: { hasAdmin } });
 
   return hasAdmin;
 }

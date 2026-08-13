@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
@@ -48,7 +48,11 @@ export async function POST(request: NextRequest) {
       return badRequest(`Хамгийн ихдээ ${MAX_PATTERNS} загвар байна.`);
     }
 
-    await db.insert(tithePatterns).values({ pattern }).onConflictDoNothing();
+    // Давхардвал юу ч хийхгүй — MySQL-д no-op update-ээр илэрхийлнэ
+    await db
+      .insert(tithePatterns)
+      .values({ pattern })
+      .onDuplicateKeyUpdate({ set: { pattern: sql`pattern` } });
 
     return NextResponse.json({ patterns: await readTithePatterns() });
   } catch (error) {

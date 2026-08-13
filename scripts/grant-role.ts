@@ -11,9 +11,9 @@
  *
  * Шаардлагатай env (.env.local): DATABASE_URL
  */
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle } from "drizzle-orm/mysql2";
 import { eq } from "drizzle-orm";
-import { Pool } from "pg";
+import mysql from "mysql2/promise";
 
 import { appConfig, users } from "../src/lib/db/schema";
 import { roleLabels, type UserRole } from "../src/lib/permissions";
@@ -39,16 +39,18 @@ if (!connectionString) {
   process.exit(1);
 }
 
-const pool = new Pool({
-  connectionString,
+const pool = mysql.createPool({
+  uri: connectionString,
+  timezone: "Z",
+  decimalNumbers: false,
   ssl:
     process.env.DATABASE_SSL === "relaxed"
       ? { rejectUnauthorized: false }
       : process.env.DATABASE_SSL === "require"
-        ? true
+        ? {}
         : undefined,
 });
-const db = drizzle(pool);
+const db = drizzle(pool, { mode: "default" });
 
 async function main() {
   const [existing] = await db
@@ -65,18 +67,24 @@ async function main() {
     return;
   }
 
-  const [updated] = await db
+  // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина
+  await db
     .update(users)
     .set({ role, status: "active", updatedAt: new Date() })
+    .where(eq(users.uid, existing.uid));
+
+  const [updated] = await db
+    .select()
+    .from(users)
     .where(eq(users.uid, existing.uid))
-    .returning();
+    .limit(1);
 
   // Анхны админ үүссэн гэдгийг тэмдэглэнэ — бүртгэлийн форм үүнийг уншина
   if (role === "super" || role === "admin") {
     await db
       .insert(appConfig)
       .values({ id: "app", hasAdmin: true })
-      .onConflictDoUpdate({ target: appConfig.id, set: { hasAdmin: true } });
+      .onDuplicateKeyUpdate({ set: { hasAdmin: true } });
   }
 
   console.log(

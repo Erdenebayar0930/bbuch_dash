@@ -1,4 +1,4 @@
-import { desc, gte, isNull, sql } from "drizzle-orm";
+import { desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { badRequest, requireActiveUser, requireAdmin, serverError } from "@/lib/api/auth";
@@ -63,10 +63,17 @@ export async function POST(request: NextRequest) {
       return badRequest("Тооллого аль хэдийн эхэлсэн байна.");
     }
 
-    const [created] = await db
+    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
+    const id = crypto.randomUUID();
+
+    await db
       .insert(assetCountSessions)
-      .values({ startedBy: result.caller.uid })
-      .returning();
+      .values({ id, startedBy: result.caller.uid });
+
+    const [created] = await db
+      .select()
+      .from(assetCountSessions)
+      .where(eq(assetCountSessions.id, id));
 
     return NextResponse.json({ session: created, checkedAssetIds: [] });
   } catch (error) {

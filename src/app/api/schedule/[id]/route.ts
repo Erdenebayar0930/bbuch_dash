@@ -117,12 +117,16 @@ export async function DELETE(
   const { id } = await context.params;
 
   try {
-    const [deleted] = await db
-      .delete(scheduleShifts)
+    // MySQL нь DELETE ... RETURNING дэмждэггүй — эхлээд байгаа эсэхийг шалгана
+    const [existing] = await db
+      .select({ id: scheduleShifts.id })
+      .from(scheduleShifts)
       .where(eq(scheduleShifts.id, id))
-      .returning({ id: scheduleShifts.id });
+      .limit(1);
 
-    if (!deleted) return notFound();
+    if (!existing) return notFound();
+
+    await db.delete(scheduleShifts).where(eq(scheduleShifts.id, id));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

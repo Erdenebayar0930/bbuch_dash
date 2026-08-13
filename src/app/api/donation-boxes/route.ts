@@ -1,4 +1,4 @@
-import { asc, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
@@ -35,38 +35,47 @@ export async function GET(request: NextRequest) {
       .from(donationBoxes)
       .orderBy(asc(donationBoxes.createdAt));
 
-    // Хайрцаг тус бүрийн ХАМГИЙН СҮҮЛИЙН эргэлт — DISTINCT ON нь Postgres дээр
-    // хамгийн хямд арга, бүх түүхийг татаад шүүх шаардлагагүй.
-    const latest = await db.execute<{
+    // Хайрцаг тус бүрийн ХАМГИЙН СҮҮЛИЙН эргэлт — бүх түүхийг татаад санах
+    // ойд шүүхийн оронд баазад бодуулна.
+    type LatestVisit = {
       box_id: string;
       status: string;
       amount: number;
       clothing_count: number;
-      visited_at: string;
-    }>(sql`
-      select distinct on (box_id)
-        box_id, status, amount, clothing_count, visited_at
-      from donation_box_visits
-      order by box_id, visited_at desc
+      visited_at: Date;
+    };
+
+    type BoxTotal = { box_id: string; total: number; clothing: number };
+
+    // Хайрцаг тус бүрийн сүүлийн эргэлт. Postgres дээр `distinct on (box_id)`
+    // байсан — MySQL-д ийм бүтэц байхгүй тул цонхны функцээр дугаарлана.
+    const [latest] = await db.execute(sql`
+      select box_id, status, amount, clothing_count, visited_at
+      from (
+        select
+          box_id, status, amount, clothing_count, visited_at,
+          row_number() over (
+            partition by box_id order by visited_at desc
+          ) as rn
+        from donation_box_visits
+      ) ranked
+      where rn = 1
     `);
 
-    // Нийт хураалт — тайлангийн үндсэн тоо тул баазад бодуулна
-    const totals = await db.execute<{
-      box_id: string;
-      total: number;
-      clothing: number;
-    }>(sql`
+    // Нийт хураалт — тайлангийн үндсэн тоо тул баазад бодуулна.
+    // Postgres-ийн `::int` cast нь MySQL-д `cast(... as signed)`.
+    const [totals] = await db.execute(sql`
       select
         box_id,
-        coalesce(sum(amount), 0)::int as total,
-        coalesce(sum(clothing_count), 0)::int as clothing
+        cast(coalesce(sum(amount), 0) as signed) as total,
+        cast(coalesce(sum(clothing_count), 0) as signed) as clothing
       from donation_box_visits
       where status = 'collected'
       group by box_id
     `);
 
     const lastByBox = new Map(
-      latest.rows.map((row) => [
+      (latest as unknown as LatestVisit[]).map((row) => [
         row.box_id,
         {
           status: row.status,
@@ -78,7 +87,7 @@ export async function GET(request: NextRequest) {
     );
 
     const totalByBox = new Map(
-      totals.rows.map((row) => [
+      (totals as unknown as BoxTotal[]).map((row) => [
         row.box_id,
         { money: row.total, clothing: row.clothing },
       ])
@@ -110,16 +119,22 @@ export async function POST(request: NextRequest) {
     const parsed = readDonationBox(await request.json().catch(() => ({})), false);
     if (!parsed.ok) return badRequest(parsed.error);
 
+    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
+    const id = crypto.randomUUID();
+
+    await db.insert(donationBoxes).values({
+      ...parsed.value,
+      id,
+      name: parsed.value.name as string,
+      lat: parsed.value.lat as number,
+      lng: parsed.value.lng as number,
+      createdBy: result.caller.uid,
+    });
+
     const [created] = await db
-      .insert(donationBoxes)
-      .values({
-        ...parsed.value,
-        name: parsed.value.name as string,
-        lat: parsed.value.lat as number,
-        lng: parsed.value.lng as number,
-        createdBy: result.caller.uid,
-      })
-      .returning();
+      .select()
+      .from(donationBoxes)
+      .where(eq(donationBoxes.id, id));
 
     return NextResponse.json({ box: created });
   } catch (error) {

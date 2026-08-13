@@ -188,22 +188,36 @@ export async function POST(request: NextRequest) {
     const rows = await readDonationAccounts();
     const position = rows.reduce((max, row) => Math.max(max, row.position), -1) + 1;
 
-    const [created] = await db
-      .insert(donationAccounts)
-      .values({
-        title: parsed.value.title!,
-        number: parsed.value.number!,
-        bank: parsed.value.bank ?? "",
-        holder: parsed.value.holder ?? "",
-        isTithe: parsed.value.isTithe ?? false,
-        allowedUids: parsed.value.allowedUids ?? [],
-        allowedAimags: parsed.value.allowedAimags ?? [],
-        position,
-      })
-      .onConflictDoNothing({ target: donationAccounts.number })
-      .returning();
+    // Postgres дээр энэ нь `onConflictDoNothing(number).returning()` байсан:
+    // давхардвал хоосон буцаад 400 өгдөг байв. MySQL-д INSERT ... RETURNING
+    // байхгүй тул давхардлыг урьдчилан шалгана. Дугаар дээрх unique индекс
+    // хэвээр тул зэрэг бичих гэсэн тохиолдолд ч сан хамгаална.
+    const [duplicate] = await db
+      .select({ id: donationAccounts.id })
+      .from(donationAccounts)
+      .where(eq(donationAccounts.number, parsed.value.number!))
+      .limit(1);
 
-    if (!created) return badRequest("Ийм дугаартай данс бүртгэгдсэн байна.");
+    if (duplicate) return badRequest("Ийм дугаартай данс бүртгэгдсэн байна.");
+
+    const newId = crypto.randomUUID();
+
+    await db.insert(donationAccounts).values({
+      id: newId,
+      title: parsed.value.title!,
+      number: parsed.value.number!,
+      bank: parsed.value.bank ?? "",
+      holder: parsed.value.holder ?? "",
+      isTithe: parsed.value.isTithe ?? false,
+      allowedUids: parsed.value.allowedUids ?? [],
+      allowedAimags: parsed.value.allowedAimags ?? [],
+      position,
+    });
+
+    const [created] = await db
+      .select()
+      .from(donationAccounts)
+      .where(eq(donationAccounts.id, newId));
 
     if (created.isTithe) await clearOtherTithe(created.id);
 
@@ -229,11 +243,17 @@ export async function PATCH(request: NextRequest) {
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
-    const [updated] = await db
+    // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина
+    await db
       .update(donationAccounts)
       .set({ ...parsed.value, updatedAt: new Date() })
+      .where(eq(donationAccounts.id, id));
+
+    const [updated] = await db
+      .select()
+      .from(donationAccounts)
       .where(eq(donationAccounts.id, id))
-      .returning();
+      .limit(1);
 
     if (!updated) {
       return NextResponse.json({ error: "Данс олдсонгүй." }, { status: 404 });
@@ -261,14 +281,18 @@ export async function DELETE(request: NextRequest) {
   if (!id) return badRequest("Устгах дансыг заагаагүй байна.");
 
   try {
-    const [deleted] = await db
-      .delete(donationAccounts)
+    // MySQL нь DELETE ... RETURNING дэмждэггүй — эхлээд байгаа эсэхийг шалгана
+    const [existing] = await db
+      .select({ id: donationAccounts.id })
+      .from(donationAccounts)
       .where(eq(donationAccounts.id, id))
-      .returning({ id: donationAccounts.id });
+      .limit(1);
 
-    if (!deleted) {
+    if (!existing) {
       return NextResponse.json({ error: "Данс олдсонгүй." }, { status: 404 });
     }
+
+    await db.delete(donationAccounts).where(eq(donationAccounts.id, id));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

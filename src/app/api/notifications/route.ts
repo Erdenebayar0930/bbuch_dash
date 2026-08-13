@@ -62,15 +62,17 @@ export async function PATCH(request: NextRequest) {
     const now = new Date();
 
     if (body.all === true) {
-      const updated = await db
+      // MySQL нь UPDATE ... RETURNING дэмждэггүй. Энд зөвхөн ЗАССАН МӨРИЙН ТОО
+      // хэрэгтэй тул үр дүнгийн `affectedRows`-ыг шууд авна — нэмэлт асуулга
+      // хийх шаардлагагүй.
+      const [res] = await db
         .update(notifications)
         .set({ readAt: now })
         .where(
           and(eq(notifications.uid, caller.uid), isNull(notifications.readAt))
-        )
-        .returning({ id: notifications.id });
+        );
 
-      return NextResponse.json({ updated: updated.length });
+      return NextResponse.json({ updated: res.affectedRows });
     }
 
     if (!Array.isArray(body.ids) || body.ids.length === 0) {
@@ -81,7 +83,7 @@ export async function PATCH(request: NextRequest) {
       return badRequest("ids нь текстийн жагсаалт байх ёстой.");
     }
 
-    const updated = await db
+    const [res] = await db
       .update(notifications)
       .set({ readAt: now })
       .where(
@@ -90,10 +92,9 @@ export async function PATCH(request: NextRequest) {
           inArray(notifications.id, body.ids as string[]),
           isNull(notifications.readAt)
         )
-      )
-      .returning({ id: notifications.id });
+      );
 
-    return NextResponse.json({ updated: updated.length });
+    return NextResponse.json({ updated: res.affectedRows });
   } catch (error) {
     return serverError(error, "Мэдэгдэл тэмдэглэхэд алдаа гарлаа");
   }

@@ -38,10 +38,12 @@ async function resolveRecipients(target: Target): Promise<string[]> {
 
   const where =
     target.type === "aimag"
-      ? // Нэг хүн олон аймагт харьяалагдаж болох тул containment хайлт
+      ? // Нэг хүн олон аймагт харьяалагдаж болох тул containment хайлт.
+        // Postgres дээр `aimags @> '["x"]'::jsonb` байсан — MySQL-ийн
+        // дүйцэх функц нь JSON_CONTAINS(баримт, хайх_утга).
         and(
           eq(users.status, "active"),
-          sql`${users.aimags} @> ${JSON.stringify([target.aimag])}::jsonb`
+          sql`json_contains(${users.aimags}, ${JSON.stringify(target.aimag)})`
         )
       : target.type === "role"
       ? and(eq(users.status, "active"), eq(users.role, target.role))
@@ -144,20 +146,20 @@ export async function POST(request: NextRequest) {
 
     // Эхлээд DB-д бичнэ. Push нь зөвхөн мэдэгдүүлэг тул түүнгүйгээр ч
     // хэрэглэгч дараагийн удаа ороход уншаагүй мэдэгдлээ харна.
-    const stored = await db
-      .insert(notifications)
-      .values(
-        uids.map((uid) => ({
-          uid,
-          title: notification.title as string,
-          body: notification.body as string,
-          url: typeof data?.url === "string" ? data.url : "",
-          createdBy: auth.caller.uid,
-        }))
-      )
-      .returning({ id: notifications.id });
+    // MySQL нь INSERT ... RETURNING дэмждэггүй. Энд зөвхөн БИЧИГДСЭН МӨРИЙН ТОО
+    // хэрэгтэй тул үр дүнгийн `affectedRows`-ыг авна.
+    const [stored] = await db.insert(notifications).values(
+      uids.map((uid) => ({
+        id: crypto.randomUUID(),
+        uid,
+        title: notification.title as string,
+        body: notification.body as string,
+        url: typeof data?.url === "string" ? data.url : "",
+        createdBy: auth.caller.uid,
+      }))
+    );
 
-    result.stored = stored.length;
+    result.stored = stored.affectedRows;
 
     const tokenRows = await db
       .select({ uid: fcmTokens.uid, token: fcmTokens.token })

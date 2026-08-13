@@ -65,6 +65,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const rows: {
+      id: string;
       uid: string;
       name: string;
       birthDate: string;
@@ -91,7 +92,15 @@ export async function PUT(request: NextRequest) {
         return badRequest(`${index + 1}-р хүүхдийн хүйс буруу байна.`);
       }
 
-      rows.push({ uid, name, birthDate, gender, position: rows.length });
+      rows.push({
+        // MySQL нь INSERT ... RETURNING дэмждэггүй тул ID-г урьдчилж үүсгэнэ
+        id: crypto.randomUUID(),
+        uid,
+        name,
+        birthDate,
+        gender,
+        position: rows.length,
+      });
     }
 
     const saved = await db.transaction(async (tx) => {
@@ -99,7 +108,14 @@ export async function PUT(request: NextRequest) {
 
       if (rows.length === 0) return [];
 
-      return tx.insert(children).values(rows).returning();
+      await tx.insert(children).values(rows);
+
+      // Бүх мөр нэг хэрэглэгчийнх тул uid-аар нь эрэмбэтэй буцааж уншина
+      return tx
+        .select()
+        .from(children)
+        .where(eq(children.uid, uid))
+        .orderBy(asc(children.position));
     });
 
     return NextResponse.json({ children: saved });

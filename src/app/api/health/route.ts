@@ -14,9 +14,9 @@ export async function GET() {
 
   try {
     await db.execute(sql`select 1` as never);
-    checks.postgres = "ok";
+    checks.mysql = "ok";
   } catch (error) {
-    checks.postgres = {
+    checks.mysql = {
       status: "error",
       message: error instanceof Error ? error.message : "Unknown error",
     };

@@ -86,10 +86,17 @@ export async function POST(
       return badRequest(`Нэг эд хөрөнгөд ${MAX_IMAGES} хүртэл зураг оруулна.`);
     }
 
-    const [created] = await db
+    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
+    const imageId = crypto.randomUUID();
+
+    await db
       .insert(assetImages)
-      .values({ assetId: id, url, path, position: next })
-      .returning();
+      .values({ id: imageId, assetId: id, url, path, position: next });
+
+    const [created] = await db
+      .select()
+      .from(assetImages)
+      .where(eq(assetImages.id, imageId));
 
     return NextResponse.json({ image: created });
   } catch (error) {
@@ -111,14 +118,21 @@ export async function DELETE(
     const imageId = new URL(request.url).searchParams.get("imageId");
     if (!imageId) return badRequest("imageId шаардлагатай.");
 
+    // MySQL нь DELETE ... RETURNING дэмждэггүй. Клиентэд Storage-ийн зам
+    // хэрэгтэй тул устгахын ӨМНӨ мөрийг уншиж авна.
     const [deleted] = await db
-      .delete(assetImages)
+      .select()
+      .from(assetImages)
       .where(and(eq(assetImages.id, imageId), eq(assetImages.assetId, id)))
-      .returning();
+      .limit(1);
 
     if (!deleted) {
       return NextResponse.json({ error: "Зураг олдсонгүй." }, { status: 404 });
     }
+
+    await db
+      .delete(assetImages)
+      .where(and(eq(assetImages.id, imageId), eq(assetImages.assetId, id)));
 
     // Клиент файлыг Storage-оос устгахын тулд замыг буцаана
     return NextResponse.json({ path: deleted.path });
