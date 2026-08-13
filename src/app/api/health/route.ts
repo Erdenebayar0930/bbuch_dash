@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createPrivateKey } from "node:crypto";
 
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -27,6 +27,71 @@ const MYSQL_HINTS: Record<string, string> = {
   ETIMEDOUT: "MySQL холболт хугацаа хэтэрлээ.",
   PROTOCOL_CONNECTION_LOST: "MySQL холболт тасарлаа.",
 };
+
+/**
+ * Firebase service account-ын хувийн түлхүүрийг ҮНЭХЭЭР задарч байгаа эсэхийг
+ * шалгана. Зөвхөн "хоосон биш" гэж шалгах нь хангалтгүй: орлуулагч утга
+ * (`-----BEGIN PRIVATE KEY-----\n…\n-----END…`) тавихад тест давчихдаг ба
+ * мэдэгдэл чимээгүйхэн ажиллахгүй болдог.
+ *
+ * Түлхүүрийн агуулгыг ХЭЗЭЭ Ч буцаахгүй — зөвхөн задарсан эсэх, урт нь.
+ */
+function describePrivateKey(key: string): Record<string, unknown> {
+  if (!key) return { status: "missing" };
+
+  const body = key.replace(/-----[A-Z ]+-----/g, "").replace(/\s/g, "");
+
+  try {
+    createPrivateKey(key);
+    return { status: "valid", bodyLength: body.length };
+  } catch (error) {
+    return {
+      status: "invalid",
+      bodyLength: body.length,
+      // Жинхэнэ RSA-2048 түлхүүрийн их бие ~1600 тэмдэгт байдаг
+      expectedBodyLength: "~1600",
+      hint:
+        body.length < 100
+          ? "Утга нь хэтэрхий богино — орлуулагч эсвэл таслагдсан байна. Firebase Console → Project settings → Service accounts → Generate new private key."
+          : "Түлхүүр задрахгүй байна. Мөр таслалт `\\n` хэлбэрээр бичигдсэн, бүхэлдээ хашилтанд байгаа эсэхийг шалгана уу.",
+      message: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Web Push VAPID НИЙТИЙН түлхүүрийг шалгана.
+ *
+ * Зөв утга нь шахаагүй P-256 цэг: 65 байт → base64url-ээр 87-88 тэмдэгт,
+ * ҮРГЭЛЖ "B" үсгээр эхэлнэ (0x04 угтвар). 32 байт (43 тэмдэгт) ирвэл энэ нь
+ * хосын ХУВИЙН тал — Console-оос буруу талыг нь хуулсан гэсэн үг.
+ */
+function describeVapidKey(key: string | undefined): Record<string, unknown> {
+  if (!key) return { status: "missing" };
+
+  let bytes: Buffer;
+  try {
+    bytes = Buffer.from(key.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+  } catch {
+    return { status: "invalid", length: key.length, hint: "base64 биш байна." };
+  }
+
+  if (bytes.length === 65 && bytes[0] === 0x04) {
+    return { status: "valid", length: key.length };
+  }
+
+  return {
+    status: "invalid",
+    length: key.length,
+    expectedLength: 87,
+    byteLength: bytes.length,
+    expectedByteLength: 65,
+    hint:
+      bytes.length === 32
+        ? "Энэ бол ХУВИЙН түлхүүр. Firebase Console → Cloud Messaging → Web Push certificates хэсгээс 'Key pair' баганы НИЙТИЙН утгыг («B» үсгээр эхэлдэг, ~87 тэмдэгт) хуулна уу."
+        : "Firebase Console → Cloud Messaging → Web Push certificates-аас түлхүүрээ дахин хуулна уу.",
+  };
+}
 
 /**
  * Драйверийн жинхэнэ алдааны кодыг олно.
@@ -147,9 +212,22 @@ export async function GET() {
   }
 
   const firebaseConfig = getFirebaseAdminConfig();
+  const privateKeyStatus = describePrivateKey(firebaseConfig.privateKey);
   checks.firebase = {
-    status: firebaseConfig.projectId && firebaseConfig.clientEmail && firebaseConfig.privateKey ? "configured" : "missing-config",
+    /**
+     * ⚠ Утга БАЙГАА эсэхийг шалгаад зогсохгүй, ҮНЭХЭЭР задарч байгааг шалгана.
+     * Өмнө нь зөвхөн хоосон эсэхийг хардаг байсан тул орлуулагч утга тавихад
+     * "configured" гэж мэдээлж, мэдэгдэл огт илгээгдэхгүй байгаа шалтгааныг
+     * нуучихсан байв.
+     */
+    status:
+      !firebaseConfig.projectId || !firebaseConfig.clientEmail || !firebaseConfig.privateKey
+        ? "missing-config"
+        : privateKeyStatus.status === "valid"
+          ? "configured"
+          : "invalid-private-key",
     projectId: firebaseConfig.projectId || null,
+    privateKey: privateKeyStatus,
   };
 
   /**
@@ -161,6 +239,14 @@ export async function GET() {
   checks.firebaseClient = isFirebaseClientConfigured()
     ? "configured"
     : "fallback";
+
+  // Push мэдэгдлийн хоёр үзүүр — аль нэг нь буруу бол мэдэгдэл ОГТ ажиллахгүй.
+  checks.push = {
+    // Сервер тал: энэ түлхүүргүйгээр FCM рүү илгээх боломжгүй.
+    privateKey: privateKeyStatus,
+    // Клиент тал: буруу бол getToken() унаж, төхөөрөмж бүртгэгдэхгүй.
+    vapidKey: describeVapidKey(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY),
+  };
 
   checks.dbConfig = describeDbConfig();
 
