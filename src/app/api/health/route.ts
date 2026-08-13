@@ -99,6 +99,38 @@ export async function GET() {
   } catch (error) {
     const code = findDriverCode(error);
 
+    /**
+     * Оношилгооны дэлгэрэнгүйг ЗӨВХӨН серверийн лог руу бичнэ (HTTP хариунд
+     * оруулахгүй — энэ endpoint нээлттэй). Тохиргоо буруу үед "яг ямар утга
+     * процесст ирсэн бэ" гэдгийг өөр аргаар мэдэх боломжгүй: Passenger нь
+     * процессоо тусгаарладаг тул /proc-оос ч уншигдахгүй.
+     *
+     * Нууц үгийг бүтнээр нь хэвлэхгүй — урт болон эхний/сүүлийн 2 тэмдэгт нь
+     * бичилтийн алдааг олоход хангалттай.
+     */
+    const raw = resolveDatabaseUrl();
+
+    if (raw) {
+      try {
+        const parsed = new URL(raw);
+        const pw = parsed.password;
+
+        console.error("[health] холболтын мөрийн задаргаа:", {
+          source: databaseUrlSource(),
+          length: raw.length,
+          user: parsed.username,
+          host: parsed.hostname,
+          port: parsed.port,
+          database: parsed.pathname.slice(1),
+          passwordLength: pw.length,
+          passwordEdges: pw.length > 4 ? `${pw.slice(0, 2)}…${pw.slice(-2)}` : "?",
+          percentCount: (pw.match(/%/g) ?? []).length,
+        });
+      } catch {
+        console.error("[health] холболтын мөр URL болж задрахгүй байна");
+      }
+    }
+
     checks.mysql = {
       status: "error",
       /**
