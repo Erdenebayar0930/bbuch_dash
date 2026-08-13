@@ -5,7 +5,7 @@ import { defineConfig } from "drizzle-kit";
 // drizzle-kit нь Next.js-ийн env ачаалагчийг ашигладаггүй тул .env.local-ыг
 // өөрсдөө уншина (нэмэлт хамаарал шаардахгүйн тулд гараар задална).
 function loadEnvLocal() {
-  if (process.env.DATABASE_URL) return;
+  if (process.env.MYSQL_URL || process.env.DATABASE_URL) return;
 
   try {
     const raw = readFileSync(".env.local", "utf8");
@@ -32,7 +32,8 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "mysql",
   dbCredentials: {
-    url: process.env.DATABASE_URL!,
+    // MYSQL_URL нь DATABASE_URL-ыг дарна — аппын логиктой ижил дараалал
+    url: (process.env.MYSQL_URL || process.env.DATABASE_URL)!,
   },
   // website/ апп нь өөрийн "site_" угтвартай хүснэгтүүдтэй. Хэрэв нэг санг
   // хуваалцах болвол эдгээрийг хасахгүй үед `drizzle-kit push` нь "схемд алга"

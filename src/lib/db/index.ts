@@ -2,7 +2,7 @@ import "server-only";
 
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 
-import { createDbPool } from "./createPool";
+import { createDbPool, resolveDatabaseUrl } from "./createPool";
 import * as schema from "./schema";
 
 import type { Pool } from "mysql2/promise";
@@ -24,11 +24,11 @@ const globalForDb = globalThis as unknown as {
 function getDb(): Database {
   if (globalForDb.__drizzle) return globalForDb.__drizzle;
 
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = resolveDatabaseUrl();
 
   if (!connectionString) {
     throw new Error(
-      "DATABASE_URL тохируулаагүй байна. .env.local файлдаа нэмнэ үү."
+      "DATABASE_URL (эсвэл MYSQL_URL) тохируулаагүй байна. .env.local файлдаа нэмнэ үү."
     );
   }
 

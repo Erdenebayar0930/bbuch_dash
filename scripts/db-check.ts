@@ -16,7 +16,7 @@
  */
 import { getTableName, is, Table } from "drizzle-orm";
 
-import { createDbPool } from "../src/lib/db/createPool";
+import { createDbPool, resolveDatabaseUrl } from "../src/lib/db/createPool";
 import * as schema from "../src/lib/db/schema";
 
 import type { Pool, RowDataPacket } from "mysql2/promise";
@@ -41,9 +41,9 @@ async function selectOne<T = Record<string, unknown>>(
   return rows[0] as T;
 }
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = resolveDatabaseUrl();
 if (!connectionString) {
-  console.error("DATABASE_URL тохируулаагүй байна (.env.local).");
+  console.error("DATABASE_URL (эсвэл MYSQL_URL) тохируулаагүй байна (.env.local).");
   process.exit(1);
 }
 

@@ -1,6 +1,28 @@
 import mysql from "mysql2/promise";
 
 /**
+ * Холболтын мөрийг аль env хувьсагчаас авахыг шийднэ.
+ *
+ * `MYSQL_URL` нь `DATABASE_URL`-аас ДАВУУ эрхтэй. Шалтгаан нь практик:
+ * hosting самбарууд `DATABASE_URL` гэдэг нэрийг өөрсдийн интеграцад
+ * ашиглаж, хадгалахгүй байх эсвэл хуучин утгыг барих нь тохиолддог. Тийм
+ * үед платформ хөндөхгүй өөр нэр өгөх нь цорын ганц гарц болно.
+ *
+ * Хоёулаа байвал `MYSQL_URL` ялна — өөрөөр хэлбэл гацсан `DATABASE_URL`-ыг
+ * устгах шаардлагагүй, зүгээр л дээрээс нь дарж бичнэ.
+ */
+export function resolveDatabaseUrl(): string | undefined {
+  return process.env.MYSQL_URL || process.env.DATABASE_URL || undefined;
+}
+
+/** Холболтын мөр аль хувьсагчаас ирснийг хэлнэ — оношилгоонд хэрэгтэй */
+export function databaseUrlSource(): "MYSQL_URL" | "DATABASE_URL" | null {
+  if (process.env.MYSQL_URL) return "MYSQL_URL";
+  if (process.env.DATABASE_URL) return "DATABASE_URL";
+  return null;
+}
+
+/**
  * MySQL/MariaDB pool — апп болон CLI скриптүүд хоёулаа эндээс авна.
  *
  * `server-only`-г ЗОРИУДААР импортлохгүй: `scripts/`-ийн tsx скриптүүд ч энэ

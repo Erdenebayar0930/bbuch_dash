@@ -14,7 +14,7 @@
 import { drizzle } from "drizzle-orm/mysql2";
 import { eq } from "drizzle-orm";
 
-import { createDbPool } from "../src/lib/db/createPool";
+import { createDbPool, resolveDatabaseUrl } from "../src/lib/db/createPool";
 import { appConfig, users } from "../src/lib/db/schema";
 import { roleLabels, type UserRole } from "../src/lib/permissions";
 
@@ -33,9 +33,9 @@ if (!["super", "admin", "user"].includes(roleArg)) {
 const email = emailArg.trim().toLowerCase();
 const role = roleArg as UserRole;
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = resolveDatabaseUrl();
 if (!connectionString) {
-  console.error("DATABASE_URL тохируулаагүй байна (.env.local).");
+  console.error("DATABASE_URL (эсвэл MYSQL_URL) тохируулаагүй байна (.env.local).");
   process.exit(1);
 }
 

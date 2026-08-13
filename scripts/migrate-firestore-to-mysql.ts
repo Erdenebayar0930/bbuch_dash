@@ -15,7 +15,7 @@ import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { drizzle } from "drizzle-orm/mysql2";
 
-import { createDbPool } from "../src/lib/db/createPool";
+import { createDbPool, resolveDatabaseUrl } from "../src/lib/db/createPool";
 
 import {
   appConfig,
@@ -42,7 +42,12 @@ if (getApps().length === 0) {
 }
 
 const firestore = getFirestore();
-const pool = createDbPool(requireEnv("DATABASE_URL"));
+const databaseUrl = resolveDatabaseUrl();
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL (эсвэл MYSQL_URL) тохируулаагүй байна.");
+}
+
+const pool = createDbPool(databaseUrl);
 const db = drizzle(pool, { mode: "default" });
 
 /** Firestore Timestamp | ISO текст → Date */

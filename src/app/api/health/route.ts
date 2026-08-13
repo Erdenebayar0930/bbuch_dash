@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 
 import { getFirebaseAdminConfig, isFirebaseClientConfigured } from "@/lib/config";
 import { db } from "@/lib/db";
+import { databaseUrlSource, resolveDatabaseUrl } from "@/lib/db/createPool";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,9 +62,11 @@ function findDriverCode(error: unknown): string | null {
  *   printf "%s" "$DATABASE_URL" | sha256sum | cut -c1-8
  */
 function describeDbConfig() {
-  const url = process.env.DATABASE_URL;
+  const url = resolveDatabaseUrl();
+  // Аль нэрээр тохируулсныг харуулна — MYSQL_URL нь DATABASE_URL-ыг дардаг
+  const source = databaseUrlSource();
 
-  if (!url) return { configured: false as const };
+  if (!url) return { configured: false as const, source };
 
   const fingerprint = createHash("sha256").update(url).digest("hex").slice(0, 8);
 
@@ -72,6 +75,7 @@ function describeDbConfig() {
 
     return {
       configured: true as const,
+      source,
       // Loopback хаяг — нууц мэдээлэл биш, харин localhost/127.0.0.1 зөрүүг
       // шууд харуулдаг тул оношилгоонд хамгийн хэрэгтэй талбар.
       host: parsed.hostname,
@@ -80,7 +84,7 @@ function describeDbConfig() {
     };
   } catch {
     // URL болж задрахгүй байна — хашилт, зай, дутуу тэмдэг орсон байж болно
-    return { configured: true as const, malformed: true, fingerprint };
+    return { configured: true as const, source, malformed: true, fingerprint };
   }
 }
 
