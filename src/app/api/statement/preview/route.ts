@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { classifyMemo } from "@/data/titheOptions";
 import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
 import { isKnownAccount } from "@/lib/api/donationAccounts";
+import { rateLimit } from "@/lib/api/rateLimit";
 import { parseStatement } from "@/lib/api/statement";
 import { readTithePatterns } from "@/lib/api/tithePatterns";
 import { db } from "@/lib/db";
@@ -27,6 +28,15 @@ const MAX_BYTES = 8 * 1024 * 1024;
 export async function POST(request: NextRequest) {
   const result = await requireAdmin(request);
   if ("error" in result) return result.error;
+
+  // 8 МБ хүртэлх файлыг задлан шинжилнэ — давталтаар илгээх нь CPU-г идэх
+  // хамгийн хямд арга
+  const limited = rateLimit(request, {
+    name: "statement-preview",
+    limit: 20,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
 
   try {
     const form = await request.formData();

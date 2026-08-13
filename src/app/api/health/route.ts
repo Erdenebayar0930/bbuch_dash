@@ -1,14 +1,56 @@
-import { createHash, createPrivateKey } from "node:crypto";
+import { createHash, createPrivateKey, timingSafeEqual } from "node:crypto";
 
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import { getCaller, isSuperRole } from "@/lib/api/auth";
+import { rateLimit } from "@/lib/api/rateLimit";
 import { getFirebaseAdminConfig, isFirebaseClientConfigured } from "@/lib/config";
 import { db } from "@/lib/db";
 import { databaseUrlSource, resolveDatabaseUrl } from "@/lib/db/createPool";
 
+import type { NextRequest } from "next/server";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** Урт нь зөрсөн ч тогтмол хугацаа зарцуулж, тэмдэгт таамаглахаас сэргийлнэ. */
+function secretsMatch(given: string, expected: string): boolean {
+  const a = createHash("sha256").update(given).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
+}
+
+/**
+ * Дэлгэрэнгүй оношилгоо харах эрхтэй эсэх.
+ *
+ * ⚠ Энэ хариулт нь Firebase project id, өгөгдлийн сангийн хост/порт, драйверийн
+ * алдааны текст зэрэг халдагчид зориулсан "зураглал" агуулдаг. Нууц утга
+ * (нууц үг, түлхүүр) огт гардаггүй ч, эдгээр нь дараагийн алхмыг төлөвлөхөд
+ * шууд хэрэглэгддэг тул нэрээ нууцалсан хүнд үзүүлэхгүй.
+ *
+ * Хоёр зам: байршуулалтын скриптэд зориулсан `HEALTH_TOKEN`, эсвэл нэвтэрсэн
+ * супер админ. Аль нь ч байхгүй бол зөвхөн "амьд эсэх" хариулт буцна.
+ */
+async function canSeeDetails(request: NextRequest): Promise<boolean> {
+  const expected = process.env.HEALTH_TOKEN;
+  const given =
+    request.headers.get("x-health-token") ??
+    new URL(request.url).searchParams.get("token");
+
+  if (expected && given && secretsMatch(given, expected)) return true;
+
+  try {
+    const caller = await getCaller(request);
+    return (
+      caller?.user?.status === "active" && isSuperRole(caller.user.role)
+    );
+  } catch {
+    // Сан унасан үед супер админыг таних боломжгүй — HEALTH_TOKEN нь яг ийм
+    // тохиолдолд хэрэгтэй нөөц зам
+    return false;
+  }
+}
 
 /**
  * mysql2-ийн алдааны кодыг хүн ойлгохоор тайлбар руу буулгана.
@@ -153,22 +195,36 @@ function describeDbConfig() {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Нэвтрэлтгүй хүрэх боломжтой цөөн route-ийн нэг бөгөөс дуудалт бүрд
+  // өгөгдлийн сан руу асуулга явуулна — хязгааргүй бол хямд DoS суваг
+  const limited = rateLimit(request, {
+    name: "health",
+    limit: 30,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
+  const detailed = await canSeeDetails(request);
+
   const checks: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
   };
+
+  let dbOk = true;
 
   try {
     await db.execute(sql`select 1` as never);
     checks.mysql = "ok";
   } catch (error) {
+    dbOk = false;
     const code = findDriverCode(error);
 
     /**
      * Оношилгооны дэлгэрэнгүйг ЗӨВХӨН серверийн лог руу бичнэ (HTTP хариунд
-     * оруулахгүй — энэ endpoint нээлттэй). Тохиргоо буруу үед "яг ямар утга
-     * процесст ирсэн бэ" гэдгийг өөр аргаар мэдэх боломжгүй: Passenger нь
-     * процессоо тусгаарладаг тул /proc-оос ч уншигдахгүй.
+     * хэзээ ч оруулахгүй). Тохиргоо буруу үед "яг ямар утга процесст ирсэн бэ"
+     * гэдгийг өөр аргаар мэдэх боломжгүй: Passenger нь процессоо тусгаарладаг
+     * тул /proc-оос ч уншигдахгүй.
      *
      * Нууц үгийг бүтнээр нь хэвлэхгүй — урт болон эхний/сүүлийн 2 тэмдэгт нь
      * бичилтийн алдааг олоход хангалттай.
@@ -199,16 +255,27 @@ export async function GET() {
     checks.mysql = {
       status: "error",
       /**
-       * ЗӨВХӨН кодыг гаргана — драйверийн бүтэн мессеж нь хэрэглэгчийн нэр,
-       * хостыг агуулдаг (жишээ нь "Access denied for user 'x'@'::1'"), харин
-       * энэ endpoint нээлттэй тул тэднийг ил гаргах ёсгүй. Код нь юу болсныг
-       * оношлоход хангалттай.
+       * Драйверийн бүтэн мессеж нь хэрэглэгчийн нэр, хостыг агуулдаг (жишээ нь
+       * "Access denied for user 'x'@'::1'") ба Drizzle-ийн мессеж нь бүтэн SQL
+       * асуулгыг агуулна. Хоёул зөвхөн эрхтэй хүнд.
        */
       code: code ?? "UNKNOWN",
       hint: code ? (MYSQL_HINTS[code] ?? null) : null,
-      // Drizzle-ийн өөрийн мессеж — асуулгыг л агуулна, нууц зүйл байхгүй
-      message: error instanceof Error ? error.message : "Unknown error",
+      ...(detailed
+        ? { message: error instanceof Error ? error.message : "Unknown error" }
+        : {}),
     };
+  }
+
+  /**
+   * Эрхгүй дуудагчид зөвхөн "амьд эсэх" — uptime хянагч, load balancer-т
+   * хангалттай. Дэлгэрэнгүй тохиргоо нь `HEALTH_TOKEN` эсвэл супер админд.
+   */
+  if (!detailed) {
+    return NextResponse.json(
+      { status: dbOk ? "ok" : "error", timestamp: checks.timestamp },
+      { status: dbOk ? 200 : 503 }
+    );
   }
 
   const firebaseConfig = getFirebaseAdminConfig();

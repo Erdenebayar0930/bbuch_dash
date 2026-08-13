@@ -223,10 +223,16 @@ export const forbidden = (message = "Эрх хүрэлцэхгүй.", code?: str
 export const badRequest = (message: string) =>
   NextResponse.json({ error: message }, { status: 400 });
 
+/**
+ * 500 — дотоод алдаа. Клиентэд ЗӨВХӨН `fallback` тайлбарыг буцаана.
+ *
+ * ⚠ Өмнө нь `error.message`-ийг шууд буцаадаг байв. Drizzle нь SQL алдааг
+ * "Failed query: select `users`.`uid` … from `users` where …" гэсэн бүтэн
+ * асуулгатай нь боож шиддэг тул халдагч зориудаар алдаа үүсгээд хүснэгт,
+ * баганы нэр, холболтын мэдээллийг цуглуулж, өгөгдлийн сангийн бүтцийг
+ * зурж авах боломжтой байсан. Дэлгэрэнгүй нь серверийн лог руу л явна.
+ */
 export const serverError = (error: unknown, fallback: string) => {
   console.error(fallback, error);
-  return NextResponse.json(
-    { error: error instanceof Error ? error.message : fallback },
-    { status: 500 }
-  );
+  return NextResponse.json({ error: fallback }, { status: 500 });
 };

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { aimags, isValidOption } from "@/data/profileOptions";
 import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
 import { sendPush } from "@/lib/api/push";
+import { rateLimit } from "@/lib/api/rateLimit";
 import { db } from "@/lib/db";
 import { fcmTokens, notifications, users } from "@/lib/db/schema";
 
@@ -52,6 +53,16 @@ async function resolveRecipients(target: Target): Promise<string[]> {
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
+
+  // Хамгийн их урвуулан ашиглагдах чадвартай үйлдэл: нэг дуудалт бүх гишүүний
+  // утас руу мэдэгдэл цацна. Эвдэрсэн админ данс эсвэл хулгайлагдсан токен
+  // энэ route-оор л хамгийн их хор хийнэ.
+  const limited = rateLimit(request, {
+    name: "notify-send",
+    limit: 10,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
 
   try {
     const body = await request.json();

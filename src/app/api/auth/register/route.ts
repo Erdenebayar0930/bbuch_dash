@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { getCallerOrResponse, serverError, unauthorized } from "@/lib/api/auth";
+import { rateLimit } from "@/lib/api/rateLimit";
 import { db } from "@/lib/db";
 import { appConfig, registrations, users } from "@/lib/db/schema";
 
@@ -20,6 +21,16 @@ export const dynamic = "force-dynamic";
  * мөр түгжээтэйгээр (FOR UPDATE) уншиж, нэг гүйлгээнд шийднэ.
  */
 export async function POST(request: NextRequest) {
+  // Энэ бол бүртгэлгүй хүн хүрч чадах ЦОРЫН ГАНЦ бичих route. Firebase дээр
+  // дурын хэрэглэгч данс үүсгэж чадвал энд `users`/`registrations` хүснэгтийг
+  // дүүргэх боломжтой болно — админы жагсаалт хогоор дүүрэхээс сэргийлнэ.
+  const limited = rateLimit(request, {
+    name: "register",
+    limit: 5,
+    windowMs: 300_000,
+  });
+  if (limited) return limited;
+
   // Сан унасныг "нэвтрээгүй" гэж андуурч болохгүй — 503 буцаана
   const result = await getCallerOrResponse(request);
   if ("error" in result) return result.error;

@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/auth";
 import { buildWorkbook } from "@/lib/api/excel";
 import { datasets, findDataset } from "@/lib/api/exportDatasets";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 import type { NextRequest } from "next/server";
 
@@ -38,6 +39,15 @@ export async function GET(
 ) {
   const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
+
+  // `all` нь бүх хүснэгтийг санах ойд workbook болгож барина — давталтаар
+  // дуудвал процессын санах ойг барагдуулж, серверийг унагаах боломжтой.
+  const limited = rateLimit(request, {
+    name: "export",
+    limit: 5,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
 
   const { dataset: key } = await context.params;
   const isAdmin = isAdminRole(result.caller.user?.role);
