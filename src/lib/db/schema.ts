@@ -1,10 +1,10 @@
 import {
   boolean,
+  customType,
   decimal,
   double,
   index,
   int,
-  json,
   mysqlTable,
   text,
   timestamp,
@@ -26,6 +26,11 @@ import {
  *  • TIMESTAMP нь дотооддоо UTC-гээр хадгалагдана. Холболтын цагийн бүсийг
  *    `src/lib/db/index.ts`-д `timezone: "Z"` гэж тогтоосон — эс бөгөөс серверийн
  *    локал бүсээр хөрвүүлж, огноо нааш цааш зөрнө.
+ *  • JSON баганыг `jsonCol` дамжуулан үүсгэнэ — MariaDB дээр JSON нь
+ *    LONGTEXT тул драйвер мөрөөр буцаадаг (доорх тайлбарыг үзнэ үү).
+ *
+ * Шаардлага: MySQL 8.0+ эсвэл MariaDB 10.2+ — зарим асуулга цонхны функц
+ * (`row_number() over`) болон `JSON_CONTAINS` ашигладаг.
  */
 
 /** Firebase UID нь 28 тэмдэгт — 128 нь ирээдүйд ч хүрэлцэнэ */
@@ -50,6 +55,22 @@ const bodyText = (name: string) =>
     .$defaultFn(() => "");
 
 /**
+ * JSON багана — MySQL болон MariaDB хоёуланд ажиллана.
+ *
+ * MySQL 8-д JSON нь бие даасан төрөл тул драйвер өөрөө задалж объект өгдөг.
+ * MariaDB-д JSON нь LONGTEXT-ийн ӨӨР НЭР бөгөөд драйвер МӨРӨӨР буцаадаг —
+ * тэр үед `row.aimags` нь массив биш мөр болж, `Array.isArray` шалгалтууд
+ * чимээгүйхэн хоосон үр дүн өгнө. Тиймээс мөр ирвэл өөрсдөө задална.
+ */
+const jsonCol = <T>(name: string) =>
+  customType<{ data: T; driverData: string }>({
+    dataType: () => "json",
+    toDriver: (value: T) => JSON.stringify(value),
+    fromDriver: (value: unknown) =>
+      typeof value === "string" ? (JSON.parse(value) as T) : (value as T),
+  })(name);
+
+/**
  * Хэрэглэгч. `uid` нь Firebase Auth-ийн UID — аутентикац Firebase дээр
  * үлдсэн тул энэ багана нь гадаад системтэй холбогдох түлхүүр болно.
  */
@@ -67,16 +88,14 @@ export const users = mysqlTable(
 
     // --- Чуулган (зөвхөн админ оноодог) -------------------------------------
     /** Дуудлагууд — дээд тал нь 5. Хэрэглэгч өөрөө засахгүй, зөвхөн харна. */
-    callings: json("callings")
-      .$type<string[]>()
+    callings: jsonCol<string[]>("callings")
       .notNull()
       .$defaultFn(() => []),
     /**
      * Харьяалагдах аймгууд — нэг хүн олон аймагт байж болно.
      * Мэдэгдлийг аймгаар чиглүүлэхэд `JSON_CONTAINS` хайлт хийнэ.
      */
-    aimags: json("aimags")
-      .$type<string[]>()
+    aimags: jsonCol<string[]>("aimags")
       .notNull()
       .$defaultFn(() => []),
 
@@ -90,8 +109,7 @@ export const users = mysqlTable(
      * оноотой нь хадгална: { "sanguine": 12, "choleric": 8 }.
      * Сонгоогүй төрөл огт байхгүй байна.
      */
-    temperaments: json("temperaments")
-      .$type<Record<string, number>>()
+    temperaments: jsonCol<Record<string, number>>("temperaments")
       .notNull()
       .$defaultFn(() => ({})),
     occupation: varchar("occupation", { length: 255 }).notNull().default(""),
@@ -579,8 +597,7 @@ export const donationAccounts = mysqlTable(
      * Админ ба super нь жагсаалтад байхаас үл хамааран бүгдийг хардаг тул
      * тэднийг энд нэмэх шаардлагагүй.
      */
-    allowedUids: json("allowed_uids")
-      .$type<string[]>()
+    allowedUids: jsonCol<string[]>("allowed_uids")
       .notNull()
       .$defaultFn(() => []),
     /**
@@ -593,8 +610,7 @@ export const donationAccounts = mysqlTable(
      * хэрэглэгчид нээлттэй — хязгаарлалт тавиагүй гэсэн үг. Хаалттай болгохыг
      * хүсвэл ядаж нэг хүн эсвэл аймаг сонгоно.
      */
-    allowedAimags: json("allowed_aimags")
-      .$type<string[]>()
+    allowedAimags: jsonCol<string[]>("allowed_aimags")
       .notNull()
       .$defaultFn(() => []),
     createdAt: timestamp("created_at").notNull().defaultNow(),
