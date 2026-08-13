@@ -2,9 +2,7 @@
 import React, { useState } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
-import { signOut } from "firebase/auth";
-import { deleteUserFCMToken } from "@/lib/fcm";
-import { auth } from "@/lib/firebase";
+import { signOutCompletely } from "@/lib/session";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/app/(auth)/UserProvider";
 
@@ -23,18 +21,11 @@ function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
     setIsOpen(false);
   }
 
-  async function handleLogout(e: React.MouseEvent<HTMLButtonElement, MouseEvent>): Promise<void> {
-    try {
-        // Энэ төхөөрөмжийн token-ыг серверээс эхлээд устгана — signOut хийсний
-        // дараа ID token алга болох тул хүсэлт баталгаажихаа болино. Эс бөгөөс
-        // гарсан хэрэглэгч энэ төхөөрөмж дээрээ push хүлээн авсаар байна.
-        await deleteUserFCMToken();
-        await signOut(auth); // firebase logout
-        logout(); // context + sessionStorage устгах
-        router.replace("/login");
-      } catch (error) {
-        console.error("Logout failed:", error);
-      }
+  async function handleLogout(): Promise<void> {
+    closeDropdown();
+    await signOutCompletely();
+    logout(); // context + sessionStorage устгах
+    router.replace("/login");
   }
 
   // Товчлуур дээр харагдах нэр ба эхний үсэг

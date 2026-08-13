@@ -3,11 +3,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signOut } from "firebase/auth";
 import { ShieldAlert } from "lucide-react";
 
 import { useUser } from "../UserProvider";
-import { auth } from "@/lib/firebase";
+import { signOutCompletely } from "@/lib/session";
 
 /** AdminGuard-аас ирсэн шалтгаан бүрд харуулах тайлбар */
 const reasons: Record<string, { title: string; description: string }> = {
@@ -45,11 +44,7 @@ function UnauthorizedContent() {
   const reason = reasons[params.get("reason") ?? ""] ?? fallbackReason;
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Гарахад алдаа гарлаа:", error);
-    }
+    await signOutCompletely();
     logout();
     router.replace("/login");
   };

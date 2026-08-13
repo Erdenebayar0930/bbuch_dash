@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged } from "firebase/auth";
 
 import { auth } from "@/lib/firebase";
 import { isAdminRole } from "@/lib/permissions";
-import { forceSignOut } from "@/lib/session";
+import { forceSignOut, signOutCompletely } from "@/lib/session";
 import { getCurrentUser } from "@/lib/users";
 import { useUser } from "./UserProvider";
 
@@ -169,11 +169,7 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
 
   /** Гацсан үед гарах зам — сесс цэвэрлээд нэвтрэх хуудас руу буцаана */
   const leave = useCallback(async () => {
-    try {
-      await signOut(auth);
-    } catch (cause) {
-      console.error("Гарахад алдаа гарлаа:", cause);
-    }
+    await signOutCompletely();
     window.location.replace("/login");
   }, []);
 

@@ -32,15 +32,19 @@ export function reasonFromCode(code?: string | null): RevokeReason | null {
  */
 let revoking = false;
 
-export async function forceSignOut(reason: RevokeReason): Promise<void> {
-  if (revoking) return;
-  revoking = true;
-
-  // Серверээс token-оо устгах нь signOut-ЫН ӨМНӨ байх ёстой — дараа нь ID token
-  // алга болох тул хүсэлт баталгаажихгүй. localStorage цэвэрлэх нь хангалтгүй:
-  // жинхэнэ хүргэлт нь `fcm_tokens` хүснэгтээс явдаг тул мөрийг нь устгахгүй
-  // бол хаагдсан хэрэглэгч рүү push үргэлжилсээр байна.
-  //
+/**
+ * Гарах бүх замын НЭГДСЭН цэг.
+ *
+ * Апп дотор гарах товч таван өөр газар байдаг (хажуугийн цэс, хэрэглэгчийн
+ * цэс, эрх хаагдсан хуудас, AdminGuard, эрх цуцлагдсан үеийн автомат гаралт).
+ * Тэдгээр бүрт push бүртгэлээ цуцлахыг санах нь найдваргүй — нэг нь мартагдвал
+ * гарсан хэрэглэгч тэр төхөөрөмж дээрээ мэдэгдэл хүлээн авсаар байна.
+ *
+ * Дараалал чухал: token устгах хүсэлт нь ID token-оор баталгаажих тул
+ * `signOut`-ЫН ӨМНӨ явах ёстой. localStorage цэвэрлэх нь ганцаараа хангалтгүй —
+ * жинхэнэ хүргэлт нь серверийн `fcm_tokens` хүснэгтээс явдаг.
+ */
+export async function signOutCompletely(): Promise<void> {
   // Динамик импорт: статикаар татвал session → fcm → apiClient → session гэсэн
   // тойрог үүснэ.
   try {
@@ -57,8 +61,20 @@ export async function forceSignOut(reason: RevokeReason): Promise<void> {
   }
 
   try {
-    sessionStorage.removeItem("user");
     localStorage.removeItem("fcmToken");
+  } catch {
+    // Хувийн горимд storage хаалттай байж болно
+  }
+}
+
+export async function forceSignOut(reason: RevokeReason): Promise<void> {
+  if (revoking) return;
+  revoking = true;
+
+  await signOutCompletely();
+
+  try {
+    sessionStorage.removeItem("user");
   } catch {
     // Хувийн горимд storage хаалттай байж болно — үүнээс болж зогсох хэрэггүй
   }

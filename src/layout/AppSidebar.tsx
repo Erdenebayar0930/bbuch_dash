@@ -2,16 +2,16 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { signOut } from "firebase/auth";
 import { BarChart3, ChevronDown, LogOut, Settings } from "lucide-react";
 
 import { useSidebar } from "../context/SidebarContext";
 import { useUser } from "@/app/(auth)/UserProvider";
-import { auth } from "@/lib/firebase";
+import { signOutCompletely } from "@/lib/session";
 import { canSeeNavItem, navItems } from "./navigation";
 
 const AppSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, closeMobileSidebar } =
+    useSidebar();
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useUser();
@@ -34,13 +34,10 @@ const AppSidebar: React.FC = () => {
     path === "/" ? pathname === "/" : pathname.startsWith(path);
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      logout();
-      router.replace("/login");
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
+    closeMobileSidebar();
+    await signOutCompletely();
+    logout();
+    router.replace("/login");
   };
 
   return (
@@ -58,7 +55,8 @@ const AppSidebar: React.FC = () => {
           showLabels ? "justify-start" : "lg:justify-center lg:px-0"
         }`}
       >
-        <Link href="/" className="flex items-center gap-3">
+        {/* Шилжих бүрд цэсийг хаана — утсан дээр цэс агуулгыг бүтэн халхалдаг */}
+        <Link href="/" onClick={closeMobileSidebar} className="flex items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-600">
             <BarChart3 className="h-5 w-5 text-white" strokeWidth={2.5} />
           </span>
@@ -138,6 +136,7 @@ const AppSidebar: React.FC = () => {
                   ) : (
                     <Link
                       href={collapsedHref}
+                      onClick={closeMobileSidebar}
                       title={item.name}
                       className={`nav-item lg:justify-center ${
                         groupActive ? "nav-item-active" : "nav-item-inactive"
