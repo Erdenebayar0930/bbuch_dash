@@ -31,12 +31,21 @@ export default config;
 
 ### Орчны хувьсагч
 
-Standalone `server.js` нь `.env` файл УНШИХГҮЙ — зөвхөн процессын орчноос авна.
-Тиймээс бүх хувьсагчийг **hPanel → Websites → dash.bbuchmongol.com →
-Deployment/Node.js → Environment variables** хэсэгт оруулна. Эдгээр нь
-`public_html/.htaccess`-д `SetEnv` мөр болж бичигддэг.
+Бүх хувьсагчийг **hPanel → Websites → dash.bbuchmongol.com →
+Deployment/Node.js → Environment variables** хэсэгт оруулна.
 
-> ⚠️ `.htaccess`-ийг гараар засах утгагүй — деплой бүрт дахин үүсдэг.
+hPanel эдгээрийг `hbuilds/config/.env` файлд хадгалж, build болон ажиллах үед
+процессын орчинд дамжуулдаг. Апп нь `.env`-ийг өөрөө уншдаггүй — файл нь зөвхөн
+Hostinger-ийн деплой системийн хадгалах байр.
+
+```bash
+ssh bbuch-vps
+grep -oE '^[A-Z_0-9]+' ~/domains/dash.bbuchmongol.com/hbuilds/config/.env
+```
+
+> ⚠️ `public_html/.htaccess`-д зөвхөн Passenger-ийн дотоод тохиргоо (`NODE_OPTIONS`
+> г.м.) бичигддэг — аппын хувьсагчдыг тэндээс хайж болохгүй. Мөн деплой бүрт
+> дахин үүсдэг тул гараар засах утгагүй.
 
 > ⚠️ `NEXT_PUBLIC_*` хувьсагчид **build хийх үед** кодод шигддэг. Тэдгээрийг
 > нэмсний дараа заавал дахин деплой хийнэ (push эсвэл hPanel-ийн Redeploy).
@@ -53,6 +62,12 @@ Shared hosting дээр PostgreSQL байхгүй тул апп нь **MySQL** �
 DATABASE_URL=mysql://u192470510_xxx:нууцүг@localhost:3306/u192470510_bbuch
 DATABASE_SSL=
 ```
+
+> ⚠️ **Локал `DATABASE_URL`-аа хуулж болохгүй.** Hostinger дээр хэрэглэгч болон
+> сангийн нэр ЗААВАЛ дансны угтвартай (`u192470510_`) байна. Локалынхаа
+> `mysql://bbuch:…@localhost/bbuch`-ыг тавибал сервер дээр тийм хэрэглэгч
+> байхгүй тул `ER_ACCESS_DENIED_ERROR` өгнө. Үүнийг `/api/health` дээрх
+> `mysql.code` талбараас шууд харна.
 
 Схемийг үүсгэх (локалаас, эсвэл серверийн SSH-аас):
 
