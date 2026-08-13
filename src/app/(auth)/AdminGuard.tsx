@@ -47,6 +47,17 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
   const failures = useRef(0);
 
   /**
+   * Хамгийн сүүлд гарсан алдааны текст.
+   *
+   * Watchdog үүнийг ерөнхий мессежээс ДАВУУ үзнэ: шалгалт 60 секунд тутам
+   * давтагддаг тул 15 секундын дотор ердөө 1 удаа унана — өөрөөр хэлбэл
+   * `FAILURE_LIMIT`-д хүрэхээс өмнө watchdog асдаг. Үүнийг хийхгүй бол
+   * серверийн тодорхой алдаа (жишээ нь "сан руу хандаж чадсангүй") дарагдаж,
+   * хэрэглэгчид "холболтоо шалгана уу" гэсэн ташаа зөвлөгөө очно.
+   */
+  const lastError = useRef<string | null>(null);
+
+  /**
    * Шалгалт нэг ч удаа амжилттай дууссан эсэх — watchdog үүнийг уншина.
    * `verified` төлөвийг шууд уншиж болохгүй: watchdog нь `useEffect` дотор
    * хаагдсан (closure) тул хуучин утгыг л харна.
@@ -87,14 +98,18 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
 
       failures.current += 1;
 
+      const message =
+        cause instanceof Error
+          ? cause.message
+          : "Профайл шалгахад тодорхойгүй алдаа гарлаа.";
+
+      // Эхний алдаанаас эхлэн хадгална — харуулахгүй ч watchdog үүнийг авна
+      lastError.current = message;
+
       // Дараалан хэд хэдэн удаа унавал энэ нь түр зуурын тасалдал биш —
       // хэрэглэгчид ил хэлж, дахин оролдох боломж өгнө.
       if (failures.current >= FAILURE_LIMIT) {
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : "Профайл шалгахад тодорхойгүй алдаа гарлаа."
-        );
+        setError(message);
       }
 
       return;
@@ -139,6 +154,7 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
     // Сэргэсэн тул өмнөх алдааг цэвэрлэнэ. React нь утга ижил бол дахин
     // рендер хийхгүй тул 60 секунд тутмын шалгалт дэмий ажил үүсгэхгүй.
     failures.current = 0;
+    lastError.current = null;
     resolved.current = true;
     setError(null);
     setVerified(true);
@@ -188,11 +204,13 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
     const watchdog = window.setTimeout(() => {
       if (resolved.current) return;
 
-      // Аль хэдийн тодорхой алдаа гарсан бол түүнийг дарж бичихгүй —
-      // тухайлсан мессеж нь ерөнхийхөөс илүү хэрэгтэй.
+      // Тухайлсан алдаа мэдэгдэж байвал ЗААВАЛ түүнийг харуулна. Ерөнхий
+      // мессеж нь зөвхөн юу ч болоогүй — өөрөөр хэлбэл Firebase огт хариу
+      // өгөөгүй — тохиолдолд л зөв байна.
       setError(
         (previous) =>
           previous ??
+          lastError.current ??
           "Нэвтрэлтийн үйлчилгээ хариу өгсөнгүй. Холболтоо шалгаад дахин оролдоно уу."
       );
     }, WATCHDOG_MS);

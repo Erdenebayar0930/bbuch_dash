@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { getCaller, serverError, unauthorized } from "@/lib/api/auth";
+import { getCallerOrResponse, serverError, unauthorized } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { appConfig, registrations, users } from "@/lib/db/schema";
 
@@ -20,7 +20,11 @@ export const dynamic = "force-dynamic";
  * мөр түгжээтэйгээр (FOR UPDATE) уншиж, нэг гүйлгээнд шийднэ.
  */
 export async function POST(request: NextRequest) {
-  const caller = await getCaller(request);
+  // Сан унасныг "нэвтрээгүй" гэж андуурч болохгүй — 503 буцаана
+  const result = await getCallerOrResponse(request);
+  if ("error" in result) return result.error;
+
+  const { caller } = result;
   if (!caller) return unauthorized();
 
   // Аль хэдийн бүртгэлтэй бол давхардуулахгүй

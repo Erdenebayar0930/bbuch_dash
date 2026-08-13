@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import {
   badRequest,
-  getCaller,
+  getCallerOrResponse,
   requireActiveUser,
   serverError,
   unauthorized,
@@ -114,7 +114,12 @@ function isStoragePhotoUrl(value: string) {
 
 /** Өөрийн профайлыг уншина. */
 export async function GET(request: NextRequest) {
-  const caller = await getCaller(request);
+  // Сан унасан үед 401 биш 503 буцаана — эс бөгөөс нэвтэрсэн хэрэглэгчид
+  // "та нэвтрээгүй байна" гэж худал хэлж, эрх шалгах дэлгэц дээр гацна.
+  const result = await getCallerOrResponse(request);
+  if ("error" in result) return result.error;
+
+  const { caller } = result;
   if (!caller) return unauthorized();
 
   return NextResponse.json({ user: caller.user });

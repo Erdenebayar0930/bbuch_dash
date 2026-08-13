@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import {
   badRequest,
-  getCaller,
+  getCallerOrResponse,
   requireActiveUser,
   serverError,
   unauthorized,
@@ -46,7 +46,10 @@ export async function POST(request: NextRequest) {
 
 /** Өөрийн token-ыг устгана (гарах, зөвшөөрөл цуцлах үед). */
 export async function DELETE(request: NextRequest) {
-  const caller = await getCaller(request);
+  const result = await getCallerOrResponse(request);
+  if ("error" in result) return result.error;
+
+  const { caller } = result;
   if (!caller) return unauthorized();
 
   try {
