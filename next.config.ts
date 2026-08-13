@@ -3,10 +3,42 @@ import type { NextConfig } from "next";
 // next-pwa@5 нь TypeScript тодорхойлолтгүй тул require-ээр авна (import хийвэл
 // TS7016 "declaration file олдсонгүй" гэж унана).
 // eslint-disable-next-line @typescript-eslint/no-require-imports
+const defaultRuntimeCaching = require("next-pwa/cache");
+
+// ⚠ /api/* хариултыг кэшлэхгүй. Энэ систем нэг төхөөрөмж дээр олон хэрэглэгч
+// ээлжлэн нэвтэрдэг бөгөөд service worker-ийн кэш нь хэрэглэгчээр
+// тусгаарлагддаггүй — өмнөх хүний гүйлгээ/хандивын жагсаалт дараагийнх нь
+// дэлгэц дээр гарч ирнэ. Мөн гараас нь хассан өгөгдөл 24 цаг "амьд" үлдэнэ.
+const runtimeCaching = defaultRuntimeCaching.filter(
+  (entry: { options?: { cacheName?: string } }) =>
+    entry.options?.cacheName !== "apis"
+);
+
 const withPWA = require("next-pwa")({
   dest: "public",
-  register: true,
+  // ⚠ register: false. next-pwa@5 нь бүртгэлийн кодоо webpack-ийн `main.js`
+  // entry-д оруулдаг ба App Router түүнийг ачаалдаггүй (зөвхөн `main-app.js`).
+  // Тиймээс бүртгэлийг components/ServiceWorkerRegister.tsx гараар хийнэ.
+  register: false,
   skipWaiting: true,
+  runtimeCaching,
+  // public/ доторх бүхнийг precache хийдэг тул template-ийн 7.9 МБ demo зургийг
+  // хасна — эс бөгөөс апп суулгах үед хэрэглэгч дэмий трафик зарцуулна.
+  // firebase-messaging-sw.js бол өөрөө service worker; түүнийг кэшлэвэл
+  // шинэчлэлт нь хүрэхгүй хуучин хувилбар дээрээ гацна.
+  publicExcludes: [
+    "!images/carousel/**",
+    "!images/grid-image/**",
+    "!images/cards/**",
+    "!images/user/**",
+    "!images/product/**",
+    "!images/chat/**",
+    "!images/video-thumb/**",
+    "!images/task/**",
+    "!images/country/**",
+    "!images/brand/**",
+    "!firebase-messaging-sw.js",
+  ],
   fallbacks: {
     document: "/_offline.html",
   },

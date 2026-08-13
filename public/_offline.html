@@ -1,1 +1,100 @@
-<h1>You are offline</h1>
+<!doctype html>
+<html lang="mn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Холболт тасарсан — ББУЧ</title>
+    <link rel="icon" href="/icons/icon-192x192.png" />
+    <meta name="theme-color" content="#2563eb" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f9fafb;
+        --card: #ffffff;
+        --fg: #111827;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --brand: #465fff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #030712;
+          --card: #111827;
+          --fg: #f9fafb;
+          --muted: #9ca3af;
+          --border: #1f2937;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      .card {
+        width: 100%;
+        max-width: 380px;
+        padding: 32px 24px;
+        text-align: center;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+      }
+      img { width: 64px; height: 64px; border-radius: 16px; }
+      h1 { margin: 20px 0 8px; font-size: 20px; font-weight: 600; }
+      p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
+      button {
+        margin-top: 24px;
+        width: 100%;
+        padding: 12px 16px;
+        font: inherit;
+        font-weight: 500;
+        color: #fff;
+        background: var(--brand);
+        border: 0;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      button:active { opacity: 0.85; }
+      .status {
+        margin-top: 14px;
+        font-size: 13px;
+        color: var(--muted);
+        min-height: 1.2em;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <img src="/icons/icon-192x192.png" alt="ББУЧ" />
+      <h1>Холболт тасарсан байна</h1>
+      <p>
+        Интернэт холболтоо шалгаад дахин оролдоно уу. Холболт сэргэмэгц энэ
+        хуудас автоматаар дахин ачаална.
+      </p>
+      <button type="button" id="retry">Дахин оролдох</button>
+      <div class="status" id="status"></div>
+    </main>
+    <script>
+      var status = document.getElementById("status");
+
+      function retry() {
+        if (!navigator.onLine) {
+          status.textContent = "Холболт хараахан сэргээгүй байна.";
+          return;
+        }
+        status.textContent = "Ачаалж байна…";
+        location.reload();
+      }
+
+      document.getElementById("retry").addEventListener("click", retry);
+      // Холболт сэргэмэгц гараар товч дарахыг хүлээхгүй.
+      window.addEventListener("online", retry);
+    </script>
+  </body>
+</html>

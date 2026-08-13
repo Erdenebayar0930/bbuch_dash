@@ -34,7 +34,8 @@ try {
       const notificationOptions = {
         body: notificationBody,
         icon: notificationIcon,
-        badge: '/icons/icon-192x192.png',
+        // Badge-ийг Android нь силуэт болгодог тул дэвсгэргүй, нэг өнгийн icon.
+        badge: '/icons/badge-72x72.png',
         tag: notificationTag,
         requireInteraction: false,
         silent: false,
