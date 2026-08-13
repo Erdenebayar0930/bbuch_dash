@@ -18,6 +18,19 @@ import { auth } from "./firebase";
  * зохиож чадахгүй (токеныг Firebase гарын үсэглэдэг) ба жинхэнэ эрхийн
  * шалгалт нь сервер дээр MySQL-ээс уншиж хийгддэг.
  */
+let lastForcedRefresh = 0;
+
+/**
+ * Хоёр албадсан сэргээлтийн хоорондох доод зай.
+ *
+ * Сервер claim бичиж чадахгүй байвал (жишээ нь service account түлхүүр
+ * буруу) зөрүү нь ХЭЗЭЭ Ч арилахгүй. Хөрөлтгүй бол AdminGuard-ийн 60
+ * секунд тутмын шалгалт бүр токен сэргээх хүсэлт үүсгэж, Firebase-ийн
+ * квотыг дэмий иднэ. Гурван минут нь эрхийн өөрчлөлт хүрэхэд хангалттай
+ * хурдан, давталт болоход хангалттай удаан.
+ */
+const REFRESH_COOLDOWN_MS = 3 * 60_000;
+
 export async function refreshClaimsIfStale(
   role: string | null | undefined,
   status: string | null | undefined
@@ -30,6 +43,10 @@ export async function refreshClaimsIfStale(
     const { claims } = await user.getIdTokenResult();
 
     if (claims.role === role && claims.status === status) return;
+
+    const now = Date.now();
+    if (now - lastForcedRefresh < REFRESH_COOLDOWN_MS) return;
+    lastForcedRefresh = now;
 
     // `true` = серверээс шинэ токен албадан авна
     await user.getIdToken(true);
