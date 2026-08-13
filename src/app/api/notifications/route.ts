@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
       .limit(PAGE_SIZE);
 
     const [counted] = await db
-      .select({ unread: sql<number>`count(*)::int` })
+      // Postgres-ийн `::int` cast нь MySQL-д `cast(... as signed)`.
+      .select({ unread: sql<number>`cast(count(*) as signed)` })
       .from(notifications)
       .where(
         and(eq(notifications.uid, caller.uid), isNull(notifications.readAt))

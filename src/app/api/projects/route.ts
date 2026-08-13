@@ -32,7 +32,9 @@ export async function GET(request: NextRequest) {
       .select({
         projectId: tasks.projectId,
         total: count(),
-        open: sql<number>`count(*) filter (where ${tasks.status} <> 'done')`,
+        // Postgres-ийн `count(*) filter (where ...)`-ийг MySQL дэмждэггүй тул
+        // нөхцөлт нийлбэрээр орлууллаа.
+        open: sql<number>`cast(sum(case when ${tasks.status} <> 'done' then 1 else 0 end) as signed)`,
       })
       .from(tasks)
       .groupBy(tasks.projectId);

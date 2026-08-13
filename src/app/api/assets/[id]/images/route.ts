@@ -76,7 +76,8 @@ export async function POST(
 
     const [{ count, next }] = await db
       .select({
-        count: sql<number>`count(*)::int`,
+        // Postgres-ийн `::int` cast нь MySQL-д `cast(... as signed)`.
+        count: sql<number>`cast(count(*) as signed)`,
         next: sql<number>`coalesce(max(${assetImages.position}), -1) + 1`,
       })
       .from(assetImages)
