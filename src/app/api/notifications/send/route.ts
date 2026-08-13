@@ -3,19 +3,15 @@ import { NextResponse } from "next/server";
 
 import { aimags, isValidOption } from "@/data/profileOptions";
 import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
+import { sendPush } from "@/lib/api/push";
 import { db } from "@/lib/db";
 import { fcmTokens, notifications, users } from "@/lib/db/schema";
-import { adminMessaging } from "@/lib/firebaseAdmin";
 
-import type { MulticastMessage } from "firebase-admin/messaging";
 import type { NextRequest } from "next/server";
 
 // firebase-admin нь Node.js runtime шаардана (Edge дээр ажиллахгүй)
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/** FCM-ийн нэг multicast дуудалтад багтах token-ы дээд хязгаар */
-const FCM_BATCH_SIZE = 500;
 
 type Target =
   | { type: "all" }
@@ -51,49 +47,6 @@ async function resolveRecipients(target: Target): Promise<string[]> {
 
   const rows = await db.select({ uid: users.uid }).from(users).where(where);
   return rows.map((row) => row.uid);
-}
-
-/** Web / Android / iOS сувгуудад тохирсон мессеж бэлтгэнэ */
-function buildMessage(
-  notification: { title: string; body: string; icon?: string },
-  data: Record<string, string>,
-  tokens: string[]
-): MulticastMessage {
-  return {
-    notification: {
-      title: notification.title,
-      body: notification.body,
-    },
-    // App хаалттай үед service worker энэ data-г уншина
-    data: {
-      ...data,
-      title: notification.title,
-      body: notification.body,
-      id: data.id || `notification-${Date.now()}`,
-      timestamp: Date.now().toString(),
-    },
-    tokens,
-    webpush: {
-      notification: {
-        title: notification.title,
-        body: notification.body,
-        icon: notification.icon || "/icons/icon-192x192.png",
-        badge: "/icons/icon-192x192.png",
-        requireInteraction: false,
-        silent: false,
-        vibrate: [200, 100, 200],
-      },
-      fcmOptions: { link: data.url || "/" },
-      headers: { TTL: "86400" }, // 24 цаг
-    },
-    android: {
-      priority: "high",
-      notification: { sound: "default", channelId: "default" },
-    },
-    apns: {
-      payload: { aps: { sound: "default", badge: 1 } },
-    },
-  };
 }
 
 export async function POST(request: NextRequest) {
@@ -166,7 +119,9 @@ export async function POST(request: NextRequest) {
       .from(fcmTokens)
       .where(inArray(fcmTokens.uid, uids));
 
-    result.withoutToken = uids.length - tokenRows.length;
+    // Нэг хэрэглэгч олон төхөөрөмжтэй байж болох тул мөрийн тоо биш, ЯЛГААТАЙ
+    // uid-ийн тоогоор хасна
+    result.withoutToken = uids.length - new Set(tokenRows.map((row) => row.uid)).size;
 
     if (tokenRows.length === 0) {
       return NextResponse.json({ success: true, ...result });
@@ -177,59 +132,32 @@ export async function POST(request: NextRequest) {
       payloadData.aimag = target.aimag;
     }
 
-    const staleUids: string[] = [];
-    /** Push бүтэлгүйтвэл шалтгааныг буцаана — мэдэгдэл өөрөө аль хэдийн хадгалагдсан */
-    let pushError: string | null = null;
+    const outcome = await sendPush(
+      tokenRows.map((row) => row.token),
+      notification as { title: string; body: string; icon?: string },
+      payloadData
+    );
 
-    try {
-      const messaging = adminMessaging();
+    result.sent = outcome.sent;
+    result.failed = outcome.failed;
 
-      for (let i = 0; i < tokenRows.length; i += FCM_BATCH_SIZE) {
-        const chunk = tokenRows.slice(i, i + FCM_BATCH_SIZE);
-        const response = await messaging.sendEachForMulticast(
-          buildMessage(
-            notification as { title: string; body: string; icon?: string },
-            payloadData,
-            chunk.map((row) => row.token)
-          )
-        );
-
-        result.sent += response.successCount;
-        result.failed += response.failureCount;
-
-        response.responses.forEach((item, index) => {
-          const code = item.error?.code;
-          if (
-            code === "messaging/registration-token-not-registered" ||
-            code === "messaging/invalid-registration-token" ||
-            code === "messaging/invalid-argument"
-          ) {
-            staleUids.push(chunk[index].uid);
-          }
-        });
-      }
-    } catch (error) {
-      // Service account дутуу зэрэг тохиолдол — мэдэгдэл DB-д үлдсэн тул
-      // үйлдлийг бүхэлд нь амжилтгүй гэж үзэхгүй
-      pushError =
-        error instanceof Error ? error.message : "Push илгээхэд алдаа гарлаа.";
-      console.warn("Push илгээж чадсангүй:", error);
-    }
-
-    // Хүчингүй болсон token-ыг цэвэрлэнэ
-    if (staleUids.length > 0) {
+    // Хүчингүй болсон token-ыг цэвэрлэнэ. uid-ээр БИШ, яг тэр token-оор устгана —
+    // эс бөгөөс нэг төхөөрөмж унтарахад хэрэглэгчийн бусад төхөөрөмж хамт хасагдана.
+    if (outcome.deadTokens.length > 0) {
       await db
         .delete(fcmTokens)
-        .where(inArray(fcmTokens.uid, staleUids))
+        .where(inArray(fcmTokens.token, outcome.deadTokens))
         .catch((error) =>
           console.warn("Token цэвэрлэхэд алдаа гарлаа:", error)
         );
-      result.removedTokens = staleUids.length;
+      result.removedTokens = outcome.deadTokens.length;
     }
 
     console.log("Мэдэгдэл илгээв:", { target, ...result, by: auth.caller.uid });
 
-    return NextResponse.json({ success: true, ...result, pushError });
+    // Push унасан ч мэдэгдэл DB-д үлдсэн тул үйлдлийг амжилтгүй гэж үзэхгүй —
+    // шалтгааныг нь админд харуулахаар буцаана
+    return NextResponse.json({ success: true, ...result, pushError: outcome.error });
   } catch (error) {
     return serverError(error, "Мэдэгдэл илгээхэд алдаа гарлаа");
   }

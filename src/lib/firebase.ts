@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getMessaging } from "firebase/messaging";
 import { getStorage } from "firebase/storage";
 
 import { getFirebaseClientConfig } from "./config";
@@ -32,40 +32,5 @@ if (typeof window !== "undefined") {
 
 export { messaging };
 
-// FCM Token авах
-export async function requestNotificationPermission(): Promise<string | null> {
-  if (!messaging) {
-    console.warn("Messaging is not available");
-    return null;
-  }
-
-  try {
-    const permission = await Notification.requestPermission();
-    if (permission === "granted") {
-      const token = await getToken(messaging, {
-        vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-      });
-      if (token) {
-        console.log("FCM Token:", token);
-        localStorage.setItem("fcmToken", token);
-        return token;
-      }
-    } else {
-      console.warn("Notification permission denied");
-    }
-  } catch (error) {
-    console.error("Error getting FCM token:", error);
-  }
-  return null;
-}
-
-// Foreground notification хүлээн авах
-export function onMessageListener() {
-  return new Promise((resolve) => {
-    if (messaging) {
-      onMessage(messaging, (payload) => {
-        resolve(payload);
-      });
-    }
-  });
-}
+// Token авах болон foreground мэдэгдэл сонсох нь `lib/notifications.ts` дотор.
+// Энэ файл нь зөвхөн Firebase-ийн үйлчилгээнүүдийг эхлүүлнэ.

@@ -48,7 +48,7 @@ export default function NotificationDropdown() {
 
   useEffect(() => {
     // Push ирвэл жагсаалтыг шинэчилнэ (мөр нь серверт аль хэдийн үүссэн)
-    setupForegroundNotifications(() => {
+    const unsubscribe = setupForegroundNotifications(() => {
       load();
     });
 
@@ -63,6 +63,8 @@ export default function NotificationDropdown() {
     load();
 
     return () => {
+      // Цуцлахгүй бол effect дахин ажиллах бүрт сонсогч давхарлана
+      unsubscribe();
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };

@@ -36,6 +36,20 @@ export async function forceSignOut(reason: RevokeReason): Promise<void> {
   if (revoking) return;
   revoking = true;
 
+  // Серверээс token-оо устгах нь signOut-ЫН ӨМНӨ байх ёстой — дараа нь ID token
+  // алга болох тул хүсэлт баталгаажихгүй. localStorage цэвэрлэх нь хангалтгүй:
+  // жинхэнэ хүргэлт нь `fcm_tokens` хүснэгтээс явдаг тул мөрийг нь устгахгүй
+  // бол хаагдсан хэрэглэгч рүү push үргэлжилсээр байна.
+  //
+  // Динамик импорт: статикаар татвал session → fcm → apiClient → session гэсэн
+  // тойрог үүснэ.
+  try {
+    const { deleteUserFCMToken } = await import("./fcm");
+    await deleteUserFCMToken();
+  } catch (error) {
+    console.warn("FCM token устгаж чадсангүй:", error);
+  }
+
   try {
     await signOut(auth);
   } catch (error) {
@@ -44,7 +58,6 @@ export async function forceSignOut(reason: RevokeReason): Promise<void> {
 
   try {
     sessionStorage.removeItem("user");
-    // Хаагдсан хэрэглэгч рүү push үргэлжлүүлэн очих ёсгүй
     localStorage.removeItem("fcmToken");
   } catch {
     // Хувийн горимд storage хаалттай байж болно — үүнээс болж зогсох хэрэггүй

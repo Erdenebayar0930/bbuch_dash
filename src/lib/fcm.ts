@@ -1,6 +1,6 @@
 "use client";
 
-import { deleteToken, getToken } from "firebase/messaging";
+import { deleteToken } from "firebase/messaging";
 
 import { apiFetch } from "./apiClient";
 import { auth, messaging } from "./firebase";
@@ -103,13 +103,13 @@ export async function enablePushNotifications(): Promise<PushSetupResult> {
   }
 
   try {
-    const token = await getToken(messaging, { vapidKey });
+    // Token авах ганц цэг нь getFCMToken — vapid түлхүүр, кэш хоёулаа тэнд
+    const token = await getFCMToken();
 
     if (!token) {
       return { ok: false, reason: "FCM token авч чадсангүй." };
     }
 
-    localStorage.setItem("fcmToken", token);
     await apiFetch("/api/fcm-token", { method: "POST", body: { token } });
 
     return { ok: true };
@@ -241,7 +241,14 @@ export async function sendNotificationToRole(
   return postNotification({ type: "role", role }, title, body, data);
 }
 
-/** Нэвтэрсэн хэрэглэгчийн FCM token-ыг авч сервер рүү хадгална. */
+/**
+ * Нэвтэрсэн хэрэглэгчийн FCM token-ыг авч сервер рүү хадгална.
+ *
+ * Хамаарлын чиглэл нэг талдаа: fcm.ts → notifications.ts. Урьд нь
+ * `getFCMToken()` эргээд энэ функцийг дууддаг байсан тул token нэг авахад
+ * сервер рүү ХОЁР удаа бичдэг, localStorage бичигдэхгүй орчинд хязгааргүй
+ * рекурс болох эрсдэлтэй байв — тэр гогцоог сэргээж болохгүй.
+ */
 export async function saveCurrentUserFCMToken() {
   if (typeof window === "undefined") return;
 

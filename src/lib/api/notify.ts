@@ -2,9 +2,9 @@ import "server-only";
 
 import { inArray } from "drizzle-orm";
 
+import { sendPush } from "@/lib/api/push";
 import { db } from "@/lib/db";
 import { fcmTokens, notifications } from "@/lib/db/schema";
-import { adminMessaging } from "@/lib/firebaseAdmin";
 
 type Message = {
   title: string;
@@ -44,26 +44,26 @@ export async function notifyUsers(
   }
 
   try {
-    const tokens = await db
+    const rows = await db
       .select({ token: fcmTokens.token })
       .from(fcmTokens)
       .where(inArray(fcmTokens.uid, targets));
 
-    if (tokens.length === 0) return;
+    if (rows.length === 0) return;
 
-    await adminMessaging().sendEachForMulticast({
-      notification: { title: message.title, body: message.body },
-      data: {
-        title: message.title,
-        body: message.body,
-        url: message.url ?? "",
-      },
-      tokens: tokens.map((row) => row.token),
-      webpush: {
-        notification: { icon: "/icons/icon-192x192.png" },
-        fcmOptions: { link: message.url || "/" },
-      },
-    });
+    // sendPush нь 500-гийн багцаар хуваах, үхсэн token ялгах ажлыг хийнэ —
+    // өмнө нь энэ зам тэр хоёрын аль нь ч байхгүй байв.
+    const outcome = await sendPush(
+      rows.map((row) => row.token),
+      { title: message.title, body: message.body },
+      { url: message.url ?? "" }
+    );
+
+    if (outcome.deadTokens.length > 0) {
+      await db
+        .delete(fcmTokens)
+        .where(inArray(fcmTokens.token, outcome.deadTokens));
+    }
   } catch (error) {
     // Service account дутуу, token хүчингүй гэх мэт — бүртгэл аль хэдийн үлдсэн
     console.warn("Push илгээж чадсангүй:", error);

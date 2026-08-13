@@ -25,7 +25,17 @@ try {
     // Background notification хүлээн авах (app хаалттай байхад)
     messaging.onBackgroundMessage((payload) => {
       console.log('[firebase-messaging-sw.js] Received background message:', payload);
-      
+
+      // ⚠ `notification` талбартай мессежийг Firebase SDK нь ӨӨРӨӨ харуулаад
+      // ДАРАА нь энэ hook-ыг дууддаг. Тиймээс энд бас showNotification дуудвал
+      // хэрэглэгч мэдэгдлийг ХОЁР удаа хардаг (tag нь өөр учир нийлэхгүй).
+      // Манай сервер зөвхөн data-only илгээдэг тул энэ мөчлөг ердийн үед
+      // ажиллахгүй — Firebase Console-оос гараар илгээсэн үед л хамгаална.
+      if (payload.notification) {
+        console.log('[firebase-messaging-sw.js] SDK аль хэдийн харуулсан — алгаслаа');
+        return;
+      }
+
       const notificationTitle = payload.notification?.title || payload.data?.title || 'Шинэ мэдэгдэл';
       const notificationBody = payload.notification?.body || payload.data?.body || '';
       const notificationIcon = payload.notification?.icon || payload.data?.icon || '/icons/icon-192x192.png';
