@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -44,6 +46,44 @@ function findDriverCode(error: unknown): string | null {
   return null;
 }
 
+/**
+ * Ажиллаж буй процесс ЯМАР тохиргоо барьж байгааг мэдээлнэ.
+ *
+ * Байршуулалтын үед хамгийн ойлгомжгүй асуулт нь "би hosting дээр хувьсагчаа
+ * зассан — апп түүнийг үнэхээр авсан уу?" гэдэг. Хадгалсан файл зөв атлаа
+ * ажиллаж буй процесс хуучин утгаа барьж байх нь элбэг тохиолддог бөгөөд
+ * гаднаас нь ялгах ямар ч арга байдаггүй.
+ *
+ * Хэрэглэгчийн нэр, нууц үгийг ил гаргахгүй — оронд нь бүтэн мөрийн sha256-ийн
+ * эхний 8 тэмдэгтийг өгнө. Серверийн файл дээр ижил хэшийг тооцоод зөрүүлж
+ * харьцуулбал тохиргоо хүрсэн эсэх нь шууд мэдэгдэнэ:
+ *
+ *   printf "%s" "$DATABASE_URL" | sha256sum | cut -c1-8
+ */
+function describeDbConfig() {
+  const url = process.env.DATABASE_URL;
+
+  if (!url) return { configured: false as const };
+
+  const fingerprint = createHash("sha256").update(url).digest("hex").slice(0, 8);
+
+  try {
+    const parsed = new URL(url);
+
+    return {
+      configured: true as const,
+      // Loopback хаяг — нууц мэдээлэл биш, харин localhost/127.0.0.1 зөрүүг
+      // шууд харуулдаг тул оношилгоонд хамгийн хэрэгтэй талбар.
+      host: parsed.hostname,
+      port: parsed.port || "3306",
+      fingerprint,
+    };
+  } catch {
+    // URL болж задрахгүй байна — хашилт, зай, дутуу тэмдэг орсон байж болно
+    return { configured: true as const, malformed: true, fingerprint };
+  }
+}
+
 export async function GET() {
   const checks: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
@@ -85,6 +125,8 @@ export async function GET() {
   checks.firebaseClient = isFirebaseClientConfigured()
     ? "configured"
     : "fallback";
+
+  checks.dbConfig = describeDbConfig();
 
   return NextResponse.json(checks);
 }
