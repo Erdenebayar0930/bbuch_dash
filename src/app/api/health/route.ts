@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { getFirebaseAdminConfig } from "@/lib/config";
+import { getFirebaseAdminConfig, isFirebaseClientConfigured } from "@/lib/config";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -27,6 +27,16 @@ export async function GET() {
     status: firebaseConfig.projectId && firebaseConfig.clientEmail && firebaseConfig.privateKey ? "configured" : "missing-config",
     projectId: firebaseConfig.projectId || null,
   };
+
+  /**
+   * Client тохиргоо нь build ҮЕД кодод шигддэг тул энд харагдах утга нь
+   * "сүүлийн build хийх үед NEXT_PUBLIC_* байсан уу" гэдгийг илэрхийлнэ.
+   * `fallback` бол env нэмсний дараа заавал ДАХИН DEPLOY хийх шаардлагатай —
+   * зөвхөн restart хийхэд шинэ утга кодод орохгүй.
+   */
+  checks.firebaseClient = isFirebaseClientConfigured()
+    ? "configured"
+    : "fallback";
 
   return NextResponse.json(checks);
 }

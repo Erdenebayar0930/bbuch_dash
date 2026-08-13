@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 import { auth } from "@/lib/firebase";
 import { isAdminRole } from "@/lib/permissions";
@@ -19,10 +19,39 @@ type Props = {
 /** Эрх хаагдсаныг хэдэн секундэд барихыг тодорхойлно */
 const REVALIDATE_MS = 60_000;
 
+/**
+ * Хэдэн удаа дараалан бүтэлгүйтвэл хэрэглэгчид алдааг харуулах вэ.
+ *
+ * 1 удаагийн алдаанд шууд сандрахгүй — сүлжээ агшин зуур тасарч болно.
+ * Гэвч БАЙНГЫН алдааг (жишээ нь серверийн тохиргоо дутуу) чимээгүй нуувал
+ * дэлгэц үүрд эргэлдэж, хэрэглэгчид ямар ч мэдээлэл, гарах зам үлдэхгүй.
+ */
+const FAILURE_LIMIT = 2;
+
+/**
+ * Firebase-ийн эхлэл өөрөө бүтэлгүйтвэл `onAuthStateChanged` НЭГ Ч УДАА
+ * дуудагдахгүй — тэр үед дээрх тоолуур ч ажиллахгүй тул харуулах алдаа
+ * гарахгүй. Энэ хамгаалагч тэр тохиолдлыг барина.
+ */
+const WATCHDOG_MS = 15_000;
+
 export default function AdminGuard({ children, requireAdmin = false }: Props) {
   const router = useRouter();
   const { user, setUser } = useUser();
   const [verified, setVerified] = useState(false);
+
+  /** Хэрэглэгчид харуулах алдаа — null бол эргэлдэгч дугуй харагдана */
+  const [error, setError] = useState<string | null>(null);
+
+  /** Дараалсан бүтэлгүйтлийн тоо. Амжилттай болмогц тэглэгдэнэ. */
+  const failures = useRef(0);
+
+  /**
+   * Шалгалт нэг ч удаа амжилттай дууссан эсэх — watchdog үүнийг уншина.
+   * `verified` төлөвийг шууд уншиж болохгүй: watchdog нь `useEffect` дотор
+   * хаагдсан (closure) тул хуучин утгыг л харна.
+   */
+  const resolved = useRef(false);
 
   // ✅ кэш байвал дэлгэцийг шууд үзүүлнэ — шалгалт ард нь үргэлжилнэ
   const cachedAllowed = !!user && (!requireAdmin || isAdminRole(user.role));
@@ -51,10 +80,23 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
 
     try {
       profile = await getCurrentUser();
-    } catch (error) {
+    } catch (cause) {
       // Сүлжээний тасалдлаас болж хэрэглэгчийг гаргахгүй — эрхийн татгалзлыг
       // apiFetch өөрөө барьж forceSignOut дуудна.
-      console.error("Профайл шалгахад алдаа гарлаа:", error);
+      console.error("Профайл шалгахад алдаа гарлаа:", cause);
+
+      failures.current += 1;
+
+      // Дараалан хэд хэдэн удаа унавал энэ нь түр зуурын тасалдал биш —
+      // хэрэглэгчид ил хэлж, дахин оролдох боломж өгнө.
+      if (failures.current >= FAILURE_LIMIT) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Профайл шалгахад тодорхойгүй алдаа гарлаа."
+        );
+      }
+
       return;
     }
 
@@ -94,8 +136,30 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
       setUser(next);
     }
 
+    // Сэргэсэн тул өмнөх алдааг цэвэрлэнэ. React нь утга ижил бол дахин
+    // рендер хийхгүй тул 60 секунд тутмын шалгалт дэмий ажил үүсгэхгүй.
+    failures.current = 0;
+    resolved.current = true;
+    setError(null);
     setVerified(true);
   }, [router, requireAdmin, setUser]);
+
+  /** Хэрэглэгч "Дахин оролдох" дархад — тоолуурыг тэглээд шууд шалгана */
+  const retry = useCallback(() => {
+    failures.current = 0;
+    setError(null);
+    validate();
+  }, [validate]);
+
+  /** Гацсан үед гарах зам — сесс цэвэрлээд нэвтрэх хуудас руу буцаана */
+  const leave = useCallback(async () => {
+    try {
+      await signOut(auth);
+    } catch (cause) {
+      console.error("Гарахад алдаа гарлаа:", cause);
+    }
+    window.location.replace("/login");
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (firebaseUser) => {
@@ -116,14 +180,64 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
     // Нэг хуудсан дээр удаан сууж байхад ч эрхийн өөрчлөлт барина
     const timer = window.setInterval(validate, REVALIDATE_MS);
 
+    /**
+     * Firebase огт хариу өгөхгүй бол (тохиргоо буруу, скрипт хаагдсан г.м.)
+     * дээрх аль ч зам ажиллахгүй тул дэлгэц үүрд эргэлдэнэ. Тогтоосон хугацаа
+     * өнгөрөхөд ямар нэг зүйл шийдэгдээгүй хэвээр байвал алдаа харуулна.
+     */
+    const watchdog = window.setTimeout(() => {
+      if (resolved.current) return;
+
+      // Аль хэдийн тодорхой алдаа гарсан бол түүнийг дарж бичихгүй —
+      // тухайлсан мессеж нь ерөнхийхөөс илүү хэрэгтэй.
+      setError(
+        (previous) =>
+          previous ??
+          "Нэвтрэлтийн үйлчилгээ хариу өгсөнгүй. Холболтоо шалгаад дахин оролдоно уу."
+      );
+    }, WATCHDOG_MS);
+
     return () => {
       unsub();
       document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(timer);
+      window.clearTimeout(watchdog);
     };
   }, [validate, router]);
 
   if (!cachedAllowed && !verified) {
+    // Байнгын алдаа — эргэлдүүлсээр байхын оронд юу болсныг хэлж, гарц өгнө
+    if (error) {
+      return (
+        <div className="flex h-screen items-center justify-center bg-gray-100 p-4 dark:bg-gray-900">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-sm dark:bg-gray-800">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Эрх шалгаж чадсангүй
+            </h2>
+            <p className="mt-2 break-words text-sm text-gray-500 dark:text-gray-400">
+              {error}
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={retry}
+                className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90"
+              >
+                Дахин оролдох
+              </button>
+              <button
+                type="button"
+                onClick={leave}
+                className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                Гарах
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
         <div className="flex flex-col items-center gap-4">
