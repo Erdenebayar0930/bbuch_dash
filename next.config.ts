@@ -9,10 +9,29 @@ const defaultRuntimeCaching = require("next-pwa/cache");
 // ээлжлэн нэвтэрдэг бөгөөд service worker-ийн кэш нь хэрэглэгчээр
 // тусгаарлагддаггүй — өмнөх хүний гүйлгээ/хандивын жагсаалт дараагийнх нь
 // дэлгэц дээр гарч ирнэ. Мөн гараас нь хассан өгөгдөл 24 цаг "амьд" үлдэнэ.
-const runtimeCaching = defaultRuntimeCaching.filter(
-  (entry: { options?: { cacheName?: string } }) =>
-    entry.options?.cacheName !== "apis"
-);
+// ⚠ HTML баримтыг (navigation) SW-д ОГТ кэшлүүлэхгүй. Кэшлэсэн HTML нь тухайн
+// үеийн chunk хэшүүдийг заадаг ба дараагийн деплойд тэдгээр файл серверээс
+// устдаг тул хуучин HTML → байхгүй chunk → "client-side exception" болж унана.
+// Яг энэ алдааг Hostinger-ийн CDN нэгэнт үүсгэсэн (доорх headers() харна уу);
+// SW-ээр дамжуулан дахин давтуулах шаардлагагүй.
+//
+// NetworkOnly + next-pwa-гийн handlerDidError → сүлжээгүй үед _offline.html.
+const runtimeCaching = [
+  {
+    urlPattern: ({ request }: { request: Request }) =>
+      request.mode === "navigate",
+    handler: "NetworkOnly",
+    options: { cacheName: "navigations" },
+  },
+  // ⚠ /api/* хариултыг кэшлэхгүй. Энэ систем нэг төхөөрөмж дээр олон хэрэглэгч
+  // ээлжлэн нэвтэрдэг бөгөөд service worker-ийн кэш нь хэрэглэгчээр
+  // тусгаарлагддаггүй — өмнөх хүний гүйлгээ/хандивын жагсаалт дараагийнх нь
+  // дэлгэц дээр гарч ирнэ. Мөн гараас нь хассан өгөгдөл 24 цаг "амьд" үлдэнэ.
+  ...defaultRuntimeCaching.filter(
+    (entry: { options?: { cacheName?: string } }) =>
+      entry.options?.cacheName !== "apis"
+  ),
+];
 
 const withPWA = require("next-pwa")({
   dest: "public",
@@ -20,6 +39,11 @@ const withPWA = require("next-pwa")({
   // entry-д оруулдаг ба App Router түүнийг ачаалдаггүй (зөвхөн `main-app.js`).
   // Тиймээс бүртгэлийг components/ServiceWorkerRegister.tsx гараар хийнэ.
   register: false,
+  // next-pwa нь "/" замыг NetworkFirst-ээр кэшлэх start-url маршрут нэмдэг —
+  // энэ нь дээр тайлбарласан хуучин HTML-ийн асуудлыг яг давтана. Тиймээс
+  // хоёуланг нь унтраана; navigation-ыг дээрх NetworkOnly маршрут хариуцна.
+  cacheStartUrl: false,
+  dynamicStartUrl: false,
   skipWaiting: true,
   runtimeCaching,
   // public/ доторх бүхнийг precache хийдэг тул template-ийн 7.9 МБ demo зургийг
@@ -51,6 +75,29 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
     unoptimized: true,
+  },
+  async headers() {
+    return [
+      {
+        // ⚠ Next нь статик prerender хийсэн HTML-д `s-maxage=31536000` тавьдаг.
+        // Hostinger-ийн CDN (Server: hcdn) түүнийг дуулгавартай дагаж, HTML-ийг
+        // НЭГ ЖИЛ барьдаг. Деплойн дараа chunk-уудын хэш өөрчлөгдөж, хуучин
+        // файлууд диск дээрээс УСТДАГ тул CDN-ээс ирсэн хуучин HTML нь байхгүй
+        // chunk руу заана → хуудас "Application error: a client-side exception"
+        // болж унана. CDN зангилаа бүр өөр хуулбартай тул алдаа нь хэсэг
+        // хэрэглэгчид дээр л гарч, оношлоход төвөгтэй.
+        //
+        // Тиймээс HTML-ийг үргэлж origin-оос шалгуулна. ETag хэвээр ажиллах тул
+        // өөрчлөгдөөгүй үед 304 буцаж, зардал бага хэвээр үлдэнэ.
+        //
+        // `_next/static` болон `_next/image` энд ОРОХГҮЙ — тэдгээрийн нэр нь
+        // агуулгын хэштэй тул мөнхөд кэшлэгдэх нь ЗӨВ (immutable).
+        source: "/((?!_next/static|_next/image).*)",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, must-revalidate" },
+        ],
+      },
+    ];
   },
   webpack(config: any) {
     if (config.module) {
