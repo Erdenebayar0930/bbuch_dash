@@ -38,9 +38,17 @@ export const Dropdown: React.FC<DropdownProps> = ({
   if (!isOpen) return null;
 
   return (
+    /**
+     * Байрлалыг (`absolute`/`fixed`, талын зай) хэрэглэгч тал өөрөө өгнө.
+     *
+     * Урьд нь энд `absolute right-0` шууд бичээстэй байсан нь жижиг дэлгэц дээр
+     * панелийг товчнаас зүүн тийш сунгаж, дэлгэцээс гаргадаг байв. Tailwind-ийн
+     * ижил төрлийн утилитууд дараалалдаа тулгуурладаг тул className-аар дарж
+     * болдоггүй — иймд суурьт нь байрлал ҮЛДЭЭХГҮЙ.
+     */
     <div
       ref={dropdownRef}
-      className={`absolute z-40  right-0 mt-2  rounded-xl border border-gray-200 bg-white  shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark ${className}`}
+      className={`z-40 rounded-xl border border-gray-200 bg-white shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark ${className}`}
     >
       {children}
     </div>

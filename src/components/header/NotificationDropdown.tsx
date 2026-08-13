@@ -138,7 +138,15 @@ export default function NotificationDropdown() {
       <Dropdown
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        className="absolute right-0 mt-4 flex max-h-[480px] w-[340px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-white/10 dark:bg-gray-900 sm:w-[380px]"
+        /**
+         * Утсан дээр панель нь ТОВЧНООС биш, ДЭЛГЭЦЭЭС хэмжигдэнэ.
+         *
+         * `absolute right-0` нь панелийг товчны баруун ирмэгээс зүүн тийш 340px
+         * сунгадаг. Хонхны товч толгой хэсгийн голд байдаг тул нарийн дэлгэцэн
+         * дээр зүүн тал нь гарч, текст тасардаг байв. Иймд sm-ээс доош бүтэн
+         * өргөнөөр, толгойн (h-16) доор бэхэлж тавина.
+         */
+        className="fixed inset-x-3 top-[4.5rem] flex max-h-[calc(100dvh-6rem)] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-white/10 dark:bg-gray-900 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-4 sm:max-h-[480px] sm:w-[380px]"
       >
         <div className="mb-2 flex items-center justify-between border-b border-gray-100 pb-2.5 dark:border-white/10">
           <h5 className="font-semibold text-gray-800 dark:text-white/90">

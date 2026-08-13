@@ -48,7 +48,11 @@ export default function RowActions({ onEdit, onDelete }: RowActionsProps) {
         <MoreHorizontal className="h-4 w-4" />
       </button>
 
-      <Dropdown isOpen={isOpen} onClose={close} className="w-[190px] p-2">
+      <Dropdown
+        isOpen={isOpen}
+        onClose={close}
+        className="absolute right-0 mt-2 w-[190px] p-2"
+      >
         {confirming ? (
           <>
             <p className="px-3 pb-2 pt-1 text-theme-xs text-gray-500 dark:text-gray-400">
