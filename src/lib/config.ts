@@ -77,11 +77,43 @@ export function getFirebaseClientConfig(): FirebaseClientConfig {
   };
 }
 
+/**
+ * Service account-ын PEM түлхүүрийг задлана.
+ *
+ * Түлхүүрийг орчны хувьсагчид байрлуулах нь мөр таслалтаас болж найдваргүй:
+ * hosting панелиуд утгыг ямар хэлбэрээр хадгалахаа өөрсдөө шийддэг. Бодит
+ * байршуулалт дээр (bodyLength 1654) хоёр гажилт ЗЭРЭГ илэрсэн:
+ *
+ *   • хашилт нь утгын ХЭСЭГ болж үлдсэн  → `"-----BEGIN…-----\n…"`
+ *   • backslash нь давхар escape хийгдсэн → `\\n` (жинхэнэ `\n`-ий оронд)
+ *
+ * Аль аль нь `createPrivateKey()`-г "DECODER routines::unsupported" алдаагаар
+ * унагаадаг ба алдааны мессеж нь шалтгааныг огт заадаггүй. Панелийн зан үйлийг
+ * бид хянах боломжгүй тул задаргааг нь энд тэвчээртэй болгов.
+ *
+ * base64-ийн их бие backslash агуулдаггүй тул `\\+n` → мөр таслалт гэсэн
+ * хөрвүүлэлт зөв утгыг гэмтээхгүй.
+ */
+function normalizePrivateKey(raw: string | undefined): string {
+  if (!raw) return "";
+
+  let key = raw.trim();
+
+  // Хашилтыг зөвхөн хос байвал хуулна — түлхүүрийн дотор хашилт байхгүй.
+  // `.` нь мөр таслалтыг барихгүй тул `[\s\S]` — `s` флаг нь tsconfig-ийн
+  // target-аас өндөр ES хувилбар шаардана.
+  if (/^(["'])[\s\S]*\1$/.test(key)) {
+    key = key.slice(1, -1);
+  }
+
+  return key.replace(/\\+n/g, "\n");
+}
+
 export function getFirebaseAdminConfig(): FirebaseAdminConfig {
   return {
     projectId: process.env.FIREBASE_PROJECT_ID || "",
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL || "",
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n") || "",
+    privateKey: normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
   };
 }
 
