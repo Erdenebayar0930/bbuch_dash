@@ -7,10 +7,11 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { adminAuth } from "@/lib/firebaseAdmin";
 import { asRole, isAdminRole, isSuperRole } from "@/lib/permissions";
+import { backfillClaimsIfStale } from "./claims";
 
 import type { NextRequest } from "next/server";
 import type { UserRow } from "@/lib/db/schema";
-import type { Actor } from "@/lib/permissions";
+import type { Actor, UserStatus } from "@/lib/permissions";
 
 export type Caller = {
   uid: string;
@@ -75,6 +76,18 @@ export async function getCaller(request: NextRequest): Promise<Caller | null> {
       .from(users)
       .where(eq(users.uid, decoded.uid))
       .limit(1);
+
+    // Токен доторх эрхийн хуулбарыг MySQL-тэй тааруулна. Firebase Storage-ийн
+    // дүрэм ЗӨВХӨН токеныг харж чаддаг тул энэ хуулбар шинэ байх ёстой.
+    // Хүлээхгүй (await хийхгүй): хэрэглэгчийн хүсэлтийг Firebase-ийн хариу
+    // хүлээлгэх шалтгаан байхгүй бөгөөд амжилтгүй болсон ч API-ийн эрх нь
+    // доорх MySQL мөрөөр шийдэгдэнэ.
+    if (user) {
+      void backfillClaimsIfStale(decoded, {
+        role: asRole(user.role),
+        status: (user.status ?? "pending") as UserStatus,
+      });
+    }
 
     return {
       uid: decoded.uid,

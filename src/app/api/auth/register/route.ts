@@ -2,9 +2,11 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { getCallerOrResponse, serverError, unauthorized } from "@/lib/api/auth";
+import { syncUserClaims } from "@/lib/api/claims";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { db } from "@/lib/db";
 import { appConfig, registrations, users } from "@/lib/db/schema";
+import { asRole, type UserStatus } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
@@ -107,6 +109,15 @@ export async function POST(request: NextRequest) {
 
       return { user, isFirstAdmin };
     });
+
+    // Анхны супер админ ЯГ ЭНД үүсдэг — Storage-ийн дүрэм түүнийг тэр дороо
+    // танихын тулд claim-ийг бүртгэлтэй хамт бичнэ.
+    if (created.user) {
+      await syncUserClaims(created.user.uid, {
+        role: asRole(created.user.role),
+        status: (created.user.status ?? "pending") as UserStatus,
+      });
+    }
 
     return NextResponse.json({
       user: created.user,

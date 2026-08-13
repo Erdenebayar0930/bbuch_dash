@@ -55,3 +55,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# firebase — эмулятор ажиллуулах бүрд лог үлдээдэг
+*-debug.log
+.firebase/

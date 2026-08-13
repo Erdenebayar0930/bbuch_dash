@@ -13,7 +13,8 @@
     "db:check": "tsx --env-file=.env.local scripts/db-check.ts",
     "pwa:icons": "node scripts/generate-pwa-icons.mjs",
     "migrate:firestore": "tsx --env-file=.env.local scripts/migrate-firestore-to-mysql.ts",
-    "grant:role": "tsx --env-file=.env.local scripts/grant-role.ts"
+    "grant:role": "tsx --env-file=.env.local scripts/grant-role.ts",
+    "sync:claims": "tsx --env-file=.env.local scripts/sync-claims.ts"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",

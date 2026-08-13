@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 
+import { refreshClaimsIfStale } from "@/lib/claims";
 import { auth } from "@/lib/firebase";
 import { isAdminRole } from "@/lib/permissions";
 import { forceSignOut, signOutCompletely } from "@/lib/session";
@@ -129,6 +130,12 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
       router.replace("/unauthorized?reason=admin");
       return;
     }
+
+    // Firebase токен доторх эрхийн хуулбар (custom claims) нь MySQL-тэй
+    // зөрвөл токеноо албадан сэргээнэ. Storage-ийн дүрэм ЗӨВХӨН токеныг
+    // хардаг тул үүнгүйгээр эрх нь шинэчлэгдсэн админ дараагийн байгалийн
+    // сэргээлт хүртэл (ихдээ 1 цаг) зураг байршуулж чадахгүй байна.
+    await refreshClaimsIfStale(profile.role, profile.status);
 
     const next = {
       uid: profile.uid,

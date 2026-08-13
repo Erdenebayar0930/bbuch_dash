@@ -9,6 +9,7 @@ import {
   toActor,
 } from "@/lib/api/auth";
 import { aimags, isValidOption } from "@/data/profileOptions";
+import { syncUserClaims } from "@/lib/api/claims";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import {
@@ -193,6 +194,15 @@ export async function PATCH(
       .from(users)
       .where(eq(users.uid, uid))
       .limit(1);
+
+    // Firebase токен доторх хуулбарыг шинэчилнэ — Storage-ийн дүрэм үүнийг
+    // харна. MySQL аль хэдийн бичигдсэн тул амжилтгүй болсон ч буцаахгүй.
+    if (updated) {
+      await syncUserClaims(updated.uid, {
+        role: asRole(updated.role),
+        status: (updated.status ?? "pending") as UserStatus,
+      });
+    }
 
     return NextResponse.json({ user: updated });
   } catch (error) {

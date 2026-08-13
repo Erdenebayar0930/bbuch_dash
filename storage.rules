@@ -2,28 +2,78 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Профайлын зураг: зөвхөн эзэн нь бичнэ, нэвтэрсэн хүн уншина.
-    match /profile_photos/{uid}/{fileName} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.auth.uid == uid
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
-      allow delete: if request.auth != null && request.auth.uid == uid;
+
+    // ------------------------------------------------------------------
+    // Эрхийн шалгалт — Firebase ID token доторх custom claims-аар
+    //
+    // Storage дүрэм нь MySQL рүү хандаж чаддаггүй. Тиймээс сервер нь эрх/төлөв
+    // өөрчлөгдөх бүрд түүнийг хэрэглэгчийн токен руу хуулдаг
+    // (src/lib/api/claims.ts). Эдгээр талбарыг хэрэглэгч зохиож чадахгүй —
+    // токеныг Firebase өөрөө гарын үсэглэдэг.
+    //
+    // ⚠ Claim нь токен дотор ХӨЛДДӨГ: эрх нь хасагдсан хүний токен дуусах
+    // хүртлээ (ихдээ 1 цаг) хуучин утгаа барина. Тиймээс эдгээр дүрэм нь
+    // /api/* дээрх MySQL-ийн шалгалтыг ОРЛОХГҮЙ — тэр нь шууд хүчинтэй болдог.
+    // Энд байгаа нь "нэвтэрсэн бол хангалттай" гэсэн хуучин байдлаас хамаагүй
+    // хатуу боловч цорын ганц давхарга биш.
+    // ------------------------------------------------------------------
+
+    function signedIn() {
+      return request.auth != null;
     }
 
-    // Эд хөрөнгийн зураг.
+    function claim(name) {
+      return request.auth.token.get(name, '');
+    }
+
+    /**
+     * Идэвхтэй админ мөн эсэх.
+     *
+     * `status == 'active'` шалгалт чухал: хаагдсан админ эрхээ хадгалж
+     * үлдэхгүй. Claim байхгүй хуучин токенд `get()` нь '' буцаах тул шалгалт
+     * унана — энэ нь ЗӨВ тал руугаа унаж байгаа хэрэг (хаана).
+     */
+    function activeAdmin() {
+      return signedIn()
+             && (claim('role') == 'admin' || claim('role') == 'super')
+             && claim('status') == 'active';
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // ------------------------------------------------------------------
+    // Профайлын зураг: зөвхөн эзэн нь бичнэ, нэвтэрсэн хүн уншина.
     //
-    // ⚠ Storage дүрэм нь Postgres дэх role-ыг харж чадахгүй тул "зөвхөн админ"
-    // гэдгийг ЭНД шалгах боломжгүй. Жинхэнэ хамгаалалт нь /api/assets route
-    // дээр: зөвхөн админ зургийг бүртгэлд холбож чадна. Энд нэвтэрсэн хүнд
-    // бичихийг зөвшөөрч, хэмжээ болон төрлөөр хязгаарлана.
+    // Энд claim шаардахгүй — зам дотор uid байгаа тул эзэмшлийг Firebase
+    // өөрөө баталгаажуулж чадна. Шинэ бүртгүүлсэн (pending) хүн ч профайлын
+    // зургаа тавьж чадах ёстой.
+    // ------------------------------------------------------------------
+    match /profile_photos/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024
+                   && isImage();
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ------------------------------------------------------------------
+    // Эд хөрөнгийн зураг — ЗӨВХӨН идэвхтэй админ.
+    //
+    // Өмнө нь `if request.auth != null` байсан: нэвтэрсэн ямар ч хүн —
+    // баталгаажаагүй (pending), хаагдсан (blocked) ч — дурын эд хөрөнгийн
+    // зургийг УСТГАЖ, дурын хавтас руу файл байршуулж чаддаг байв. Зургийг
+    // бүртгэлд холбох /api/assets/[id]/images route нь аль хэдийн зөвхөн
+    // админд нээлттэй байсан тул энэ дүрэм түүнтэй одоо тохирлоо.
+    // ------------------------------------------------------------------
     match /assets/{assetId}/{fileName} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
+      allow read: if signedIn();
+      allow write: if activeAdmin()
                    && request.resource.size < 10 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
-      allow delete: if request.auth != null;
+                   && isImage();
+      allow delete: if activeAdmin();
     }
 
     // Бусад бүх зам хаалттай.
