@@ -8,8 +8,10 @@ import { getFCMToken } from "./notifications";
 import type { UserRole } from "./users";
 
 /**
- * Нэвтэрсэн хэрэглэгчийн FCM token-ыг Postgres-д хадгална.
- * Token нь fcm_tokens хүснэгтэд хэрэглэгч тутамд нэг мөрөөр хадгалагдана.
+ * Нэвтэрсэн хэрэглэгчийн FCM token-ыг серверт хадгална.
+ *
+ * `fcm_tokens` нь ТӨХӨӨРӨМЖ тутамд нэг мөртэй: утсан дээрх PWA, компьютер
+ * дээрх хөтөч тус тусдаа бүртгэгдэнэ.
  */
 export async function saveUserFCMToken(token: string) {
   try {
@@ -19,10 +21,31 @@ export async function saveUserFCMToken(token: string) {
   }
 }
 
-/** Өөрийн FCM token-ыг устгана (гарах, зөвшөөрөл цуцлах үед). */
+/**
+ * Энэ ТӨХӨӨРӨМЖИЙН FCM token-ыг серверээс устгана.
+ *
+ * Кэшлэсэн token-оо дамжуулна — эс бөгөөс сервер хэрэглэгчийн БҮХ
+ * төхөөрөмжийг устгах тул компьютер дээрээ гармагц утсан дээрх PWA-гийн
+ * мэдэгдэл хамт унтарна.
+ *
+ * Кэш олдохгүй бол token-гүй илгээнэ: сервер тэр үед бүгдийг устгана. Энэ нь
+ * зориудаар аюулгүй тал руугаа унасан сонголт — гарсан хэрэглэгч рүү push
+ * үргэлжлэхээс сэргийлэх нь бусад төхөөрөмжийг дахин бүртгүүлэхээс чухал.
+ */
 export async function deleteUserFCMToken() {
+  let token = "";
+
   try {
-    await apiFetch("/api/fcm-token", { method: "DELETE" });
+    token = localStorage.getItem("fcmToken") ?? "";
+  } catch {
+    // Хувийн горимд storage хаалттай байж болно — бүгдийг устгах горимд орно
+  }
+
+  try {
+    await apiFetch("/api/fcm-token", {
+      method: "DELETE",
+      body: token ? { token } : {},
+    });
   } catch (error) {
     console.error("FCM token устгахад алдаа гарлаа:", error);
   }
@@ -130,9 +153,17 @@ export async function enablePushNotifications(): Promise<PushSetupResult> {
   }
 }
 
-/** Мэдэгдлийг унтраана — token-ыг хөтөч болон серверээс хоёуланг нь устгана. */
+/**
+ * Мэдэгдлийг ЭНЭ ТӨХӨӨРӨМЖ дээр унтраана.
+ *
+ * ⚠ Дараалал чухал: серверээс устгах нь localStorage цэвэрлэхээс ӨМНӨ байх
+ * ёстой. `deleteUserFCMToken` нь кэшлэсэн token-оор аль төхөөрөмж болохыг
+ * заадаг — өмнө нь кэшийг эхэлж арчдаг байсан тул сервер "аль нь ч мэдэгдээгүй"
+ * гэж үзээд хэрэглэгчийн БҮХ төхөөрөмжийг устгадаг байв. Утсан дээрээ
+ * мэдэгдлээ унтраахад компьютер дээрх нь ч хамт унтарна гэсэн үг.
+ */
 export async function disablePushNotifications(): Promise<void> {
-  localStorage.removeItem("fcmToken");
+  await deleteUserFCMToken();
 
   if (messaging) {
     await deleteToken(messaging).catch((error) => {
@@ -140,7 +171,11 @@ export async function disablePushNotifications(): Promise<void> {
     });
   }
 
-  await deleteUserFCMToken();
+  try {
+    localStorage.removeItem("fcmToken");
+  } catch {
+    // Хувийн горимд storage хаалттай байж болно
+  }
 }
 
 // ---------------------------------------------------------------------------

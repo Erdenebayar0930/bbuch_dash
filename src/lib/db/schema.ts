@@ -737,14 +737,37 @@ export const welfareAids = mysqlTable(
   ]
 );
 
-/** FCM token — хэрэглэгч тутамд нэг */
-export const fcmTokens = mysqlTable("fcm_tokens", {
-  uid: uidCol("uid")
-    .primaryKey()
-    .references(() => users.uid, { onDelete: "cascade" }),
-  token: varchar("token", { length: 512 }).notNull(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+/**
+ * FCM token — ТӨХӨӨРӨМЖ тутамд нэг мөр.
+ *
+ * ⚠ Урьд нь `uid` нь PRIMARY KEY байсан буюу хэрэглэгч тутамд ГАНЦ мөр.
+ * Тэр үед сүүлд нэвтэрсэн төхөөрөмж өмнөхийнхөө token-ыг дардаг байв:
+ * компьютер дээрээ дашбордоо нээхэд утсан дээрх PWA-гийн бүртгэл устаж,
+ * мэдэгдэл чимээгүйхэн зогсдог. Илгээх тал (`/api/notifications/send`) нь
+ * олон төхөөрөмжийг аль хэдийн зөв тооцдог байсан — зөвхөн хүснэгтийн
+ * бүтэц нь хоцорсон.
+ *
+ * Түлхүүр нь token өөрөө: FCM token нь дэлхий даяар давтагдашгүй бөгөөд
+ * төхөөрөмж+хөтөч+суулгацын хослолыг тодорхойлно. Ижил төхөөрөмж дээр өөр
+ * хүн нэвтэрвэл ижил token өөр uid-тай ирэх тул мөрийн эзэн нь шинэчлэгдэнэ.
+ *
+ * Token нь ~160 тэмдэгт байдаг ч 512 хүртэл зай авав; utf8mb4 дээр 512×4 =
+ * 2048 байт нь InnoDB-ийн 3072 байтын индексийн хязгаарт багтана.
+ */
+export const fcmTokens = mysqlTable(
+  "fcm_tokens",
+  {
+    token: varchar("token", { length: 512 }).primaryKey(),
+    uid: uidCol("uid")
+      .notNull()
+      .references(() => users.uid, { onDelete: "cascade" }),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    // Мэдэгдэл илгээхэд `where uid in (…)` гэж хайдаг тул заавал индекстэй
+    index("fcm_tokens_uid_idx").on(table.uid),
+  ]
+);
 
 /** Бүртгэлийн лог — админ хянахад */
 export const registrations = mysqlTable("registrations", {

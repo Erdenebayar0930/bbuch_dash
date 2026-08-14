@@ -156,10 +156,12 @@ async function migrateFcmTokens() {
       continue;
     }
 
+    // Түлхүүр нь token — давхардвал эзнийг нь шинэчилнэ (хүснэгт нь одоо
+    // төхөөрөмж тутамд нэг мөртэй; өмнө нь uid түлхүүр байсан)
     await db
       .insert(fcmTokens)
-      .values({ uid: doc.id, token, updatedAt: toDate(doc.data().updatedAt) })
-      .onDuplicateKeyUpdate({ set: { token } });
+      .values({ token, uid: doc.id, updatedAt: toDate(doc.data().updatedAt) })
+      .onDuplicateKeyUpdate({ set: { uid: doc.id } });
 
     count += 1;
   }
