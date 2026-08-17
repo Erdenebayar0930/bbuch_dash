@@ -65,7 +65,7 @@ export const navItems: NavItem[] = [
     icon: Wallet,
     children: [
       { name: "Хандивын данс", path: "/transactions", icon: Landmark },
-      { name: "1/10 ба өргөл", path: "/tithe", icon: PieChart },
+      { name: "Хуваарилалт", path: "/tithe", icon: PieChart },
       { name: "Гүйлгээний бүртгэл", path: "/ledger", icon: ReceiptText },
       {
         // Гараар нэмэх ба хуулга уншуулах хоёулаа энд — гүйлгээ бааз руу орох
