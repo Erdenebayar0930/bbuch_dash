@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { FileSpreadsheet, X } from "lucide-react";
 
+import { useUser } from "@/app/(auth)/UserProvider";
 import ExpenseDonut from "@/components/dashboard/ExpenseDonut";
 import Panel from "@/components/dashboard/Panel";
 import PeriodFilter from "@/components/finance/PeriodFilter";
+import StatementImport from "@/components/finance/StatementImport";
 import SummaryTile from "@/components/finance/SummaryTile";
 import { useDonationAccounts } from "@/hooks/useDonationAccounts";
+import { isAdminRole } from "@/lib/permissions";
 import {
   expenseByCategory,
   filterByPeriod,
@@ -41,6 +43,13 @@ const palette = ["#12294a", "#2563eb", "#10b981", "#f59e0b", "#64748b"];
 export default function TitheAllocation() {
   const { items, loading, error } = useTransactions();
   const { accounts, loading: accountsLoading } = useDonationAccounts();
+  const { user } = useUser();
+
+  // Хуулга уншуулах нь гүйлгээ БИЧИХ үйлдэл — сервер тал ч админ эсэхийг
+  // шалгадаг. Энгийн хэрэглэгчид товчийг огт харуулахгүй: дарвал заавал
+  // 403 авах товч харуулах нь төөрөгдөл л үүсгэнэ.
+  const isAdmin = isAdminRole(user?.role);
+  const [importing, setImporting] = useState(false);
 
   // Аль данс нь «1/10 ба өргөл» болохыг админ тэмдэглэдэг — кодод хатуу
   // бичихгүй, эс бөгөөс дугаар өөрчлөгдөхөд хуудас чимээгүй хоосорно
@@ -120,6 +129,35 @@ export default function TitheAllocation() {
         </div>
       )}
 
+      {/*
+        Хуулга уншуулах нь энэ хуудсанд ЗӨВХӨН админд харагдана. Нээлттэй
+        байхад тайлан доор нь хэвээр үлдэнэ — оруулсны дараа дүн шинэчлэгдсэн
+        эсэхийг тэр дороо харах боломжтой.
+      */}
+      {isAdmin && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setImporting((open) => !open)}
+            className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
+          >
+            {importing ? (
+              <>
+                <X className="h-4 w-4" strokeWidth={2} />
+                Хаах
+              </>
+            ) : (
+              <>
+                <FileSpreadsheet className="h-4 w-4" strokeWidth={2} />
+                Excel оруулах
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {isAdmin && importing && <StatementImport />}
+
       <PeriodFilter
         years={years}
         year={year}
@@ -163,15 +201,6 @@ export default function TitheAllocation() {
           className="lg:col-span-3"
           title="Ангилал тус бүрээр"
           subtitle={`«${titheAccount.title}» данснаас гарсан зарцуулалт`}
-          action={
-            <Link
-              href="/ledger"
-              className="inline-flex items-center gap-1 text-theme-sm font-medium text-accent-600 transition-colors hover:text-accent-700 dark:text-accent-400"
-            >
-              Гүйлгээ харах
-              <ChevronRight className="h-4 w-4" strokeWidth={2} />
-            </Link>
-          }
         >
           {breakdown.length === 0 ? (
             <p className="flex min-h-[180px] items-center justify-center text-center text-theme-sm text-gray-500 dark:text-gray-400">
