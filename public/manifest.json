@@ -1,18 +1,17 @@
 {
   "id": "/",
-  "name": "ББУЧ — Чуулганы удирдлага",
-  "short_name": "ББУЧ",
+  "name": "Бид туслая — Чуулганы удирдлага",
+  "short_name": "Бид туслая",
   "description": "Чуулганы санхүү, хөрөнгө, үйлчлэлийн удирдлагын систем",
   "lang": "mn",
   "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
   "categories": ["business", "finance", "productivity"],
-  "launch_handler": { "client_mode": "focus-existing" },
   "gcm_sender_id": "103953800507",
   "icons": [
     {
@@ -42,55 +41,16 @@
   ],
   "shortcuts": [
     {
-      "name": "Гүйлгээ",
-      "short_name": "Гүйлгээ",
-      "url": "/transactions",
+      "name": "Мэдэгдэл илгээх",
+      "short_name": "Мэдэгдэл",
+      "url": "/admin/notifications",
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Хуулга оруулах",
-      "short_name": "Хуулга",
-      "url": "/statement",
+      "name": "Хэрэглэгчид",
+      "short_name": "Хэрэглэгч",
+      "url": "/users",
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Даалгавар",
-      "short_name": "Даалгавар",
-      "url": "/tasks",
-      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
-    }
-  ],
-  "share_target": {
-    "action": "/statement",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "files": [
-        {
-          "name": "file",
-          "accept": [
-            ".xlsx",
-            ".xls",
-            ".csv",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.ms-excel",
-            "text/csv"
-          ]
-        }
-      ]
-    }
-  },
-  "file_handlers": [
-    {
-      "action": "/statement",
-      "accept": {
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
-          ".xlsx"
-        ],
-        "application/vnd.ms-excel": [".xls"]
-      }
     }
   ]
 }

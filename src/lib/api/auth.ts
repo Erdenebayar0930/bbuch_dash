@@ -221,9 +221,41 @@ export const serviceUnavailable = (error: unknown) => {
         "Сервер өгөгдлийн сан руу хандаж чадсангүй. Түр хүлээгээд дахин оролдоно уу.",
       code: "service-unavailable",
     },
-    { status: 503 }
+    {
+      status: 503,
+      // Дахин оролдох хугацааг ил хэлнэ — хөтөч, хяналтын хэрэгслүүд хүндэтгэнэ
+      headers: { "Retry-After": "5" },
+    }
   );
 };
+
+/**
+ * Алдаа нь ТҮР ЗУУРЫН хэт ачаалал мөн үү (кодын алдаа биш).
+ *
+ * ЯАГААД ХЭРЭГТЭЙ ВЭ: холболтын дараалал дүүрэхэд mysql2 нь ЗӨВХӨН
+ * `Error("Queue limit reached.")` шиднэ — `code` талбаргүй. Ялгаж
+ * танихгүй бол энэ нь 500 болж буцна: клиент "апп эвдэрсэн" гэж ойлгоод
+ * дахин оролдохгүй, лог нь жинхэнэ програмын алдаануудтай холилдоно.
+ * Бодит байдал дээр энэ нь зүгээр л "одоо завгүй байна" гэсэн үг —
+ * хэдхэн секундын дараа өөрөө засагдана.
+ */
+const OVERLOAD_CODES = new Set([
+  "ER_CON_COUNT_ERROR",
+  "ER_USER_LIMIT_REACHED",
+  "ER_TOO_MANY_USER_CONNECTIONS",
+  "ETIMEDOUT",
+  "PROTOCOL_SEQUENCE_TIMEOUT",
+]);
+
+export function isOverloadError(error: unknown): boolean {
+  if (!error) return false;
+
+  const code = (error as { code?: string }).code;
+  if (code && OVERLOAD_CODES.has(code)) return true;
+
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("Queue limit reached");
+}
 
 /**
  * `code` нь клиентэд зориулсан машин уншигдах шалтгаан.
@@ -246,6 +278,13 @@ export const badRequest = (message: string) =>
  * зурж авах боломжтой байсан. Дэлгэрэнгүй нь серверийн лог руу л явна.
  */
 export const serverError = (error: unknown, fallback: string) => {
+  /**
+   * Хэт ачааллыг 500 биш 503 болгоно. Хоёрын ялгаа хэрэглэгчид ч, лог
+   * шинжлэхэд ч чухал: 500 = "энэ хүсэлт хэзээ ч ажиллахгүй", 503 = "одоо
+   * завгүй, дахин оролдоорой".
+   */
+  if (isOverloadError(error)) return serviceUnavailable(error);
+
   console.error(fallback, error);
   return NextResponse.json({ error: fallback }, { status: 500 });
 };

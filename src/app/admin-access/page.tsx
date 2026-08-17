@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const metadata = {
   title: "Админ эрхийн мэдээлэл",
-  description: "BBUCH-DASHBOARD-д админ эрх авах заавар",
+  description: "«Бид туслая» системд админ эрх авах заавар",
 };
 
 export default function AdminAccessPage() {

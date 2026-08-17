@@ -63,7 +63,7 @@ const AppSidebar: React.FC = () => {
           {showLabels && (
             <span className="flex flex-col leading-none">
               <span className="text-lg font-semibold tracking-tight text-white">
-                ББУЧ
+                Бид туслая
               </span>
               <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-white/40">
                 Dashboard

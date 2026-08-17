@@ -792,6 +792,32 @@ export const appConfig = mysqlTable("app_config", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/**
+ * Ажиллах үед өөрчлөгддөг тохиргоо — түлхүүр/утга.
+ *
+ * ЯАГААД БААЗАД, ENV-Д БИШ ВЭ: Google Drive-ийн холболтыг дэлгэцээс хийхэд
+ * refresh token нь OAuth урсгалын ДУНД үүснэ. Тэр агшинд орчны хувьсагч
+ * бичих боломжгүй (hPanel руу гараар оруулах шаардлагатай болно) — тиймээс
+ * тохиргоог өөрийн санд хадгална.
+ *
+ * ⚠ Энд НУУЦ утга (refresh token) орно. Хоёр зүйлийг санах:
+ *   • Баазад хандах эрхтэй хүн эдгээрийг уншина — DB нууц үг = Drive хандалт
+ *   • `drive_refresh_token` нь НӨӨЦЛӨЛТӨД ОРОХГҮЙ (src/lib/backup/dump.ts) —
+ *     эс бөгөөс архив гарт орсон хүн Drive рүү ч хандана
+ */
+export const settings = mysqlTable("settings", {
+  /**
+   * Баганын нэр `setting_key` — `key` нь MySQL/MariaDB-ийн НӨӨЦЛӨГДСӨН үг
+   * бөгөөд зарим хэрэгсэл (drizzle-kit-ийн introspection орно) түүнтэй
+   * хүндрэлтэй ажилладаг.
+   */
+  key: varchar("setting_key", { length: 64 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type SettingRow = typeof settings.$inferSelect;
+
 export type UserRow = typeof users.$inferSelect;
 export type TransactionRow = typeof transactions.$inferSelect;
 export type DonorRow = typeof donors.$inferSelect;

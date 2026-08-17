@@ -15,6 +15,10 @@ function fileNameFrom(header: string | null, fallback: string) {
  * болгож аваад түр холбоосоор татуулна.
  */
 export async function downloadExport(dataset: string): Promise<void> {
+  // Хуудас дөнгөж ачаалагдсан үед сесс хараахан сэргээгүй байж болно —
+  // apiClient-тэй ижил дүрэм (тэндхийн тайлбарыг үзнэ үү).
+  await auth.authStateReady();
+
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error("Нэвтэрсэн байх шаардлагатай.");
 

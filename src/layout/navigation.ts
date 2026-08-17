@@ -1,32 +1,12 @@
 import {
   Bell,
-  BookOpen,
-  Boxes,
-  Church,
-  ClipboardList,
-  FileSpreadsheet,
-  FileVideo,
-  HandCoins,
-  HandHeart,
-  HeartHandshake,
-  Landmark,
+  DatabaseBackup,
   LayoutGrid,
-  MapPin,
-  Megaphone,
-  Music2,
-  Package,
-  PieChart,
-  ReceiptText,
-  Shield,
-  ShoppingCart,
-  Sprout,
-  Tent,
   Users,
-  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
-import { isAdminRole } from "@/lib/permissions";
+import { isAdminRole, isSuperRole } from "@/lib/permissions";
 
 export type NavItem = {
   name: string;
@@ -34,6 +14,11 @@ export type NavItem = {
   icon: LucideIcon;
   /** Зөвхөн админ эрхтэй хэрэглэгчид харагдах цэс */
   adminOnly?: boolean;
+  /**
+   * Зөвхөн СУПЕР админд. `adminOnly`-оос хатуу: энгийн админ ч харахгүй.
+   * Өгөгдлийн сангийн бүрэн хуулбар авах зэрэг бүх мэдээлэлд хүрдэг үйлдэлд.
+   */
+  superOnly?: boolean;
   /**
    * profileOptions.aimags доторх түлхүүр. Заасан бол тухайн аймагт
    * харьяалагдах хэрэглэгчид л цэсийг харна; админ ба super бүгдийг харна.
@@ -55,103 +40,14 @@ export type NavItem = {
  */
 export const navItems: NavItem[] = [
   { name: "Үндсэн цэс", path: "/", icon: LayoutGrid },
-  { name: "Ажлууд", path: "/tasks", icon: ClipboardList },
-  {
-    // Эцэг мөр нь хуудасгүй — `/finance` нь зөвхөн бүлгийн түлхүүр.
-    // Хүүхдүүдийн зам давхцахгүй байх ёстой: `isActive` нь `startsWith`-ээр
-    // шалгадаг тул /transactions/... доор байрлуулбал хоёулаа идэвхтэй болно.
-    name: "Санхүү",
-    path: "/finance",
-    icon: Wallet,
-    children: [
-      { name: "Хандивын данс", path: "/transactions", icon: Landmark },
-      { name: "Хуваарилалт", path: "/tithe", icon: PieChart },
-      { name: "Гүйлгээний бүртгэл", path: "/ledger", icon: ReceiptText },
-      {
-        // Гараар нэмэх ба хуулга уншуулах хоёулаа энд — гүйлгээ бааз руу орох
-        // цорын ганц цэг
-        name: "Гүйлгээ оруулах",
-        path: "/statement",
-        icon: FileSpreadsheet,
-        adminOnly: true,
-      },
-    ],
-  },
-  { name: "Гарын авлага", path: "/handbook", icon: BookOpen },
-  // Хэрэглэгчийн төхөөрөмж дээр ажилладаг хэрэгсэл — өгөгдөл хөндөхгүй тул
-  // хязгаарлалтгүй
-  { name: "Бичлэг шахах", path: "/compress", icon: FileVideo },
-  {
-    name: "Харуулын аймаг",
-    path: "/aimag/guard",
-    aimag: "guard",
-    icon: Shield,
-    children: [{ name: "Газрын зураг", path: "/map", icon: MapPin }],
-  },
-  {
-    name: "Магтаалын аймаг",
-    path: "/aimag/praise",
-    aimag: "praise",
-    icon: Music2,
-    children: [
-      { name: "Эд хөрөнгө бүртгэл", path: "/aimag/praise/assets", icon: Boxes },
-    ],
-  },
-  {
-    name: "Хангамжийн аймаг",
-    path: "/aimag/supply",
-    aimag: "supply",
-    icon: Package,
-    children: [
-      {
-        name: "Худалдан авах жагсаалт",
-        path: "/aimag/supply/purchases",
-        icon: ShoppingCart,
-      },
-    ],
-  },
-  {
-    name: "Агуу захирамжийн аймаг",
-    path: "/aimag/commission",
-    aimag: "commission",
-    icon: Megaphone,
-    children: [
-      { name: "Мод услах", path: "/aimag/commission/watering", icon: Sprout },
-      {
-        name: "Дулаанхаан",
-        path: "/aimag/commission/dulaankhaan",
-        icon: Tent,
-      },
-    ],
-  },
-  {
-    name: "Туслах үйлчлэх аймаг",
-    path: "/aimag/service",
-    aimag: "service",
-    icon: HeartHandshake,
-    children: [
-      {
-        name: "Хандивын хайрцаг",
-        path: "/aimag/service/donations",
-        icon: HandCoins,
-      },
-    ],
-  },
-  {
-    name: "Тахилт",
-    path: "/tahilt",
-    aimag: "tahilt",
-    icon: Church,
-    children: [
-      {
-        name: "Халамжийн үйлчлэл",
-        path: "/tahilt/welfare",
-        icon: HandHeart,
-      },
-    ],
-  },
   { name: "Мэдэгдэл илгээх", path: "/admin/notifications", icon: Bell, adminOnly: true },
   { name: "Хэрэглэгчид", path: "/users", icon: Users, adminOnly: true },
+  {
+    name: "Нөөцлөлт",
+    path: "/backup",
+    icon: DatabaseBackup,
+    superOnly: true,
+  },
 ];
 
 /** Цэс харах эрхийг шалгахад хэрэгтэй хэрэглэгчийн товч мэдээлэл */
@@ -172,6 +68,9 @@ export type NavViewer = {
  * жинхэнэ хязгаарлалт хэрэгтэй бол хуудас ба API тал дээр нэмэлт шалгалт хийнэ.
  */
 export function canSeeNavItem(item: NavItem, viewer: NavViewer): boolean {
+  // Супер админы шалгалт нь бүхнээс ТҮРҮҮНД — доорх `isAdminRole` нь супер
+  // админыг ч багтаадаг тул дараа нь шалгавал энгийн админд ил гарна.
+  if (item.superOnly) return isSuperRole(viewer.role);
   if (isAdminRole(viewer.role)) return true;
   if (item.adminOnly) return false;
   if (item.aimag && !(viewer.aimags ?? []).includes(item.aimag)) return false;
@@ -220,9 +119,11 @@ const extraTitles: Record<string, string> = {
   "/settings": "Тохиргоо",
   "/profile": "Профайл",
   "/notifications": "Мэдэгдэл",
-  // Цэснээс хассан ч зам нь хэвээр — бүх аймгийн нэгдсэн бүртгэл, тооллого
-  // энд л удирдагдана.
-  "/assets": "Эд хөрөнгө",
+  // Цэсэнд байхгүй ч зам нь хэвээр байгаа "удахгүй" хуудсууд
+  "/ai-analysis": "AI Дүн шинжилгээ",
+  "/documents": "Захиргааны баримт",
+  "/inventory": "Барааны дүн шинжилгээ",
+  "/reports": "Тайлан",
 };
 
 /**

@@ -2,7 +2,7 @@
  * PM2 тохиргоо — Ubuntu сервер дээр dashboard-ыг ажиллуулна.
  *
  * Ашиглах:
- *   cd /var/www/bbuch-dash
+ *   cd /var/www/bid_tuslay
  *   pm2 start deploy/ecosystem.config.js
  *   pm2 save
  *
@@ -13,8 +13,8 @@
 module.exports = {
   apps: [
     {
-      name: "bbuch-dash",
-      cwd: "/var/www/bbuch-dash",
+      name: "bid_tuslay",
+      cwd: "/var/www/bid_tuslay",
       // `npm run start` биш next-ийн binary-г шууд дуудна — PM2 restart хийхэд
       // npm дундын процесс үлдэхгүй, дохио (SIGINT) шууд апп руу очно.
       script: "node_modules/next/dist/bin/next",
@@ -28,8 +28,8 @@ module.exports = {
         NODE_ENV: "production",
         PORT: "3000",
       },
-      error_file: "/var/log/bbuch-dash/error.log",
-      out_file: "/var/log/bbuch-dash/out.log",
+      error_file: "/var/log/bid_tuslay/error.log",
+      out_file: "/var/log/bid_tuslay/out.log",
       time: true,
     },
   ],

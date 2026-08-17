@@ -28,12 +28,42 @@ export function databaseUrlSource(): "MYSQL_URL" | "DATABASE_URL" | null {
  * `server-only`-г ЗОРИУДААР импортлохгүй: `scripts/`-ийн tsx скриптүүд ч энэ
  * файлыг ашиглана. Сервер талын хамгаалалт нь `./index.ts`-д байна.
  */
-export function createDbPool(connectionString: string): mysql.Pool {
+export function createDbPool(
+  connectionString: string,
+  /**
+   * Холболтын дээд тоо. Ихэвчлэн env-ээс авна, гэвч backup зэрэг ганц
+   * холболтоор УДААН ажилладаг ажилд 1 өгч, shared hosting дээрх хомс
+   * холболтыг хэрэглэгчийн хүсэлтэд үлдээнэ.
+   */
+  connectionLimit = Number(process.env.DATABASE_POOL_MAX ?? 5)
+): mysql.Pool {
   const pool = mysql.createPool({
     uri: connectionString,
-    connectionLimit: Number(process.env.DATABASE_POOL_MAX ?? 5),
+    connectionLimit,
     idleTimeout: 10_000,
     connectTimeout: 10_000,
+    /**
+     * Бүх холболт завгүй үед хүсэлтийг ДАРААЛАЛД оруулна, гэхдээ дараалал
+     * ХЯЗГААРТАЙ.
+     *
+     * mysql2-ийн анхдагч нь `queueLimit: 0` буюу ХЯЗГААРГҮЙ дараалал. Ачаалал
+     * ихсэхэд энэ нь хамгийн муу зан үйл өгдөг: хүсэлтүүд хариу ч авахгүй,
+     * алдаа ч өгөхгүй зүгээр л хуримтлагдана. Эцэст нь Passenger-ийн таймаут
+     * ажиллаж, хэрэглэгч 502 хардаг. Хязгаартай бол mysql2 тэр дор нь алдаа
+     * өгөх ба апп түүнийг 503 болгож буцаана.
+     *
+     * ⚠ ХЭМЖЭЭ НЬ ЧУХАЛ. Эхлээд `connectionLimit × 4` (=12) байсныг ачааллын
+     * хэмжилт унагаав: API хүсэлт бүр 2-3 асуулга явуулдаг тул 20 зэрэг
+     * хэрэглэгч ЭНГИЙН үед ч дарааллыг тэр дороо дүүргэж, throughput 3000-аас
+     * 5 хүс/сек болж НУРЖ байв. Өөрөөр хэлбэл хамгаалалт нь өөрөө гэмтэл
+     * үүсгэж байсан хэрэг.
+     *
+     * Асуулгууд 1-2ms байдаг тул 100 урттай дараалал ~70ms дотор цэвэрлэгдэнэ
+     * — хэрэглэгч мэдэхгүй. Гэхдээ хязгааргүй биш хэвээр: сан үнэхээр
+     * зогсвол хуримтлал тодорхой цэг дээр таслагдана.
+     */
+    waitForConnections: true,
+    queueLimit: Number(process.env.DATABASE_QUEUE_LIMIT ?? 100),
     /**
      * Драйвер талд: DATETIME/TIMESTAMP мөрийг UTC гэж уншина.
      * ⚠ Энэ ГАНЦААРАА хангалтгүй — доорх `SET time_zone`-ыг үзнэ үү.

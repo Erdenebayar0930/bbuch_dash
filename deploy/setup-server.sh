@@ -11,12 +11,12 @@
 
 set -euo pipefail
 
-APP_NAME="bbuch-dash"
+APP_NAME="bid_tuslay"
 APP_DIR="/var/www/${APP_NAME}"
 LOG_DIR="/var/log/${APP_NAME}"
 DB_NAME="bid_tuslay"
-DB_USER="bbuch"
-REPO_URL="https://github.com/Erdenebayar0930/bbuch_dash.git"
+DB_USER="bid_tuslay"
+REPO_URL="https://github.com/Erdenebayar0930/bid_tuslay.git"
 NODE_MAJOR=20
 
 if [[ $EUID -ne 0 ]]; then
@@ -78,7 +78,7 @@ fi
 
 echo "▶ 7/8  Nginx"
 if [[ ! -f /etc/nginx/sites-available/${APP_NAME} ]]; then
-  cp "${APP_DIR}/deploy/nginx/bbuch-dash.conf" "/etc/nginx/sites-available/${APP_NAME}"
+  cp "${APP_DIR}/deploy/nginx/bid_tuslay.conf" "/etc/nginx/sites-available/${APP_NAME}"
   ln -sf "/etc/nginx/sites-available/${APP_NAME}" "/etc/nginx/sites-enabled/${APP_NAME}"
   rm -f /etc/nginx/sites-enabled/default
   echo "   ⚠ /etc/nginx/sites-available/${APP_NAME} дотор DOMAIN.MN-г засна уу"

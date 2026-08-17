@@ -68,6 +68,14 @@ const MYSQL_HINTS: Record<string, string> = {
   ENOTFOUND: "MySQL-ийн хостын нэр олдсонгүй.",
   ETIMEDOUT: "MySQL холболт хугацаа хэтэрлээ.",
   PROTOCOL_CONNECTION_LOST: "MySQL холболт тасарлаа.",
+  /**
+   * Ачаалал ихсэхэд хамгийн түрүүнд илэрдэг хоёр алдаа. Хоёулаа "апп унасан"
+   * мэт харагддаг ч шалтгаан нь ондоо — тиймээс зөвлөмжийг нь ялгав.
+   */
+  ER_CON_COUNT_ERROR:
+    "MySQL-ийн холболтын хязгаар дүүрлээ. DATABASE_POOL_MAX-ыг бууруулна уу (Passenger процесс бүр өөрийн pool-той тул тоо үржинэ).",
+  ER_USER_LIMIT_REACHED:
+    "Hosting дээрх хэрэглэгчийн холболтын квот дүүрлээ. DATABASE_POOL_MAX-ыг бууруулах эсвэл багцаа ахиулна уу.",
 };
 
 /**

@@ -99,7 +99,21 @@ const isDev = process.env.NODE_ENV === "development";
  * (Hostinger нь hPanel дээрх хувьсагчийг build-д ч дамжуулдаг тул
  * Redeploy дархад л хангалттай.)
  */
-const cspMode = process.env.CSP_MODE ?? "report-only";
+/**
+ * Анхдагч нь ENFORCE.
+ *
+ * Урьд нь `report-only` байсан — өөрөөр хэлбэл XSS-ийн эсрэг хамгийн хүчтэй
+ * давхарга нь юуг ч хаадаггүй, зөвхөн консолд бичдэг байв. Тохируулга нь
+ * "дараа асаана" гэсэн санаатай байсан ч практикт үүрд унтраалттай үлдэх нь
+ * элбэг. Бодлого нь `script-src`-д 'unsafe-inline' зөвшөөрдөг тул хуудас
+ * эвдэх эрсдэл бага, харин `connect-src`/`form-action` нь өгөгдөл гадагш
+ * урсахыг үнэхээр таслана.
+ *
+ * Ямар нэг зүйл эвдэрвэл `CSP_MODE=report-only` (эсвэл `off`) гэж env-ээр
+ * шууд буцаана — код засах шаардлагагүй. Дараа нь DevTools → Console дээрх
+ * "Refused to …" мөрөөс дутуу хостыг доорх жагсаалтад нэмнэ.
+ */
+const cspMode = process.env.CSP_MODE || "enforce";
 
 /**
  * Content-Security-Policy — тарьсан скрипт өгөгдөл гаргахаас сэргийлнэ.
@@ -117,7 +131,6 @@ const cspMode = process.env.CSP_MODE ?? "report-only";
  * Хостуудын учир:
  *   googleapis/gstatic  — Firebase Auth, FCM, Storage, Installations
  *   firebaseapp.com     — Auth-ийн нэвтрэлтийн iframe (authDomain)
- *   openstreetmap.org   — Leaflet газрын зургийн хавтан
  *   blob:/data:         — зураг тайрах (react-easy-crop), видео шахалт
  */
 const csp = [
@@ -133,10 +146,10 @@ const csp = [
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://www.gstatic.com https://apis.google.com`,
   // Tailwind-ийн runtime style болон Next-ийн inline critical CSS
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.tile.openstreetmap.org",
+  "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com",
   "font-src 'self' data:",
   // Дев дээр HMR нь ws:// ашиглана
-  `connect-src 'self'${isDev ? " ws: http://localhost:*" : ""} https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://*.tile.openstreetmap.org`,
+  `connect-src 'self'${isDev ? " ws: http://localhost:*" : ""} https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com`,
   "frame-src 'self' https://*.firebaseapp.com",
   // Service worker + видео шахалтын worker
   "worker-src 'self' blob:",

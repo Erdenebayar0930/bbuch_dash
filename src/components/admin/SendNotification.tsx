@@ -3,15 +3,14 @@
 import { BellRing, Loader2, Send, Sparkles, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { aimags, labelOf } from "@/data/profileOptions";
-import { sendNotificationToAimag, sendNotificationToAllUsers, sendNotificationToRole, sendNotificationToUser } from "@/lib/fcm";
-import { listUsers, roleLabels, type AppUser, type UserRole } from "@/lib/users";
+import { sendNotificationToAllUsers, sendNotificationToUser } from "@/lib/fcm";
+import { listUsers, type AppUser } from "@/lib/users";
 
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 
-type Audience = "all" | "aimag" | "user" | "role";
+type Audience = "all" | "user";
 type Feedback = { type: "success" | "error" | "info"; text: string };
 
 type TemplateItem = {
@@ -31,13 +30,6 @@ const notificationTemplates: TemplateItem[] = [
     body: "Системийн шинэчлэл дууссаны дараа үйлчилгээг илүү тогтвортой ажиллуулна.",
   },
   {
-    key: "gathering",
-    label: "Аймгийн цуглаан",
-    audience: "aimag",
-    title: "Аймгийн цуглаан",
-    body: "Энэ долоо хоногийн цуглааны цаг, байршлыг доорх холбоосоос харна уу.",
-  },
-  {
     key: "reminder",
     label: "Санамж",
     audience: "all",
@@ -52,8 +44,8 @@ export default function SendNotification() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [url, setUrl] = useState("");
-  const [selectedRole, setSelectedRole] = useState<UserRole>("user");
-  const [selectedAimag, setSelectedAimag] = useState("");
+  /** Нэрээр хайх талбарын текст — сонголт хийгдмэгц хоосорно */
+  const [search, setSearch] = useState("");
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -81,26 +73,34 @@ export default function SendNotification() {
 
   const recipientCount = useMemo(() => {
     if (audience === "user") {
-      return userId.trim() ? 1 : 0;
-    }
-
-    if (audience === "aimag") {
-      if (!selectedAimag) return 0;
-      // Нэг хүн олон аймагт харьяалагдаж болно
-      return users.filter(
-        (user) => user.status === "active" && user.aimags.includes(selectedAimag)
-      ).length;
-    }
-
-    if (audience === "role") {
-      if (!selectedRole) return 0;
-      return users.filter(
-        (user) => user.status === "active" && user.role === selectedRole
-      ).length;
+      return userId ? 1 : 0;
     }
 
     return users.filter((user) => user.status === "active").length;
-  }, [audience, selectedAimag, selectedRole, userId, users]);
+  }, [audience, userId, users]);
+
+  const displayName = (user: AppUser) =>
+    [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email;
+
+  const selectedUser = useMemo(
+    () => users.find((user) => user.uid === userId) ?? null,
+    [users, userId]
+  );
+
+  /**
+   * Нэр, имэйлээр хайна. Хэрэглэгч uid-г огт харахгүй тул хайлт нь
+   * сонгох цорын ганц зам — жагсаалтыг богино байлгаж 8-аар таслав.
+   */
+  const matches = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return [];
+
+    return users
+      .filter((user) =>
+        `${displayName(user)} ${user.email}`.toLowerCase().includes(query)
+      )
+      .slice(0, 8);
+  }, [search, users]);
 
   const applyTemplate = (template: TemplateItem) => {
     setAudience(template.audience);
@@ -117,18 +117,8 @@ export default function SendNotification() {
       return;
     }
 
-    if (audience === "user" && !userId.trim()) {
-      setMessage({ type: "error", text: "Хүлээн авагчийн User ID оруулна уу." });
-      return;
-    }
-
-    if (audience === "aimag" && !selectedAimag) {
-      setMessage({ type: "error", text: "Хүлээн авах аймаг сонгоно уу." });
-      return;
-    }
-
-    if (audience === "role" && !selectedRole) {
-      setMessage({ type: "error", text: "Роль сонгоно уу." });
+    if (audience === "user" && !userId) {
+      setMessage({ type: "error", text: "Хүлээн авах хэрэглэгчээ сонгоно уу." });
       return;
     }
 
@@ -139,16 +129,10 @@ export default function SendNotification() {
       const data: Record<string, string> = {};
       if (url.trim()) data.url = url.trim();
 
-      let result;
-      if (audience === "all") {
-        result = await sendNotificationToAllUsers(title.trim(), body.trim(), data);
-      } else if (audience === "user") {
-        result = await sendNotificationToUser(userId.trim(), title.trim(), body.trim(), data);
-      } else if (audience === "aimag") {
-        result = await sendNotificationToAimag(selectedAimag, title.trim(), body.trim(), data);
-      } else {
-        result = await sendNotificationToRole(selectedRole, title.trim(), body.trim(), data);
-      }
+      const result =
+        audience === "all"
+          ? await sendNotificationToAllUsers(title.trim(), body.trim(), data)
+          : await sendNotificationToUser(userId, title.trim(), body.trim(), data);
 
       // Мэдэгдэл нь DB-д бичигдсэн бол хүрсэнд тооцно — push нь зөвхөн
       // мэдэгдүүлэг. Хэрэглэгч апп нээхэд уншаагүй төлөвтэй хүлээж байна.
@@ -176,6 +160,7 @@ export default function SendNotification() {
         setBody("");
         setUrl("");
         setUserId("");
+        setSearch("");
       } else {
         setMessage({
           type: "error",
@@ -224,8 +209,6 @@ export default function SendNotification() {
           <div className="flex flex-wrap gap-2">
             {[
               { value: "all", label: "Бүх хэрэглэгчид" },
-              { value: "aimag", label: "Аймаг" },
-              { value: "role", label: "Роль" },
               { value: "user", label: "Нэг хэрэглэгч" },
             ].map((option) => (
               <button
@@ -246,104 +229,89 @@ export default function SendNotification() {
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
             <Users className="h-4 w-4" />
             {audience === "all" && <span>Идэвхтэй бүх хэрэглэгчид</span>}
-            {audience === "aimag" && (
-              <span>
-                {selectedAimag
-                  ? `${labelOf(aimags, selectedAimag)} — ${recipientCount} хэрэглэгч`
-                  : "Аймаг сонгоно уу"}
-              </span>
-            )}
-            {audience === "role" && (
-              <span>
-                {selectedRole ? `${roleLabels[selectedRole]} — ${recipientCount} хэрэглэгч` : "Роль сонгоно уу"}
-              </span>
-            )}
             {audience === "user" && (
-              <span>{recipientCount > 0 ? `${recipientCount} хэрэглэгч` : "User ID сонгоно уу"}</span>
+              <span>
+                {selectedUser
+                  ? displayName(selectedUser)
+                  : "Хэрэглэгчээ сонгоно уу"}
+              </span>
             )}
           </div>
         </div>
 
-        {audience === "aimag" && (
-          <div>
-            <Label>Аймаг</Label>
-            <div className="flex flex-wrap gap-2">
-              {aimags.map((aimag) => (
-                <button
-                  key={aimag.value}
-                  type="button"
-                  onClick={() => setSelectedAimag(aimag.value)}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                    selectedAimag === aimag.value
-                      ? "bg-emerald-600 text-white"
-                      : "bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-700"
-                  }`}
-                >
-                  {aimag.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {audience === "role" && (
-          <div>
-            <Label>Роль</Label>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(roleLabels).map(([role, label]) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => setSelectedRole(role as UserRole)}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                    selectedRole === role
-                      ? "bg-blue-600 text-white"
-                      : "bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-300 dark:ring-gray-700"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {audience === "user" && (
           <div>
             <Label>
-              User ID <span className="text-error-500">*</span>
+              Хэрэглэгч <span className="text-error-500">*</span>
             </Label>
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                placeholder="User ID оруулна уу"
-                value={userId}
-                onChange={(event) => setUserId(event.target.value)}
-                required
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={loadUsers} disabled={loadingUsers}>
-                {loadingUsers ? "Ачааллаж байна..." : "Жагсаалт"}
-              </Button>
-            </div>
 
-            {users.length > 0 && (
-              <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
-                <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">Бүртгэлтэй хэрэглэгчид:</p>
-                <div className="space-y-1">
-                  {users.map((user) => (
-                    <button
-                      key={user.uid}
-                      type="button"
-                      onClick={() => setUserId(user.uid)}
-                      className="block w-full rounded px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                    >
-                      {[user.first_name, user.last_name].filter(Boolean).join(" ") || user.email}
-                      <span className="ml-2 text-gray-400">{user.uid}</span>
-                    </button>
-                  ))}
+            {selectedUser ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                    {displayName(selectedUser)}
+                  </p>
+                  <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                    {selectedUser.email}
+                  </p>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setUserId("");
+                    setSearch("");
+                  }}
+                >
+                  Солих
+                </Button>
               </div>
+            ) : (
+              <>
+                <Input
+                  type="text"
+                  placeholder="Нэр эсвэл имэйлээр хайх"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+
+                {loadingUsers && (
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Хэрэглэгчдийг ачаалж байна...
+                  </p>
+                )}
+
+                {!loadingUsers && search.trim() && matches.length === 0 && (
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Тохирох хэрэглэгч олдсонгүй.
+                  </p>
+                )}
+
+                {matches.length > 0 && (
+                  <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white p-1.5 dark:border-gray-800 dark:bg-gray-900">
+                    {matches.map((user) => (
+                      <button
+                        key={user.uid}
+                        type="button"
+                        onClick={() => {
+                          setUserId(user.uid);
+                          setSearch("");
+                          setMessage(null);
+                        }}
+                        className="block w-full rounded px-2.5 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        <span className="block truncate text-sm text-gray-800 dark:text-gray-200">
+                          {displayName(user)}
+                        </span>
+                        <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
+                          {user.email}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -411,12 +379,10 @@ export default function SendNotification() {
             <p className="font-medium text-gray-900 dark:text-white">Сонгосон чиглэл:</p>
             <p>
               {audience === "all"
-                ? "Бүх идэвхтэй хэрэглэгчид"
-                : audience === "aimag"
-                  ? `${labelOf(aimags, selectedAimag) || "Аймаг"} — ${recipientCount} хэрэглэгч`
-                  : audience === "role"
-                    ? `${roleLabels[selectedRole]} — ${recipientCount} хэрэглэгч`
-                    : `Нэг хэрэглэгч — ${recipientCount > 0 ? "ID бэлэн" : "ID оруулаагүй"}`}
+                ? `Бүх идэвхтэй хэрэглэгчид — ${recipientCount} хэрэглэгч`
+                : selectedUser
+                  ? displayName(selectedUser)
+                  : "Хэрэглэгч сонгоогүй"}
             </p>
           </div>
           <Button type="submit" disabled={loading} className="min-w-[180px]" size="sm">
@@ -430,11 +396,7 @@ export default function SendNotification() {
                 <Send className="h-4 w-4" />
                 {audience === "all"
                   ? "Бүх хэрэглэгчдэд илгээх"
-                  : audience === "aimag"
-                    ? "Аймагт илгээх"
-                    : audience === "role"
-                      ? "Роль руу илгээх"
-                      : "Нэг хэрэглэгчид илгээх"}
+                  : "Нэг хэрэглэгчид илгээх"}
               </>
             )}
           </Button>

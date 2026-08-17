@@ -14,7 +14,8 @@
       "Bash(grep -vE \"source map|^$\")",
       "Bash(curl -s -o /dev/null http://localhost:3104/api/health)",
       "Bash(curl -s --max-time 30 http://localhost:3104/api/health)",
-      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\('firebase.status =',j.firebase.status\\);console.log\\('push.privateKey.status =',j.push.privateKey.status\\);console.log\\('push.vapidKey.status  =',j.push.vapidKey.status\\);}\\)\")"
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\('firebase.status =',j.firebase.status\\);console.log\\('push.privateKey.status =',j.push.privateKey.status\\);console.log\\('push.vapidKey.status  =',j.push.vapidKey.status\\);}\\)\")",
+      "Bash(sed -i 's|^REGISTRY_DATABASE_URL=.*|REGISTRY_DATABASE_URL=mysql://bid_tuslay:bid_tuslay_local_9xq4mzr7hvce@localhost:3306/bid_tuslay_registry|' .env.local)"
     ]
   }
 }

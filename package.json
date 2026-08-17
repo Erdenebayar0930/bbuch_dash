@@ -1,5 +1,5 @@
 {
-  "name": "free-nextjs-admin-dashboard",
+  "name": "bid_tuslay",
   "version": "2.2.2",
   "private": true,
   "scripts": {
@@ -11,6 +11,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:check": "tsx --env-file=.env.local scripts/db-check.ts",
+    "backup": "tsx --env-file=.env.local scripts/backup.ts",
+    "restore": "tsx --env-file=.env.local scripts/restore.ts",
     "pwa:icons": "node scripts/generate-pwa-icons.mjs",
     "migrate:firestore": "tsx --env-file=.env.local scripts/migrate-firestore-to-mysql.ts",
     "grant:role": "tsx --env-file=.env.local scripts/grant-role.ts",
@@ -23,8 +25,6 @@
     "@fullcalendar/list": "^6.1.19",
     "@fullcalendar/react": "^6.1.19",
     "@fullcalendar/timegrid": "^6.1.19",
-    "@react-jvectormap/core": "^1.0.4",
-    "@react-jvectormap/world": "^1.1.2",
     "@simplewebauthn/browser": "^13.2.2",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/postcss": "^4.1.17",
@@ -35,27 +35,21 @@
     "firebase": "^12.7.0",
     "firebase-admin": "^13.10.0",
     "flatpickr": "^4.6.13",
-    "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
     "mysql2": "^3.23.3",
-    "next": "16.0.10",
+    "next": "^16.3.1",
     "next-pwa": "^5.6.0",
     "react": "^19.2.0",
     "react-apexcharts": "^1.8.0",
-    "react-dnd": "^16.0.1",
-    "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.3.8",
     "react-easy-crop": "^6.2.3",
-    "react-leaflet": "^5.0.0",
     "server-only": "^0.0.1",
-    "swiper": "^11.2.10",
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@svgr/webpack": "^8.1.0",
-    "@types/leaflet": "^1.9.21",
     "@types/node": "^20.19.25",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
@@ -63,20 +57,10 @@
     "baseline-browser-mapping": "^2.11.11",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.1",
-    "eslint-config-next": "16.0.7",
+    "eslint-config-next": "^16.3.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17",
     "tsx": "^4.23.5",
     "typescript": "5.9.3"
-  },
-  "overrides": {
-    "@react-jvectormap/core": {
-      "react": "^16.8.0 || ^17 || ^18 || ^19",
-      "react-dom": "^16.8.0 || ^17 || ^18 || ^19"
-    },
-    "@react-jvectormap/world": {
-      "react": "^16.8.0 || ^17 || ^18 || ^19",
-      "react-dom": "^16.8.0 || ^17 || ^18 || ^19"
-    }
   }
 }

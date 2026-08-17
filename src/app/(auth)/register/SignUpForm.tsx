@@ -135,7 +135,7 @@ export default function SignUpForm() {
             Бүртгүүлэх
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Мэдээллээ бөглөж BBUCH-DASHBOARD-д бүртгүүлнэ үү.
+            Мэдээллээ бөглөж «Бид туслая» системд бүртгүүлнэ үү.
           </p>
         </div>
 

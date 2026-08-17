@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 #
 # Шинэ хувилбар гаргах скрипт — сервер дээр ажиллуулна.
-#   cd /var/www/bbuch-dash && sudo bash deploy/deploy.sh
+#   cd /var/www/bid_tuslay && sudo bash deploy/deploy.sh
 #
 # Хийх зүйл: git pull → npm ci → next build → PM2 reload.
 # Build амжилтгүй бол ХУУЧИН хувилбар үргэлжлүүлэн ажиллана (reload хийхгүй).
 
 set -euo pipefail
 
-APP_NAME="bbuch-dash"
+APP_NAME="bid_tuslay"
 APP_DIR="/var/www/${APP_NAME}"
 BRANCH="${1:-main}"
 
@@ -40,7 +40,7 @@ npm run build
 # ТАЙЛБАР: `npm run db:push`-ыг ЭНД ЗОРИУДААР дуудахгүй. Drizzle push нь
 # багана/хүснэгт устгах SQL үүсгэж чаддаг бөгөөд баталгаажуулалт асуудаг тул
 # скриптэд гацна. Схем өөрчлөгдсөн үед ГАРААР, гаралтыг нь уншаад ажиллуулна:
-#     cd /var/www/bbuch-dash && npm run db:push
+#     cd /var/www/bid_tuslay && npm run db:push
 
 echo "▶ 4/4  PM2"
 if pm2 describe "${APP_NAME}" >/dev/null 2>&1; then

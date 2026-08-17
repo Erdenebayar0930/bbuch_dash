@@ -59,7 +59,9 @@ export async function POST(request: NextRequest) {
   // энэ route-оор л хамгийн их хор хийнэ.
   const limited = rateLimit(request, {
     name: "notify-send",
-    limit: 10,
+    // Хязгаар нь ПРОЦЕСС бүрд тусдаа тул Passenger олон процесс асаахад
+    // бодит хязгаар үржинэ — тоог тэр нөөцтэйгээр сонгов.
+    limit: 5,
     windowMs: 60_000,
   });
   if (limited) return limited;

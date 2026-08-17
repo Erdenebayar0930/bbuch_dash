@@ -5,7 +5,6 @@ import { deleteToken } from "firebase/messaging";
 import { apiFetch } from "./apiClient";
 import { auth, messaging } from "./firebase";
 import { getFCMToken } from "./notifications";
-import type { UserRole } from "./users";
 
 /**
  * Нэвтэрсэн хэрэглэгчийн FCM token-ыг серверт хадгална.
@@ -199,11 +198,12 @@ export type SendResult = {
   removedTokens: number;
 };
 
-type Target =
-  | { type: "all" }
-  | { type: "aimag"; aimag: string }
-  | { type: "role"; role: UserRole }
-  | { type: "user"; userId: string };
+/**
+ * Сервер талын /api/notifications/send нь `aimag`, `role` чиглэлийг мөн
+ * дэмждэг — гэвч UI-аас тэдгээрийг хассан тул энд зөвхөн ашиглагдаж буй
+ * хоёрыг үлдээв.
+ */
+type Target = { type: "all" } | { type: "user"; userId: string };
 
 async function postNotification(
   target: Target,
@@ -250,30 +250,6 @@ export async function sendNotificationToAllUsers(
   data?: { [key: string]: string }
 ): Promise<SendResult> {
   return postNotification({ type: "all" }, title, body, data);
-}
-
-/**
- * Тодорхой аймгийн идэвхтэй хэрэглэгчдэд мэдэгдэл илгээнэ.
- * users.aimags жагсаалтад тулгуурлан хүлээн авагчдыг сонгоно — нэг хүн
- * олон аймагт харьяалагдаж болно.
- */
-export async function sendNotificationToAimag(
-  aimag: string,
-  title: string,
-  body: string,
-  data?: { [key: string]: string }
-): Promise<SendResult> {
-  return postNotification({ type: "aimag", aimag }, title, body, data);
-}
-
-/** Роль дээр тулгуурлан мэдэгдэл илгээнэ. */
-export async function sendNotificationToRole(
-  role: UserRole,
-  title: string,
-  body: string,
-  data?: { [key: string]: string }
-): Promise<SendResult> {
-  return postNotification({ type: "role", role }, title, body, data);
 }
 
 /**

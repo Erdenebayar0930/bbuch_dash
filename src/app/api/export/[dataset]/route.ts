@@ -1,12 +1,9 @@
+import { PassThrough, Readable } from "node:stream";
+
 import { NextResponse } from "next/server";
 
-import {
-  forbidden,
-  isAdminRole,
-  requireActiveUser,
-  serverError,
-} from "@/lib/api/auth";
-import { buildWorkbook } from "@/lib/api/excel";
+import { forbidden, isAdminRole, requireActiveUser } from "@/lib/api/auth";
+import { writeWorkbook } from "@/lib/api/excel";
 import { datasets, findDataset } from "@/lib/api/exportDatasets";
 import { rateLimit } from "@/lib/api/rateLimit";
 
@@ -14,6 +11,9 @@ import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** Том татацад Passenger-ийн анхдагч таймаутад баригдахгүйн тулд */
+export const maxDuration = 300;
 
 const XLSX_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -40,11 +40,14 @@ export async function GET(
   const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
 
-  // `all` нь бүх хүснэгтийг санах ойд workbook болгож барина — давталтаар
-  // дуудвал процессын санах ойг барагдуулж, серверийг унагаах боломжтой.
+  /**
+   * Файл нь одоо урсгалаар бичигддэг тул санах ойн эрсдэл арилсан ч, `all`
+   * нь бүх хүснэгтийг бүтнээр уншдаг хэвээр — сангийн ачааллаас хамгаална.
+   * Хязгаар нь процесс бүрд тусдаа тул тоог нөөцтэйгээр сонгов.
+   */
   const limited = rateLimit(request, {
     name: "export",
-    limit: 5,
+    limit: 3,
     windowMs: 60_000,
   });
   if (limited) return limited;
@@ -77,23 +80,37 @@ export async function GET(
     }
   }
 
-  try {
-    const sheets = (
-      await Promise.all(selected.map((item) => item!.build()))
-    ).flat();
+  const name = key === "all" ? "bid-tuslay-burtgel" : key;
 
-    const buffer = await buildWorkbook(sheets);
-    const name = key === "all" ? "bbuch-burtgel" : key;
+  /**
+   * Файлыг САНАХ ОЙД БҮТНЭЭР барихгүй, шууд хариу руу урсгана.
+   *
+   * `all` нь бүх багцыг агуулна: өмнө нь бүгдийг `Promise.all`-аар зэрэг
+   * бэлдээд нэг Buffer болгодог байсан тул хамгийн их санах ойн хэрэглээ нь
+   * бүх багцын НИЙЛБЭР байв. Одоо багц бүрийг ээлжлэн бэлдэж, бичээд суллана
+   * — хэрэглээ нь хамгийн том ГАНЦ багцаар хязгаарлагдана.
+   */
+  const stream = new PassThrough();
 
-    return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        "Content-Type": XLSX_TYPE,
-        // filename* нь кирилл нэрийг зөв дамжуулна; энгийн filename нь нөөц
-        "Content-Disposition": `attachment; filename="${name}-${today()}.xlsx"`,
-        "Cache-Control": "no-store",
-      },
-    });
-  } catch (error) {
-    return serverError(error, "Excel үүсгэхэд алдаа гарлаа");
-  }
+  writeWorkbook(
+    selected.map((item) => () => item!.build()),
+    stream
+  ).catch((error) => {
+    /**
+     * Толгой аль хэдийн илгээгдсэн тул 500 буцаах боломжгүй. Урсгалыг
+     * таслахад клиент дутуу файл авна — Excel түүнийг эвдэрсэн гэж хэлнэ.
+     * Чимээгүй хагас файл өгөхөөс энэ нь дээр.
+     */
+    console.error("[export] Excel үүсгэхэд алдаа гарлаа:", error);
+    stream.destroy(error instanceof Error ? error : new Error(String(error)));
+  });
+
+  return new NextResponse(Readable.toWeb(stream) as ReadableStream, {
+    headers: {
+      "Content-Type": XLSX_TYPE,
+      // filename* нь кирилл нэрийг зөв дамжуулна; энгийн filename нь нөөц
+      "Content-Disposition": `attachment; filename="${name}-${today()}.xlsx"`,
+      "Cache-Control": "no-store",
+    },
+  });
 }

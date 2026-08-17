@@ -18,6 +18,20 @@ export async function apiFetch<T = unknown>(
   const headers: Record<string, string> = {};
 
   if (needsAuth) {
+    /**
+     * Firebase сессээ сэргээх хүртэл ХҮЛЭЭНЭ.
+     *
+     * ⚠ `auth.currentUser` нь хуудас ачаалагдмагц ХООСОН байдаг: Firebase нь
+     * сессээ IndexedDB-ээс асинхроноор сэргээдэг. Шууд шалгавал бүтэн хуудас
+     * ачаалагдах бүрд (жишээ нь гаднаас буцаж ирэх, F5 дарах) эхний хүсэлтүүд
+     * "Нэвтэрсэн байх шаардлагатай" гэж ХУДАЛ унана — хэрэглэгч нэвтэрсэн
+     * хэвээр байхад. Энэ нь Google-ийн зөвшөөрлөөс буцаж ирэхэд амжилтын
+     * мессежтэй зэрэг алдаа гарч байсны шалтгаан байв.
+     *
+     * `authStateReady()` нь анхны төлөв тодрох хүртэл хүлээгээд шийднэ.
+     */
+    await auth.authStateReady();
+
     const currentUser = auth.currentUser;
     if (!currentUser) {
       throw new Error("Нэвтэрсэн байх шаардлагатай.");
