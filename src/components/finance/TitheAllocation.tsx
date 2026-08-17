@@ -197,11 +197,7 @@ export default function TitheAllocation() {
           <ExpenseDonut items={breakdown} />
         </Panel>
 
-        <Panel
-          className="lg:col-span-3"
-          title="Ангилал тус бүрээр"
-          subtitle={`«${titheAccount.title}» данснаас гарсан зарцуулалт`}
-        >
+        <Panel className="lg:col-span-3" title="Ангилал тус бүрээр">
           {breakdown.length === 0 ? (
             <p className="flex min-h-[180px] items-center justify-center text-center text-theme-sm text-gray-500 dark:text-gray-400">
               Сонгосон хугацаанд энэ данснаас зарцуулалт бүртгэгдээгүй байна.

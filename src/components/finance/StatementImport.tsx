@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   FileSpreadsheet,
@@ -107,15 +107,13 @@ export default function StatementImport() {
     return { tithe, offering, expense };
   }, [fresh]);
 
-  const handleRead = async () => {
-    if (!file) return setError("Excel файлаа сонгоно уу.");
-
+  const read = useCallback(async (forAccount: string, forFile: File) => {
     setReading(true);
     setError("");
     setResult(null);
 
     try {
-      const preview = await previewStatement(account, file);
+      const preview = await previewStatement(forAccount, forFile);
       setRows(preview.rows);
       setPatterns(preview.patterns);
       setSkipped(preview.skipped);
@@ -126,7 +124,34 @@ export default function StatementImport() {
     } finally {
       setReading(false);
     }
-  };
+  }, []);
+
+  /**
+   * Сүүлд уншсан (данс + файл) хослол. Effect нь давтан ажиллахаас сэргийлнэ —
+   * эс бөгөөс `rows` шинэчлэгдэх бүрд дахин уншиж, төгсгөлгүй давтагдана.
+   */
+  const lastRead = useRef("");
+
+  /**
+   * Файл сонгомогц ШУУД уншина — тусад нь «Уншуулах» дарах шаардлагагүй.
+   *
+   * Effect-ээр хийж байгаа шалтгаан нь дөрвөн эх сурвалжийг нэг дор барих:
+   *   • хэрэглэгч файл сонгох
+   *   • дансаа солих (ижил файлыг өөр дансаар дахин ангилах)
+   *   • банкны аппаас хуваалцаж ирсэн файл
+   *   • данс сүлжээгээр хожуу ирж, анхны утга нь өөрөө сонгогдох
+   * Сүүлийн хоёр нь onChange үүсгэдэггүй тул зөвхөн handler дээр тулгуурлавал
+   * тэдгээр тохиолдолд автомат уншилт ажиллахгүй.
+   */
+  useEffect(() => {
+    if (!account || !file) return;
+
+    const key = `${account}|${file.name}|${file.size}|${file.lastModified}`;
+    if (lastRead.current === key) return;
+
+    lastRead.current = key;
+    void read(account, file);
+  }, [account, file, read]);
 
   const update = (importKey: string, patch: Partial<StatementPreviewRow>) => {
     setRows((prev) =>
@@ -166,6 +191,9 @@ export default function StatementImport() {
       setRows([]);
       setFile(null);
       setShared(false);
+      // Түүхийг цэвэрлэнэ — эс бөгөөс хэрэглэгч ЯГ ижил файлыг дахин сонгоход
+      // хослол нь өмнөхтэй таарч, автомат уншилт чимээгүй алгасна
+      lastRead.current = "";
       if (fileInput.current) fileInput.current.value = "";
     } catch (err) {
       console.error("Хуулга хадгалахад алдаа гарлаа:", err);
@@ -227,6 +255,7 @@ export default function StatementImport() {
                     setShared(false);
                     setRows([]);
                     setError("");
+                    lastRead.current = "";
                   }}
                   aria-label="Хуваалцсан файлыг болих"
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/60 dark:hover:bg-white/10"
@@ -254,29 +283,38 @@ export default function StatementImport() {
 
         {shared && file && (
           <p className="mt-3 text-theme-xs text-gray-500 dark:text-gray-400">
-            Банкны аппаас хуваалцсан файл. Дансаа зөв эсэхийг шалгаад
-            «Уншуулах» дарна уу.
+            Банкны аппаас хуваалцсан файл. Данс буруу бол сольж болно — сонголт
+            солиход дахин уншина.
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={handleRead}
-          disabled={reading || !file}
-          className="mt-4 inline-flex h-11 items-center gap-2 rounded-lg bg-accent-600 px-4 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {reading ? (
+        {/* Файл сонгомогц өөрөө уншина. Явцыг харуулахгүй бол хэрэглэгч юу ч
+            болоогүй гэж бодоод дахин сонгох гээд эхэлнэ. */}
+        {reading && (
+          <p className="mt-4 inline-flex items-center gap-2 text-theme-sm text-gray-600 dark:text-gray-300">
             <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.8} />
-          ) : (
-            <Upload className="h-4 w-4" strokeWidth={1.8} />
-          )}
-          {reading ? "Уншиж байна..." : "Уншуулах"}
-        </button>
+            Уншиж байна...
+          </p>
+        )}
 
         {error && (
-          <p className="mt-3 rounded-lg bg-error-50 px-4 py-3 text-theme-sm text-error-600 dark:bg-error-500/10 dark:text-error-400">
-            {error}
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg bg-error-50 px-4 py-3 dark:bg-error-500/10">
+            <p className="text-theme-sm text-error-600 dark:text-error-400">
+              {error}
+            </p>
+            {/* Автомат уншилт унасан үед дахин оролдох цорын ганц зам —
+                ижил файлыг дахин сонгуулах нь шаардлагагүй чирэгдэл */}
+            {file && !reading && (
+              <button
+                type="button"
+                onClick={() => read(account, file)}
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-error-200 bg-white px-3 text-theme-sm font-medium text-error-700 transition-colors hover:bg-error-50 dark:border-error-500/30 dark:bg-transparent dark:text-error-400"
+              >
+                <Upload className="h-4 w-4" strokeWidth={1.8} />
+                Дахин уншуулах
+              </button>
+            )}
+          </div>
         )}
 
         {result && (
