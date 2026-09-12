@@ -5,7 +5,7 @@ import Link from "next/link";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Хуудас олдсонгүй | Бид туслая",
+  title: "Хуудас олдсонгүй | ББУЧ",
   description: "Хүссэн хуудас олдсонгүй.",
 };
 

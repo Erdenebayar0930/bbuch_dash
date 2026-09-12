@@ -26,10 +26,20 @@ export type AppUser = {
   /** Чуулган — зөвхөн админ оноодог, хэрэглэгчид харагдана */
   callings: string[];
   aimags: string[];
+  /** YYYY-MM-DD, хоосон бол хүлээж аваагүй */
+  holy_spirit_baptism_date: string;
+  water_baptism_date: string;
 
   /** Хувийн */
+  /** YYYY-MM-DD */
+  birth_date: string;
+  /** male | female | "" */
+  gender: string;
+  ethnicity: string;
+  birthplace: string;
   mbti: string;
-  love_language: string;
+  /** Сонгосон хайрын хэл бүр оноотойгоо: { words: 12, touch: 5 } */
+  love_languages: Record<string, number>;
   /** Сонгосон темперамент бүр оноотойгоо: { sanguine: 12, choleric: 8 } */
   temperaments: Record<string, number>;
   occupation: string;
@@ -56,8 +66,14 @@ type UserRow = {
   photoUrl: string | null;
   callings: string[] | null;
   aimags: string[] | null;
+  holySpiritBaptismDate: string | null;
+  waterBaptismDate: string | null;
+  birthDate: string | null;
+  gender: string | null;
+  ethnicity: string | null;
+  birthplace: string | null;
   mbti: string | null;
-  loveLanguage: string | null;
+  loveLanguages: Record<string, number> | null;
   temperaments: Record<string, number> | null;
   occupation: string | null;
   hasCar: boolean | null;
@@ -81,8 +97,14 @@ function toAppUser(row: UserRow): AppUser {
     photo_url: row.photoUrl ?? "",
     callings: Array.isArray(row.callings) ? row.callings : [],
     aimags: Array.isArray(row.aimags) ? row.aimags : [],
+    holy_spirit_baptism_date: row.holySpiritBaptismDate ?? "",
+    water_baptism_date: row.waterBaptismDate ?? "",
+    birth_date: row.birthDate ?? "",
+    gender: row.gender ?? "",
+    ethnicity: row.ethnicity ?? "",
+    birthplace: row.birthplace ?? "",
     mbti: row.mbti ?? "",
-    love_language: row.loveLanguage ?? "",
+    love_languages: row.loveLanguages ?? {},
     temperaments: row.temperaments ?? {},
     occupation: row.occupation ?? "",
     has_car: row.hasCar ?? false,
@@ -195,8 +217,18 @@ export async function updateCurrentUser(patch: {
   position?: string;
   /** Firebase Storage-ийн URL, эсвэл зургийг авахын тулд хоосон мөр */
   photoUrl?: string;
+  /** YYYY-MM-DD, эсвэл хоосон */
+  birthDate?: string;
+  gender?: string;
+  ethnicity?: string;
+  birthplace?: string;
+  /** YYYY-MM-DD, эсвэл хоосон */
+  holySpiritBaptismDate?: string;
+  /** YYYY-MM-DD, эсвэл хоосон */
+  waterBaptismDate?: string;
   mbti?: string;
-  loveLanguage?: string;
+  /** Сонгосон хайрын хэл бүр оноотойгоо; сонгоогүйг огт оруулахгүй */
+  loveLanguages?: Record<string, number>;
   /** Сонгосон темперамент бүр оноотойгоо; сонгоогүйг огт оруулахгүй */
   temperaments?: Record<string, number>;
   occupation?: string;

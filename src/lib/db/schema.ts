@@ -100,12 +100,30 @@ export const users = mysqlTable(
     aimags: jsonCol<string[]>("aimags")
       .notNull()
       .$defaultFn(() => []),
+    /** YYYY-MM-DD, хоосон бол хүлээж аваагүй */
+    holySpiritBaptismDate: varchar("holy_spirit_baptism_date", { length: 10 })
+      .notNull()
+      .default(""),
+    waterBaptismDate: varchar("water_baptism_date", { length: 10 })
+      .notNull()
+      .default(""),
 
     // --- Хувийн ------------------------------------------------------------
+    /** YYYY-MM-DD */
+    birthDate: varchar("birth_date", { length: 10 }).notNull().default(""),
+    /** male | female | "" */
+    gender: varchar("gender", { length: 16 }).notNull().default(""),
+    ethnicity: varchar("ethnicity", { length: 255 }).notNull().default(""),
+    birthplace: varchar("birthplace", { length: 255 }).notNull().default(""),
     /** MBTI 16 төрлийн нэг (ISTJ гэх мэт) */
     mbti: varchar("mbti", { length: 8 }).notNull().default(""),
-    /** Хайрын 5 хэлний нэг */
-    loveLanguage: varchar("love_language", { length: 64 }).notNull().default(""),
+    /**
+     * Хайрын хэл бүр оноотойгоо: { "words": 12, "touch": 5 } —
+     * temperaments-тэй яг ижил хэлбэр, олон хэл зэрэг сонгож болно.
+     */
+    loveLanguages: jsonCol<Record<string, number>>("love_languages")
+      .notNull()
+      .$defaultFn(() => ({})),
     /**
      * Темперамент — олон төрөл зэрэг байж болох тул сонгосон төрөл бүрийг
      * оноотой нь хадгална: { "sanguine": 12, "choleric": 8 }.
@@ -159,10 +177,7 @@ export const transactions = mysqlTable(
     status: varchar("status", { length: 32 }).notNull().default("approved"),
     /** Үргэлж эерэг — тэмдгийг type тодорхойлно */
     amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
-    /**
-     * Аль данснаас орсон — `data/donationAccounts.ts` дахь дансны дугаар.
-     * Хоосон бол данстай холбоогүй (гараар оруулсан) гүйлгээ.
-     */
+    /** Аль данснаас орсон. Хоосон бол данстай холбоогүй (гараар оруулсан) гүйлгээ. */
     account: varchar("account", { length: 64 }).notNull().default(""),
     /**
      * Харьцсан данс — хуулгад «харьцсан дансны дугаар» гэж ирдэг талбар.
@@ -172,11 +187,7 @@ export const transactions = mysqlTable(
     donorAccount: varchar("donor_account", { length: 64 })
       .notNull()
       .default(""),
-    /**
-     * Гүйлгээ бүртгэгдэх үеийн данс эзэмшигчийн нэр. `donors` бүртгэлээс
-     * хойш нэрийг нь засвал энэ мөрийнх хэвээр үлдэнэ — тайланд юу гарсныг
-     * дараа нь сэргээж чадна.
-     */
+    /** Гүйлгээ бүртгэгдэх үеийн данс эзэмшигчийн нэр — хуулгаас уншсанаар. */
     donorName: varchar("donor_name", { length: 255 }).notNull().default(""),
     /**
      * Банкны хуулгаас уншсан мөрийг давхардуулахгүй барих түлхүүр.
@@ -196,28 +207,6 @@ export const transactions = mysqlTable(
     index("transactions_donor_account_idx").on(table.donorAccount),
     uniqueIndex("transactions_import_key_idx").on(table.importKey),
   ]
-);
-
-/**
- * Данс эзэмшигчийн нэрийн бүртгэл.
- *
- * Хуулга уншуулахад харьцсан данс бүрийн нэрийг энд хуримтлуулна. Дараагийн
- * хуулгад ижил данс тааралдвал нэр нь ШУУД гарч ирнэ — банк заримдаа нэрийг
- * товчлох, орхих зэргээр өөрөөр өгдөг тул нэг удаа зассан нэр цаашид хэвээр
- * хэрэглэгдэнэ.
- */
-export const donors = mysqlTable(
-  "donors",
-  {
-    id: uuidPk(),
-    /** Харьцсан дансны дугаар — таних цорын ганц түлхүүр */
-    accountNumber: varchar("account_number", { length: 64 }).notNull(),
-    name: varchar("name", { length: 255 }).notNull(),
-    note: bodyText("note"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  },
-  (table) => [uniqueIndex("donors_account_number_idx").on(table.accountNumber)]
 );
 
 /**
@@ -564,61 +553,51 @@ export const purchaseRequests = mysqlTable(
 );
 
 /**
- * Хандивын дансууд.
+ * Харуулын цэг — газрын зураг дээрх тэмдэглэгээ (Харуулын аймаг).
  *
- * Дугаар, эзэмшигч өөрчлөгддөг, шинэ данс нэмэгддэг тул кодод биш баазад
- * сууна — админ өөрөө удирдана.
- *
- * ХОЁР ТҮВШИНГИЙН ХАРАГДАЦ:
- *  • Дансны КАРТ (нэр, дугаар, банк) нь бүх хүнд харагдана — хандив өгөхийн
- *    тулд дугаар нь хэрэгтэй.
- *  • Дансны ГҮЙЛГЭЭ нь анхдагчаар мөн нээлттэй; `allowedUids` эсвэл
- *    `allowedAimags`-д утга оруулмагц зөвхөн тэдгээрт (ба админд) харагдана.
+ * Хандивын хайрцагтай яг ижил хэв маяг: байршил нь баазад, эргэлт/шалгалтын
+ * түүх нь тусдаа хүснэгтэд.
  */
-export const donationAccounts = mysqlTable(
-  "donation_accounts",
+export const guardPoints = mysqlTable(
+  "guard_points",
   {
     id: uuidPk(),
-    /** Дансны зориулалт — «1/10 ба өргөл» гэх мэт */
-    title: varchar("title", { length: 255 }).notNull(),
-    /** IBAN хэлбэрийн дугаар. Гүйлгээ энэ утгаар холбогддог тул давхцахгүй */
-    number: varchar("number", { length: 64 }).notNull(),
-    /** `data/donationAccounts.ts` дахь банкны түлхүүр (khan | state) */
-    bank: varchar("bank", { length: 32 }).notNull().default(""),
-    holder: varchar("holder", { length: 255 }).notNull().default(""),
-    /** Жагсаалтын дараалал — бага нь эхэндээ */
-    position: int("position").notNull().default(0),
-    /**
-     * «1/10 ба өргөл» хуудас аль дансыг харуулах вэ. Яг нэг данс тэмдэглэгдэнэ
-     * — шинээр тэмдэглэхэд өмнөхийнх нь автоматаар арилна.
-     */
-    isTithe: boolean("is_tithe").notNull().default(false),
-    /**
-     * Энэ дансны гүйлгээг харж болох хэрэглэгчийн uid-ууд.
-     *
-     * Админ ба super нь жагсаалтад байхаас үл хамааран бүгдийг хардаг тул
-     * тэднийг энд нэмэх шаардлагагүй.
-     */
-    allowedUids: jsonCol<string[]>("allowed_uids")
-      .notNull()
-      .$defaultFn(() => []),
-    /**
-     * Эрх олгогдсон аймгууд (`data/profileOptions.ts` дахь түлхүүр).
-     *
-     * Хүн тус бүрээр оноох нь олон гишүүнтэй үед ажил ихтэй — аймгаар нь
-     * олгоод, шинэ гишүүн нэмэгдэхэд эрх нь өөрөө дагана.
-     *
-     * ⚠ `allowedUids` ба энэ ХОЁУЛАА хоосон бол данс нь БҮХ идэвхтэй
-     * хэрэглэгчид нээлттэй — хязгаарлалт тавиагүй гэсэн үг. Хаалттай болгохыг
-     * хүсвэл ядаж нэг хүн эсвэл аймаг сонгоно.
-     */
-    allowedAimags: jsonCol<string[]>("allowed_aimags")
-      .notNull()
-      .$defaultFn(() => []),
+    name: varchar("name", { length: 255 }).notNull(),
+    address: bodyText("address"),
+    lat: double("lat").notNull(),
+    lng: double("lng").notNull(),
+    note: bodyText("note"),
+    /** false бол түр идэвхгүй — зураг дээр бүдэг харагдана */
+    active: boolean("active").notNull().default(true),
+    createdBy: uidCol("created_by"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("donation_accounts_number_idx").on(table.number)]
+  (table) => [index("guard_points_active_idx").on(table.active)]
+);
+
+/**
+ * Харуулын цэгийн эргэлт/шалгалтын түүх.
+ *
+ * Мөр бүр нэг удаагийн эргэлт: хэдийд, хэн, ямар байдалтай тэмдэглэсэн.
+ * Хуучин бүртгэл хэзээ ч дарагдахгүй — түүх бүрэн үлдэнэ.
+ */
+export const guardPointVisits = mysqlTable(
+  "guard_point_visits",
+  {
+    id: uuidPk(),
+    pointId: uuidRef("point_id")
+      .notNull()
+      .references(() => guardPoints.id, { onDelete: "cascade" }),
+    /** ok | issue */
+    status: varchar("status", { length: 32 }).notNull().default("ok"),
+    note: bodyText("note"),
+    visitedBy: uidCol("visited_by"),
+    visitedAt: timestamp("visited_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("guard_point_visits_point_idx").on(table.pointId, table.visitedAt),
+  ]
 );
 
 /**
@@ -684,6 +663,55 @@ export const donationBoxVisits = mysqlTable(
 );
 
 /**
+ * Хандив/1-10-ыг хүлээн авах банкны данс — «1/10 ба өргөл» хуудсанд харагдана.
+ */
+export const donationAccounts = mysqlTable(
+  "donation_accounts",
+  {
+    id: uuidPk(),
+    /** Дансны зориулалт — «1/10 ба өргөл» гэх мэт */
+    title: varchar("title", { length: 255 }).notNull(),
+    /** IBAN хэлбэрийн дугаар. Гүйлгээ энэ утгаар холбогддог тул давхцахгүй */
+    number: varchar("number", { length: 64 }).notNull(),
+    /** `data/donationAccounts.ts` дахь банкны түлхүүр (khan | state) */
+    bank: varchar("bank", { length: 32 }).notNull().default(""),
+    holder: varchar("holder", { length: 255 }).notNull().default(""),
+    /** Жагсаалтын дараалал — бага нь эхэндээ */
+    position: int("position").notNull().default(0),
+    /**
+     * «1/10 ба өргөл» хуудас аль дансыг харуулах вэ. Яг нэг данс тэмдэглэгдэнэ
+     * — шинээр тэмдэглэхэд өмнөхийнх нь автоматаар арилна.
+     */
+    isTithe: boolean("is_tithe").notNull().default(false),
+    /**
+     * Энэ дансны гүйлгээг харж болох хэрэглэгчийн uid-ууд.
+     *
+     * Админ ба super нь жагсаалтад байхаас үл хамааран бүгдийг хардаг тул
+     * тэднийг энд нэмэх шаардлагагүй.
+     */
+    allowedUids: jsonCol<string[]>("allowed_uids")
+      .notNull()
+      .$defaultFn(() => []),
+    /**
+     * Эрх олгогдсон аймгууд (`data/profileOptions.ts` дахь түлхүүр).
+     *
+     * Хүн тус бүрээр оноох нь олон гишүүнтэй үед ажил ихтэй — аймгаар нь
+     * олгоод, шинэ гишүүн нэмэгдэхэд эрх нь өөрөө дагана.
+     *
+     * ⚠ `allowedUids` ба энэ ХОЁУЛАА хоосон бол данс нь БҮХ идэвхтэй
+     * хэрэглэгчид нээлттэй — хязгаарлалт тавиагүй гэсэн үг. Хаалттай болгохыг
+     * хүсвэл ядаж нэг хүн эсвэл аймаг сонгоно.
+     */
+    allowedAimags: jsonCol<string[]>("allowed_aimags")
+      .notNull()
+      .$defaultFn(() => []),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("donation_accounts_number_idx").on(table.number)]
+);
+
+/**
  * Халамжийн үйлчлэлд хамрагдах өрх — газрын зураг дээрх байршил.
  *
  * Хандивын хайрцагтай ижил хэв маяг: байршил нь баазад, түүхэн бүртгэл нь
@@ -738,6 +766,31 @@ export const welfareAids = mysqlTable(
 );
 
 /**
+ * Гарын авлага — админ байршуулсан заавар/журмын файлууд.
+ *
+ * Файл нь Firebase Storage дээр; энд зөвхөн татах URL болон `filePath`
+ * (Storage доторх зам, устгахад хэрэгтэй) хадгалагдана.
+ */
+export const handbookDocuments = mysqlTable(
+  "handbook_documents",
+  {
+    id: uuidPk(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: bodyText("description"),
+    fileUrl: varchar("file_url", { length: 1024 }).notNull(),
+    filePath: varchar("file_path", { length: 1024 }).notNull(),
+    fileName: varchar("file_name", { length: 255 }).notNull().default(""),
+    /** Байт */
+    fileSize: int("file_size").notNull().default(0),
+    /** Жагсаалтын дараалал — бага нь эхэндээ */
+    position: int("position").notNull().default(0),
+    createdBy: uidCol("created_by"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [index("handbook_documents_position_idx").on(table.position)]
+);
+
+/**
  * FCM token — ТӨХӨӨРӨМЖ тутамд нэг мөр.
  *
  * ⚠ Урьд нь `uid` нь PRIMARY KEY байсан буюу хэрэглэгч тутамд ГАНЦ мөр.
@@ -768,6 +821,39 @@ export const fcmTokens = mysqlTable(
     index("fcm_tokens_uid_idx").on(table.uid),
   ]
 );
+
+/**
+ * Хэрэглэгчийн нэвтэрсэн төхөөрөмж.
+ *
+ * `deviceId` нь клиент талд localStorage-д тогтмол хадгалагдах танигч —
+ * `requireActiveUser` хүсэлт бүрд шалгаж, идэвхгүй бол шууд гаргана
+ * (`src/lib/api/auth.ts`). Ингэснээр `active`-ыг false болгомогц тухайн
+ * төхөөрөмж дараагийн API хүсэлт дээрээ шууд гарна — Firebase сесс өөрөө
+ * "нэвтэрсэн" хэвээр харагдаж байсан ч ажиллахаа болино.
+ */
+export const devices = mysqlTable(
+  "devices",
+  {
+    id: uuidPk(),
+    uid: uidCol("uid")
+      .notNull()
+      .references(() => users.uid, { onDelete: "cascade" }),
+    /** Клиент талын localStorage-д хадгалагдах санамсаргүй танигч */
+    deviceId: varchar("device_id", { length: 64 }).notNull(),
+    /** Хөтөч+системээс задалсан танигдах нэр — "Chrome · Windows" гэх мэт */
+    label: varchar("label", { length: 255 }).notNull().default(""),
+    userAgent: varchar("user_agent", { length: 512 }).notNull().default(""),
+    active: boolean("active").notNull().default(true),
+    lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("devices_uid_device_idx").on(table.uid, table.deviceId),
+    index("devices_uid_idx").on(table.uid),
+  ]
+);
+
+export type DeviceRow = typeof devices.$inferSelect;
 
 /** Бүртгэлийн лог — админ хянахад */
 export const registrations = mysqlTable("registrations", {
@@ -820,8 +906,6 @@ export type SettingRow = typeof settings.$inferSelect;
 
 export type UserRow = typeof users.$inferSelect;
 export type TransactionRow = typeof transactions.$inferSelect;
-export type DonorRow = typeof donors.$inferSelect;
-export type DonationAccountRow = typeof donationAccounts.$inferSelect;
 export type TithePatternRow = typeof tithePatterns.$inferSelect;
 export type NotificationRow = typeof notifications.$inferSelect;
 export type ChildRow = typeof children.$inferSelect;
@@ -829,9 +913,6 @@ export type WarehouseRow = typeof warehouses.$inferSelect;
 export type AssetCategoryRow = typeof assetCategories.$inferSelect;
 export type AssetRow = typeof assets.$inferSelect;
 
-export type AssetImageRow = typeof assetImages.$inferSelect;
-export type AssetCheckRow = typeof assetChecks.$inferSelect;
-export type AssetCountSessionRow = typeof assetCountSessions.$inferSelect;
 export type ProjectRow = typeof projects.$inferSelect;
 export type TaskRow = typeof tasks.$inferSelect;
 export type ScheduleShiftRow = typeof scheduleShifts.$inferSelect;
@@ -840,3 +921,7 @@ export type DonationBoxRow = typeof donationBoxes.$inferSelect;
 export type DonationBoxVisitRow = typeof donationBoxVisits.$inferSelect;
 export type WelfareHouseholdRow = typeof welfareHouseholds.$inferSelect;
 export type WelfareAidRow = typeof welfareAids.$inferSelect;
+export type DonationAccountRow = typeof donationAccounts.$inferSelect;
+export type HandbookDocumentRow = typeof handbookDocuments.$inferSelect;
+export type GuardPointRow = typeof guardPoints.$inferSelect;
+export type GuardPointVisitRow = typeof guardPointVisits.$inferSelect;

@@ -5,7 +5,7 @@ import BackupManager from "@/components/admin/BackupManager";
 import SuperOnly from "./SuperOnly";
 
 export const metadata: Metadata = {
-  title: "Нөөцлөлт | Бид туслая",
+  title: "Нөөцлөлт | ББУЧ",
   description: "Өгөгдлийн сангийн хуулбар — үүсгэх, татах, төлөв шалгах",
 };
 

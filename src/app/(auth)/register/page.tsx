@@ -18,11 +18,12 @@ export default function RegisterPage() {
               <GridShape />
               <Link href="/" className="mb-5 block">
                 <Image
-                  width={231}
-                  height={48}
-                  src="/images/logo/auth-logo.svg"
-                  alt="Logo"
-                />
+                  width={180}
+                  height={180}
+                  src="/images/logo/logo-mark.png"
+                  alt="ББУЧ"
+                  priority
+                  />
               </Link>
               <h2 className="mb-3 text-xl font-semibold text-white">
                 Бүртгэл үүсгэсний дараа эрхийн мэдээллийг шалгана

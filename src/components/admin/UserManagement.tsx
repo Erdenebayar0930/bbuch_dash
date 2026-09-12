@@ -4,10 +4,12 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Crown, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
+import ChurchInfoModal from "@/components/admin/ChurchInfoModal";
 import ExportButton from "@/components/common/ExportButton";
 import { auth } from "@/lib/firebase";
 import {
   asRole,
+  canAssignGroups,
   canAssignRoles,
   canChangeStatus,
   isSuperRole,
@@ -71,6 +73,8 @@ export default function UserManagement() {
   const [error, setError] = useState("");
   /** Одоо шинэчлэгдэж буй хэрэглэгчийн uid */
   const [savingUid, setSavingUid] = useState<string | null>(null);
+  /** Чуулганы мэдээлэл засварлаж буй хэрэглэгч — null бол цонх хаалттай */
+  const [churchInfoUser, setChurchInfoUser] = useState<AppUser | null>(null);
 
   const currentUid = auth.currentUser?.uid ?? contextUser?.uid ?? null;
 
@@ -251,6 +255,7 @@ export default function UserManagement() {
               <th className="px-5 py-3.5 font-medium">Утас</th>
               <th className="px-5 py-3.5 font-medium">Эрх</th>
               <th className="px-5 py-3.5 font-medium">Төлөв</th>
+              <th className="px-5 py-3.5 font-medium">Чуулган</th>
               <th className="px-5 py-3.5 font-medium">Бүртгүүлсэн</th>
             </tr>
           </thead>
@@ -258,7 +263,7 @@ export default function UserManagement() {
           <tbody className="divide-y divide-gray-100 dark:divide-white/5">
             {loading && (
               <tr>
-                <td colSpan={5} className="px-5 py-10 text-center text-theme-sm text-gray-500">
+                <td colSpan={6} className="px-5 py-10 text-center text-theme-sm text-gray-500">
                   Ачаалж байна...
                 </td>
               </tr>
@@ -266,7 +271,7 @@ export default function UserManagement() {
 
             {!loading && visible.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-10 text-center text-theme-sm text-gray-500">
+                <td colSpan={6} className="px-5 py-10 text-center text-theme-sm text-gray-500">
                   Хэрэглэгч олдсонгүй.
                 </td>
               </tr>
@@ -411,6 +416,32 @@ export default function UserManagement() {
                       )}
                     </td>
 
+                    <td className="px-5 py-4">
+                      {(() => {
+                        const churchReason = actor
+                          ? reasonOf(canAssignGroups(actor, target))
+                          : "Эрх тодорхойлогдоогүй байна.";
+                        const summary = `${user.aimags.length} аймаг, ${user.callings.length} дуудлага`;
+
+                        return churchReason ? (
+                          <span
+                            title={churchReason}
+                            className="cursor-default text-theme-xs text-gray-400"
+                          >
+                            {summary}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setChurchInfoUser(user)}
+                            className="text-theme-xs font-medium text-accent-600 hover:underline dark:text-accent-400"
+                          >
+                            {summary} · Тохируулах
+                          </button>
+                        );
+                      })()}
+                    </td>
+
                     <td className="px-5 py-4 text-gray-600 dark:text-gray-400">
                       {user.createdAt ? dateFormatter.format(user.createdAt) : "—"}
                     </td>
@@ -420,6 +451,16 @@ export default function UserManagement() {
           </tbody>
         </table>
       </div>
+
+      <ChurchInfoModal
+        user={churchInfoUser}
+        onClose={() => setChurchInfoUser(null)}
+        onSaved={(uid, patch) => {
+          setUsers((prev) =>
+            prev.map((u) => (u.uid === uid ? { ...u, ...patch } : u))
+          );
+        }}
+      />
     </div>
   );
 }

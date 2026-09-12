@@ -2,23 +2,31 @@
 
 export type Option = { value: string; label: string };
 
-/** MBTI — 16 төрөл */
+/**
+ * MBTI — 16 төрөл. Шошгыг undesten.org/test/-ээс авав.
+ *
+ * Тэр сайт дээр ISTP ба ESFJ хоёул адилхан "Гүйцэтгэгч" гэж давхардсан
+ * тул ISTP-д (сайт өөр нэр өгөөгүй тул) хуучин "Урлаач" нэрийг үлдээв.
+ * INFJ-ийн шошго тэнд бүтэн өгүүлбэр ("Зөн совинтой, мэдрэмжтэй, шүүх
+ * хандлагатай, дотоод ертөнцөд төвлөрсөн") тул сонголтын жагсаалтад
+ * багтаах "Зөн совинч" гэсэн товч хэлбэрт оруулав.
+ */
 export const mbtiTypes: Option[] = [
-  { value: "ISTJ", label: "ISTJ — Логистик" },
+  { value: "ISTJ", label: "ISTJ — Хариуцлагатай хэрэгжүүлэгч" },
   { value: "ISFJ", label: "ISFJ — Хамгаалагч" },
-  { value: "INFJ", label: "INFJ — Өмгөөлөгч" },
-  { value: "INTJ", label: "INTJ — Стратегич" },
+  { value: "INFJ", label: "INFJ — Зөн совинч" },
+  { value: "INTJ", label: "INTJ — Архитектор" },
   { value: "ISTP", label: "ISTP — Урлаач" },
-  { value: "ISFP", label: "ISFP — Адал явдалт" },
-  { value: "INFP", label: "INFP — Эвлэрүүлэгч" },
-  { value: "INTP", label: "INTP — Сэтгэгч" },
-  { value: "ESTP", label: "ESTP — Бизнесмен" },
-  { value: "ESFP", label: "ESFP — Тоглуулагч" },
-  { value: "ENFP", label: "ENFP — Уриалагч" },
+  { value: "ISFP", label: "ISFP — Адал явдал эрэлхийлэгч" },
+  { value: "INFP", label: "INFP — Мөрөөдөгч" },
+  { value: "INTP", label: "INTP — Логикч" },
+  { value: "ESTP", label: "ESTP — Ятгагч" },
+  { value: "ESFP", label: "ESFP — Энтертайнэр" },
+  { value: "ENFP", label: "ENFP — Урам зориг өдөөгч" },
   { value: "ENTP", label: "ENTP — Мэтгэлцэгч" },
-  { value: "ESTJ", label: "ESTJ — Гүйцэтгэгч" },
-  { value: "ESFJ", label: "ESFJ — Элч" },
-  { value: "ENFJ", label: "ENFJ — Удирдагч" },
+  { value: "ESTJ", label: "ESTJ — Хянагч" },
+  { value: "ESFJ", label: "ESFJ — Гүйцэтгэгч" },
+  { value: "ENFJ", label: "ENFJ — Урам зориг өгөгч" },
   { value: "ENTJ", label: "ENTJ — Командлагч" },
 ];
 

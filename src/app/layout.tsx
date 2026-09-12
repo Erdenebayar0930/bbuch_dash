@@ -22,12 +22,12 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#2563eb" />
+        <meta name="theme-color" content="#3f1668" />
         {/* iOS нь ил тод дэвсгэрийг хараар дүүргэдэг тул тусдаа, дүүрэн icon. */}
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="Бид туслая" />
+        <meta name="apple-mobile-web-app-title" content="ББУЧ" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         {/*
           Горимыг зурагдахаас ӨМНӨ тавина — эс бөгөөс харанхуй горимтой

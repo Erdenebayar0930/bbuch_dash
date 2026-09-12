@@ -132,6 +132,7 @@ const cspMode = process.env.CSP_MODE || "enforce";
  *   googleapis/gstatic  — Firebase Auth, FCM, Storage, Installations
  *   firebaseapp.com     — Auth-ийн нэвтрэлтийн iframe (authDomain)
  *   blob:/data:         — зураг тайрах (react-easy-crop), видео шахалт
+ *   tile.openstreetmap  — Leaflet газрын зургийн хавтан зураг (PointPickerMap)
  */
 const csp = [
   "default-src 'self'",
@@ -146,7 +147,7 @@ const csp = [
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://www.gstatic.com https://apis.google.com`,
   // Tailwind-ийн runtime style болон Next-ийн inline critical CSS
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com",
+  "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
   "font-src 'self' data:",
   // Дев дээр HMR нь ws:// ашиглана
   `connect-src 'self'${isDev ? " ws: http://localhost:*" : ""} https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com`,

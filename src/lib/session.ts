@@ -10,7 +10,12 @@ import { auth } from "./firebase";
  * Хэрэглэгч нэвтэрсэн байсан ч админ түүнийг хаамагц дараагийн API хүсэлт,
  * таб идэвхжих, эсвэл давтан шалгалтын аль нэг дээр энэ дуудагдана.
  */
-export type RevokeReason = "blocked" | "pending" | "no-profile" | "admin";
+export type RevokeReason =
+  | "blocked"
+  | "pending"
+  | "no-profile"
+  | "admin"
+  | "device";
 
 /** Серверийн `code` талбарыг /unauthorized хуудасны шалтгаан руу буулгана */
 export function reasonFromCode(code?: string | null): RevokeReason | null {
@@ -21,6 +26,8 @@ export function reasonFromCode(code?: string | null): RevokeReason | null {
       return "pending";
     case "no-profile":
       return "no-profile";
+    case "device-blocked":
+      return "device";
     default:
       return null;
   }

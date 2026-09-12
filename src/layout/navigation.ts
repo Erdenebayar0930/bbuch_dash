@@ -1,7 +1,21 @@
 import {
   Bell,
+  BookOpen,
+  Boxes,
+  Briefcase,
+  CalendarClock,
+  ClipboardList,
   DatabaseBackup,
+  Gavel,
+  Gift,
+  HandCoins,
+  HandHeart,
+  HeartHandshake,
   LayoutGrid,
+  MapPin,
+  Music2,
+  Package,
+  Shield,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -40,6 +54,81 @@ export type NavItem = {
  */
 export const navItems: NavItem[] = [
   { name: "Үндсэн цэс", path: "/", icon: LayoutGrid },
+  { name: "Гарын авлага", path: "/handbook", icon: BookOpen },
+  {
+    name: "Харуулын аймаг",
+    path: "/aimag/guard",
+    icon: Shield,
+    aimag: "guard",
+    children: [
+      { name: "Газрын зураг", path: "/aimag/guard/map", icon: MapPin },
+    ],
+  },
+  {
+    name: "Магтаалын аймаг",
+    path: "/aimag/praise",
+    icon: Music2,
+    aimag: "praise",
+    children: [
+      {
+        name: "Эд хөрөнгө бүртгэл",
+        path: "/aimag/praise/assets",
+        icon: Boxes,
+      },
+    ],
+  },
+  {
+    name: "Хангамжийн аймаг",
+    path: "/aimag/supply",
+    icon: Package,
+    aimag: "supply",
+    children: [
+      { name: "Төлөвлөгөө", path: "/aimag/supply/plan", icon: ClipboardList },
+    ],
+  },
+  {
+    name: "Агуу захирамжийн аймаг",
+    path: "/aimag/commission",
+    icon: Gavel,
+    aimag: "commission",
+    children: [
+      {
+        name: "Төлөвлөгөө",
+        path: "/aimag/commission/plan",
+        icon: ClipboardList,
+      },
+      {
+        name: "Хуваарь",
+        path: "/aimag/commission/schedule",
+        icon: CalendarClock,
+      },
+    ],
+  },
+  {
+    name: "Туслах үйлчлэх аймаг",
+    path: "/aimag/service",
+    icon: HeartHandshake,
+    aimag: "service",
+    children: [
+      { name: "Төлөвлөгөө", path: "/aimag/service/plan", icon: ClipboardList },
+      {
+        name: "Хандивын хайрцаг",
+        path: "/aimag/service/donations",
+        icon: Gift,
+      },
+    ],
+  },
+  {
+    name: "Тахилт",
+    path: "/tahilt",
+    icon: HandCoins,
+    aimag: "tahilt",
+    children: [
+      { name: "Төлөвлөгөө", path: "/tahilt/plan", icon: ClipboardList },
+      { name: "Халамж", path: "/tahilt/welfare", icon: HandHeart },
+      { name: "Ажлын байраар хангах", path: "/tahilt/jobs", icon: Briefcase },
+    ],
+  },
   { name: "Мэдэгдэл илгээх", path: "/admin/notifications", icon: Bell, adminOnly: true },
   { name: "Хэрэглэгчид", path: "/users", icon: Users, adminOnly: true },
   {

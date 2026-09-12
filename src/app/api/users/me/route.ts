@@ -9,6 +9,7 @@ import {
   unauthorized,
 } from "@/lib/api/auth";
 import {
+  genders,
   isValidOption,
   loveLanguages,
   mbtiTypes,
@@ -37,46 +38,48 @@ const TEXT_FIELDS = [
   "occupation",
   "carPlate",
   "spouseName",
+  "ethnicity",
+  "birthplace",
 ] as const;
 
 /** Зөвхөн тогтсон жагсаалтаас сонгогдох талбарууд */
 const OPTION_FIELDS: Record<string, Option[]> = {
   mbti: mbtiTypes,
-  loveLanguage: loveLanguages,
+  gender: genders,
 };
 
-/** Темперамент бүрийн онооны дээд хязгаар */
-const MAX_TEMPERAMENT_SCORE = 999;
+/** Оноот сонголтуудын онооны дээд хязгаар */
+const MAX_SCORE = 999;
 
 /**
- * Темперамент нь { "sanguine": 12, ... } хэлбэртэй. Мэдэгдэхгүй төрөл,
- * бүхэл бус эсвэл сөрөг оноог хүлээж авахгүй.
+ * temperaments/loveLanguages хоёулаа { "sanguine": 12, ... } хэлбэртэй.
+ * Мэдэгдэхгүй түлхүүр, бүхэл бус эсвэл сөрөг оноог хүлээж авахгүй.
  */
-type TemperamentResult =
+type ScoredMapResult =
   | { ok: true; value: Record<string, number> }
   | { ok: false; error: string };
 
-function readTemperaments(input: unknown): TemperamentResult {
+function readScoredMap(options: Option[], label: string, input: unknown): ScoredMapResult {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
-    return { ok: false, error: "temperaments нь объект байх ёстой." };
+    return { ok: false, error: `${label} нь объект байх ёстой.` };
   }
 
   const result: Record<string, number> = {};
 
   for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-    if (!isValidOption(temperaments, key) || key === "") {
-      return { ok: false, error: `Темпераментийн төрөл буруу байна: ${key}` };
+    if (!isValidOption(options, key) || key === "") {
+      return { ok: false, error: `${label}-ийн төрөл буруу байна: ${key}` };
     }
 
     if (
       typeof value !== "number" ||
       !Number.isInteger(value) ||
       value < 0 ||
-      value > MAX_TEMPERAMENT_SCORE
+      value > MAX_SCORE
     ) {
       return {
         ok: false,
-        error: `${key} онооны утга 0-${MAX_TEMPERAMENT_SCORE} хооронд бүхэл тоо байна.`,
+        error: `${key} онооны утга 0-${MAX_SCORE} хооронд бүхэл тоо байна.`,
       };
     }
 
@@ -87,7 +90,12 @@ function readTemperaments(input: unknown): TemperamentResult {
 }
 
 /** YYYY-MM-DD хэлбэрийн огноо (хоосон бол бөглөөгүй) */
-const DATE_FIELDS = ["spouseBirthDate"] as const;
+const DATE_FIELDS = [
+  "spouseBirthDate",
+  "birthDate",
+  "holySpiritBaptismDate",
+  "waterBaptismDate",
+] as const;
 
 // route.ts-ээс зөвхөн route handler export хийнэ — туслах функц дотоод байна
 function isDate(value: string) {
@@ -170,9 +178,15 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (body.temperaments !== undefined) {
-      const parsed = readTemperaments(body.temperaments);
+      const parsed = readScoredMap(temperaments, "temperaments", body.temperaments);
       if (!parsed.ok) return badRequest(parsed.error);
       patch.temperaments = parsed.value;
+    }
+
+    if (body.loveLanguages !== undefined) {
+      const parsed = readScoredMap(loveLanguages, "loveLanguages", body.loveLanguages);
+      if (!parsed.ok) return badRequest(parsed.error);
+      patch.loveLanguages = parsed.value;
     }
 
     if (body.hasCar !== undefined) {

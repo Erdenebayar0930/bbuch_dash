@@ -1,8 +1,9 @@
 "use client";
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, ChevronDown, LogOut, Settings } from "lucide-react";
+import { ChevronDown, LogOut, Settings } from "lucide-react";
 
 import { useSidebar } from "../context/SidebarContext";
 import { useUser } from "@/app/(auth)/UserProvider";
@@ -57,16 +58,22 @@ const AppSidebar: React.FC = () => {
       >
         {/* Шилжих бүрд цэсийг хаана — утсан дээр цэс агуулгыг бүтэн халхалдаг */}
         <Link href="/" onClick={closeMobileSidebar} className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-600">
-            <BarChart3 className="h-5 w-5 text-white" strokeWidth={2.5} />
-          </span>
+          {/* Сүлдэнд өөрийн дэвсгэр байхгүй — хар цэс дээр шууд тавина. */}
+          <Image
+            src="/images/logo/logo-mark.png"
+            alt="ББУЧ"
+            width={80}
+            height={80}
+            priority
+            className="h-10 w-10 shrink-0 object-contain"
+          />
           {showLabels && (
             <span className="flex flex-col leading-none">
               <span className="text-lg font-semibold tracking-tight text-white">
-                Бид туслая
+                ББУЧ
               </span>
-              <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-white/40">
-                Dashboard
+              <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-gold-300/70">
+                Чуулганы удирдлага
               </span>
             </span>
           )}
@@ -161,6 +168,7 @@ const AppSidebar: React.FC = () => {
                           <li key={child.path}>
                             <Link
                               href={child.path}
+                              onClick={closeMobileSidebar}
                               className={`nav-item ${
                                 childActive
                                   ? "nav-item-active"
@@ -188,6 +196,7 @@ const AppSidebar: React.FC = () => {
               <li key={item.path}>
                 <Link
                   href={item.path}
+                  onClick={closeMobileSidebar}
                   title={showLabels ? undefined : item.name}
                   className={`nav-item ${
                     active ? "nav-item-active" : "nav-item-inactive"
@@ -213,6 +222,7 @@ const AppSidebar: React.FC = () => {
           <li>
             <Link
               href="/settings"
+              onClick={closeMobileSidebar}
               title={showLabels ? undefined : "Тохиргоо"}
               className={`nav-item ${
                 isActive("/settings") ? "nav-item-active" : "nav-item-inactive"

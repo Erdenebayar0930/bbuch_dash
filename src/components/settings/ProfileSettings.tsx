@@ -4,8 +4,18 @@ import Image from "next/image";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { updateProfile } from "firebase/auth";
 import ImageCropModal from "@/components/common/ImageCropModal";
+import Checkbox from "@/components/form/input/Checkbox";
+import Badge from "@/components/ui/badge/Badge";
 
 import { useUser } from "@/app/(auth)/UserProvider";
+import {
+  aimags as aimagOptions,
+  genders,
+  labelOf,
+  loveLanguages as loveLanguageOptions,
+  mbtiTypes,
+  temperaments as temperamentOptions,
+} from "@/data/profileOptions";
 import { auth } from "@/lib/firebase";
 import { asRole, roleLabels } from "@/lib/permissions";
 import {
@@ -14,13 +24,30 @@ import {
   uploadProfilePhoto,
 } from "@/lib/storage";
 import { getCurrentUser, updateCurrentUser } from "@/lib/users";
+import ChildrenEditor from "./ChildrenEditor";
+import ScoredMultiSelect from "./ScoredMultiSelect";
 import SettingsField from "./SettingsField";
+import SettingsSelect from "./SettingsSelect";
 
 type ProfileForm = {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
+  birthDate: string;
+  gender: string;
+  ethnicity: string;
+  birthplace: string;
+  holySpiritBaptismDate: string;
+  waterBaptismDate: string;
+  mbti: string;
+  loveLanguages: Record<string, number>;
+  temperaments: Record<string, number>;
+  occupation: string;
+  hasCar: boolean;
+  carPlate: string;
+  spouseName: string;
+  spouseBirthDate: string;
 };
 
 const emptyForm: ProfileForm = {
@@ -28,6 +55,20 @@ const emptyForm: ProfileForm = {
   lastName: "",
   email: "",
   phone: "",
+  birthDate: "",
+  gender: "",
+  ethnicity: "",
+  birthplace: "",
+  holySpiritBaptismDate: "",
+  waterBaptismDate: "",
+  mbti: "",
+  loveLanguages: {},
+  temperaments: {},
+  occupation: "",
+  hasCar: false,
+  carPlate: "",
+  spouseName: "",
+  spouseBirthDate: "",
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -71,6 +112,11 @@ export default function ProfileSettings() {
   const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
   const [photoState, setPhotoState] = useState<SaveState>("idle");
   const [photoError, setPhotoError] = useState<string | null>(null);
+  // Зөвхөн харагдана — админ /users хуудаснаас оноодог
+  const [churchInfo, setChurchInfo] = useState<{
+    callings: string[];
+    aimags: string[];
+  }>({ callings: [], aimags: [] });
 
   useEffect(() => {
     let cancelled = false;
@@ -94,7 +140,28 @@ export default function ProfileSettings() {
             base.lastName = profile.last_name || base.lastName;
             base.email = profile.email || base.email;
             base.phone = profile.phone;
+            base.birthDate = profile.birth_date;
+            base.gender = profile.gender;
+            base.ethnicity = profile.ethnicity;
+            base.birthplace = profile.birthplace;
+            base.holySpiritBaptismDate = profile.holy_spirit_baptism_date;
+            base.waterBaptismDate = profile.water_baptism_date;
+            base.mbti = profile.mbti;
+            base.loveLanguages = profile.love_languages;
+            base.temperaments = profile.temperaments;
+            base.occupation = profile.occupation;
+            base.hasCar = profile.has_car;
+            base.carPlate = profile.car_plate;
+            base.spouseName = profile.spouse_name;
+            base.spouseBirthDate = profile.spouse_birth_date;
             loadedRole = profile.role || loadedRole;
+
+            if (!cancelled) {
+              setChurchInfo({
+                callings: profile.callings,
+                aimags: profile.aimags,
+              });
+            }
 
             if (!cancelled && profile.photo_url) {
               setProfilePhotoUrl(profile.photo_url);
@@ -142,6 +209,20 @@ export default function ProfileSettings() {
         firstName: form.firstName,
         lastName: form.lastName,
         phone: form.phone,
+        birthDate: form.birthDate,
+        gender: form.gender,
+        ethnicity: form.ethnicity,
+        birthplace: form.birthplace,
+        holySpiritBaptismDate: form.holySpiritBaptismDate,
+        waterBaptismDate: form.waterBaptismDate,
+        mbti: form.mbti,
+        loveLanguages: form.loveLanguages,
+        temperaments: form.temperaments,
+        occupation: form.occupation,
+        hasCar: form.hasCar,
+        carPlate: form.carPlate,
+        spouseName: form.spouseName,
+        spouseBirthDate: form.spouseBirthDate,
       });
 
       setSaved(form);
@@ -369,7 +450,182 @@ export default function ProfileSettings() {
           />
           {/* Эрхийг админ оноодог — энд зөвхөн харагдана */}
           <SettingsField id="role" label="Эрх" value={roleLabel} readOnly />
+          <SettingsField
+            id="birth-date"
+            label="Төрсөн огноо"
+            type="date"
+            value={form.birthDate}
+            onChange={(value) => update("birthDate", value)}
+          />
+          <SettingsSelect
+            id="gender"
+            label="Хүйс"
+            value={form.gender}
+            options={genders}
+            onChange={(value) => update("gender", value)}
+          />
+          <SettingsField
+            id="ethnicity"
+            label="Яс үндэс"
+            value={form.ethnicity}
+            onChange={(value) => update("ethnicity", value)}
+          />
+          <SettingsField
+            id="birthplace"
+            label="Төрсөн нутаг"
+            value={form.birthplace}
+            onChange={(value) => update("birthplace", value)}
+          />
+          <SettingsField
+            id="occupation"
+            label="Мэргэжил"
+            value={form.occupation}
+            onChange={(value) => update("occupation", value)}
+          />
         </div>
+      </section>
+
+      {/* --- Чуулган --- */}
+      <section className="mt-8">
+        <SectionTitle
+          title="Чуулган"
+          description="Дуудлага, аймгийг зөвхөн админ оноодог"
+        />
+
+        <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+          <SettingsField
+            id="holy-spirit-baptism"
+            label="Ариунсүнсний баптисм"
+            type="date"
+            value={form.holySpiritBaptismDate}
+            onChange={(value) => update("holySpiritBaptismDate", value)}
+          />
+          <SettingsField
+            id="water-baptism"
+            label="Усан баптисм"
+            type="date"
+            value={form.waterBaptismDate}
+            onChange={(value) => update("waterBaptismDate", value)}
+          />
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+          <div>
+            <p className="mb-1.5 text-theme-sm font-medium text-gray-700 dark:text-gray-300">
+              Дуудлага
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {churchInfo.callings.length === 0 ? (
+                <span className="text-theme-xs text-gray-400">
+                  Админ оноогоогүй байна.
+                </span>
+              ) : (
+                churchInfo.callings.map((calling) => (
+                  <Badge key={calling} size="sm">
+                    {calling}
+                  </Badge>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-theme-sm font-medium text-gray-700 dark:text-gray-300">
+              Аймаг
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {churchInfo.aimags.length === 0 ? (
+                <span className="text-theme-xs text-gray-400">
+                  Админ оноогоогүй байна.
+                </span>
+              ) : (
+                churchInfo.aimags.map((aimag) => (
+                  <Badge key={aimag} size="sm" color="success">
+                    {labelOf(aimagOptions, aimag)}
+                  </Badge>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- Био --- */}
+      <section className="mt-8">
+        <SectionTitle title="Био" />
+
+        <SettingsSelect
+          id="mbti"
+          label="MBTI"
+          value={form.mbti}
+          options={mbtiTypes}
+          onChange={(value) => update("mbti", value)}
+          className="max-w-xs"
+        />
+
+        <div className="mt-6 grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-2">
+          <ScoredMultiSelect
+            label="Темперамент"
+            description="Хэдэн ч төрөл зэрэг сонгож, оноогоо өгч болно."
+            options={temperamentOptions}
+            value={form.temperaments}
+            onChange={(value) => update("temperaments", value)}
+          />
+          <ScoredMultiSelect
+            label="Хайрын хэл"
+            description="Хэдэн ч хэл зэрэг сонгож, оноогоо өгч болно."
+            options={loveLanguageOptions}
+            value={form.loveLanguages}
+            onChange={(value) => update("loveLanguages", value)}
+          />
+        </div>
+      </section>
+
+      {/* --- Гэр бүл --- */}
+      <section className="mt-8">
+        <SectionTitle title="Гэр бүл" />
+
+        <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+          <SettingsField
+            id="spouse-name"
+            label="Эхнэр / нөхрийн нэр"
+            value={form.spouseName}
+            onChange={(value) => update("spouseName", value)}
+          />
+          <SettingsField
+            id="spouse-birth-date"
+            label="Эхнэр / нөхрийн төрсөн огноо"
+            type="date"
+            value={form.spouseBirthDate}
+            onChange={(value) => update("spouseBirthDate", value)}
+          />
+        </div>
+
+        <div className="mt-6 border-t border-gray-100 pt-5 dark:border-white/10">
+          <ChildrenEditor />
+        </div>
+      </section>
+
+      {/* --- Тээвэр --- */}
+      <section className="mt-8">
+        <SectionTitle title="Тээвэр" />
+
+        <Checkbox
+          id="has-car"
+          label="Машинтай"
+          checked={form.hasCar}
+          onChange={(checked) => update("hasCar", checked)}
+        />
+
+        {form.hasCar && (
+          <SettingsField
+            id="car-plate"
+            label="Улсын дугаар"
+            value={form.carPlate}
+            onChange={(value) => update("carPlate", value)}
+            className="mt-4 max-w-xs"
+          />
+        )}
       </section>
 
       {/* Үйлдэл */}

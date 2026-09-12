@@ -35,6 +35,7 @@
     "firebase": "^12.7.0",
     "firebase-admin": "^13.10.0",
     "flatpickr": "^4.6.13",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
     "mysql2": "^3.23.3",
     "next": "^16.3.1",
@@ -44,12 +45,14 @@
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.3.8",
     "react-easy-crop": "^6.2.3",
+    "react-leaflet": "^5.0.0",
     "server-only": "^0.0.1",
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@svgr/webpack": "^8.1.0",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^20.19.25",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",

@@ -1,4 +1,5 @@
 import QuickLinks from "@/components/dashboard/QuickLinks";
+import WeeklySchedule from "@/components/dashboard/WeeklySchedule";
 
 export default function Dashboard() {
   return (
@@ -12,6 +13,7 @@ export default function Dashboard() {
         </p>
       </div>
 
+      <WeeklySchedule />
       <QuickLinks />
     </div>
   );

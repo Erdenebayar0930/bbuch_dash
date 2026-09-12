@@ -6,6 +6,7 @@ import { Bell, Palette, Shield, User, type LucideIcon } from "lucide-react";
 import AppearanceSettings from "./AppearanceSettings";
 import NotificationSettings from "./NotificationSettings";
 import ProfileSettings from "./ProfileSettings";
+import SecuritySettings from "./SecuritySettings";
 
 type TabKey = "profile" | "notifications" | "security" | "appearance";
 
@@ -13,19 +14,12 @@ type Tab = {
   key: TabKey;
   name: string;
   icon: LucideIcon;
-  /** Хараахан бэлэн болоогүй хэсгийн тайлбар */
-  placeholder?: string;
 };
 
 const tabs: Tab[] = [
   { key: "profile", name: "Профайл", icon: User },
   { key: "notifications", name: "Мэдэгдэл", icon: Bell },
-  {
-    key: "security",
-    name: "Аюулгүй байдал",
-    icon: Shield,
-    placeholder: "Нууц үг, хоёр шатлалт баталгаажуулалт, төхөөрөмжүүд",
-  },
+  { key: "security", name: "Аюулгүй байдал", icon: Shield },
   { key: "appearance", name: "Харагдац", icon: Palette },
 ];
 
@@ -73,17 +67,10 @@ export default function SettingsView({
           <ProfileSettings />
         ) : active.key === "notifications" ? (
           <NotificationSettings />
-        ) : active.key === "appearance" ? (
-          <AppearanceSettings />
+        ) : active.key === "security" ? (
+          <SecuritySettings />
         ) : (
-          <div className="flex min-h-[320px] flex-col items-center justify-center gap-2 text-center">
-            <p className="text-base font-medium text-gray-800 dark:text-white/90">
-              {active.name}
-            </p>
-            <p className="max-w-sm text-theme-sm text-gray-500 dark:text-gray-400">
-              {active.placeholder} — энэ хэсэг бэлтгэгдэж байна.
-            </p>
-          </div>
+          <AppearanceSettings />
         )}
       </div>
     </div>

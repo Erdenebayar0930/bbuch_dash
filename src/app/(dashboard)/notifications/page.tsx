@@ -3,7 +3,7 @@ import { Metadata } from "next";
 import NotificationList from "./NotificationList";
 
 export const metadata: Metadata = {
-  title: "Мэдэгдэл | Бид туслая",
+  title: "Мэдэгдэл | ББУЧ",
   description: "Ирсэн мэдэгдлүүд",
 };
 

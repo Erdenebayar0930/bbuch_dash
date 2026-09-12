@@ -1,5 +1,6 @@
 "use client";
 
+import { getDeviceId, getScreenSize } from "./deviceId";
 import { auth } from "./firebase";
 import { forceSignOut, reasonFromCode } from "./session";
 
@@ -37,6 +38,12 @@ export async function apiFetch<T = unknown>(
       throw new Error("Нэвтэрсэн байх шаардлагатай.");
     }
     headers.Authorization = `Bearer ${await currentUser.getIdToken()}`;
+    headers["X-Device-Id"] = getDeviceId();
+
+    // User-Agent толгойд дэлгэцийн нягтрал байдаггүй тул тусад нь илгээнэ —
+    // зөвхөн шинэ төхөөрөмж бүртгэгдэх нэг удаагийн хүсэлт дээр хэрэглэгдэнэ
+    const screenSize = getScreenSize();
+    if (screenSize) headers["X-Screen-Size"] = screenSize;
   }
 
   // FormData-г JSON болгож болохгүй: Content-Type-ыг хөтөч өөрөө boundary-тай

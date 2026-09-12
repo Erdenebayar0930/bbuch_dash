@@ -1,10 +1,10 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { devices, users } from "@/lib/db/schema";
 import { adminAuth } from "@/lib/firebaseAdmin";
 import { asRole, isAdminRole, isSuperRole } from "@/lib/permissions";
 import { backfillClaimsIfStale } from "./claims";
@@ -118,6 +118,109 @@ export async function getCallerOrResponse(
   }
 }
 
+/**
+ * User-Agent-аас "Chrome 120 · Windows · 1920x1080" маягийн танигдах нэр
+ * гаргана. Жинхэнэ компьютерийн нэрийг (Windows hostname) хөтөч ямар ч
+ * сайтад ил гаргадаггүй тул авах боломжгүй — оронд нь ялгах чадвар өндөр
+ * дэлгэрэнгүй мэдээллийг (хувилбарын дугаар, дэлгэцийн нягтрал) ашиглана.
+ * Эрэмбэ чухал: Edge/Opera-ийн UA дотор "Chrome/" токен ч байдаг тул тэднийг
+ * эхэлж шалгана.
+ */
+function labelFromUserAgent(
+  userAgent: string | null,
+  screenSize: string | null
+): string {
+  if (!userAgent) return "Тодорхойгүй төхөөрөмж";
+
+  const browserPatterns: Array<[RegExp, string]> = [
+    [/Edg\/([\d.]+)/, "Edge"],
+    [/OPR\/([\d.]+)/, "Opera"],
+    [/Firefox\/([\d.]+)/, "Firefox"],
+    [/Chrome\/([\d.]+)/, "Chrome"],
+    [/Version\/([\d.]+).*Safari\//, "Safari"],
+  ];
+
+  let browser = "Хөтөч";
+  let version = "";
+
+  for (const [pattern, name] of browserPatterns) {
+    const match = userAgent.match(pattern);
+    if (match) {
+      browser = name;
+      version = match[1].split(".")[0];
+      break;
+    }
+  }
+
+  const os = /Windows/.test(userAgent)
+    ? "Windows"
+    : /Mac OS X/.test(userAgent)
+      ? "macOS"
+      : /Android/.test(userAgent)
+        ? "Android"
+        : /iPhone|iPad/.test(userAgent)
+          ? "iOS"
+          : /Linux/.test(userAgent)
+            ? "Linux"
+            : "";
+
+  // Зөвхөн "1920x1080" маягийн утгыг зөвшөөрнө — толгойгоор дурын өгөгдөл
+  // ирж болох тул хадгалахаас өмнө хэлбэрийг нь шалгана
+  const validScreenSize =
+    screenSize && /^\d{2,5}x\d{2,5}$/.test(screenSize) ? screenSize : null;
+
+  return (
+    [version ? `${browser} ${version}` : browser, os, validScreenSize]
+      .filter(Boolean)
+      .join(" · ") || "Тодорхойгүй төхөөрөмж"
+  );
+}
+
+/**
+ * `X-Device-Id`-ээр төхөөрөмжийг таньж идэвхтэй эсэхийг шалгана.
+ *
+ * Толгой байхгүй бол (хуучин клиент, гараар илгээсэн хүсэлт) шалгалтгүй
+ * өнгөрнө — device tracking нь нэмэлт хамгаалалт, цорын ганц гарц биш.
+ * Шинэ төхөөрөмж анх удаа ирэхэд идэвхтэй байдлаар автоматаар бүртгэгдэнэ:
+ * Firebase аль хэдийн нэвтрүүлсэн тул энд зөвшөөрлийн дараалал биш, харин
+ * дараа нь тодорхой төхөөрөмжийг зайнаас хаах боломж чухал юм.
+ */
+async function checkDevice(
+  uid: string,
+  request: NextRequest
+): Promise<string | null> {
+  const deviceId = request.headers.get("x-device-id");
+  if (!deviceId) return null;
+
+  const [existing] = await db
+    .select()
+    .from(devices)
+    .where(and(eq(devices.uid, uid), eq(devices.deviceId, deviceId)))
+    .limit(1);
+
+  if (!existing) {
+    const userAgent = request.headers.get("user-agent") ?? "";
+    const screenSize = request.headers.get("x-screen-size");
+    await db.insert(devices).values({
+      uid,
+      deviceId,
+      label: labelFromUserAgent(userAgent, screenSize),
+      userAgent,
+    });
+    return null;
+  }
+
+  if (!existing.active) return "device-blocked";
+
+  // Хүлээхгүй: сүүлд харагдсан огноо хариултыг удаашруулах шалтгаан биш
+  void db
+    .update(devices)
+    .set({ lastSeenAt: new Date() })
+    .where(eq(devices.id, existing.id));
+
+  return null;
+}
+
 /** Нэвтэрсэн бөгөөд идэвхтэй хэрэглэгч эсэхийг шаардана. */
 export async function requireActiveUser(request: NextRequest) {
   const result = await getCallerOrResponse(request);
@@ -143,6 +246,16 @@ export async function requireActiveUser(request: NextRequest) {
       error: forbidden(
         "Таны бүртгэл идэвхгүй байна.",
         `account-${caller.user.status}`
+      ),
+    } as const;
+  }
+
+  const deviceBlockCode = await checkDevice(caller.uid, request);
+  if (deviceBlockCode) {
+    return {
+      error: forbidden(
+        "Энэ төхөөрөмжийн хандалтыг хаасан байна.",
+        deviceBlockCode
       ),
     } as const;
   }

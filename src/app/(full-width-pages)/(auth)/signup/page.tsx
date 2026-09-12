@@ -2,8 +2,8 @@ import SignUpForm from "@/components/auth/SignUpForm";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Бүртгүүлэх | Бид туслая",
-  description: "«Бид туслая» системд бүртгүүлэх.",
+  title: "Бүртгүүлэх | ББУЧ",
+  description: "«ББУЧ» системд бүртгүүлэх.",
   // other metadata
 };
 

@@ -40,36 +40,76 @@
   --color-white: #ffffff;
   --color-black: #101828;
 
-  --color-brand-25: #f2f7ff;
-  --color-brand-50: #ecf3ff;
-  --color-brand-100: #dde9ff;
-  --color-brand-200: #c2d6ff;
-  --color-brand-300: #9cb9ff;
-  --color-brand-400: #7592ff;
-  --color-brand-500: #465fff;
-  --color-brand-600: #3641f5;
-  --color-brand-700: #2a31d8;
-  --color-brand-800: #252dae;
-  --color-brand-900: #262e89;
-  --color-brand-950: #161950;
+  /*
+   * ББУЧ брэнд — нил ягаан. Чуулганы вэбсайт (bbuch.mn) болон сүлдний
+   * өнгөнөөс авав: навигацын тууз #5b2d8e, сүлдний гүн ягаан #3f1668.
+   */
+  --color-brand-25: #fbf8fe;
+  --color-brand-50: #f6f0fc;
+  --color-brand-100: #ebe0f8;
+  --color-brand-200: #d8c4f0;
+  --color-brand-300: #bc9ce4;
+  --color-brand-400: #9c72d3;
+  --color-brand-500: #7f4cbc;
+  --color-brand-600: #5b2d8e;
+  --color-brand-700: #4c2577;
+  --color-brand-800: #3f1668;
+  --color-brand-900: #331154;
+  --color-brand-950: #210a38;
 
-  /* Хажуугийн самбар — navy өнгөний хүрээ */
-  --color-navy-500: #4a72ae;
-  --color-navy-600: #375a90;
-  --color-navy-700: #274674;
-  --color-navy-800: #1f3d69;
-  --color-navy-900: #1b355e;
-  --color-navy-950: #132646;
+  /* Хажуугийн самбар — брэндээс гүн, бага ханалттай ягаан */
+  --color-navy-500: #7f4cbc;
+  --color-navy-600: #6a3aa6;
+  --color-navy-700: #55287f;
+  --color-navy-800: #451d6c;
+  --color-navy-900: #37135a;
+  --color-navy-950: #250c3e;
 
-  /* Үйлдлийн үндсэн өнгө */
-  --color-accent-50: #eff6ff;
-  --color-accent-100: #dbeafe;
-  --color-accent-200: #bfdbfe;
-  --color-accent-300: #93c5fd;
-  --color-accent-400: #60a5fa;
-  --color-accent-500: #3b82f6;
-  --color-accent-600: #2563eb;
-  --color-accent-700: #1d4ed8;
+  /* Үйлдлийн үндсэн өнгө — брэндээс нэг зэрэг тодруулсан ягаан */
+  --color-accent-50: #f6f0fc;
+  --color-accent-100: #ebe0f8;
+  --color-accent-200: #d8c4f0;
+  --color-accent-300: #bc9ce4;
+  --color-accent-400: #9c72d3;
+  --color-accent-500: #7f4cbc;
+  --color-accent-600: #6b34a0;
+  --color-accent-700: #55287f;
+
+  /*
+   * Сүлдний алтан өнгө — онцлох, badge, идэвхтэй заагчид. Ягаан дэвсгэр
+   * дээр цорын ганц тод өнгө тул үндсэн үйлдэлд бус, өргөлт болгож хэрэглэнэ.
+   */
+  --color-gold-50: #fdf8ec;
+  --color-gold-100: #faeeca;
+  --color-gold-200: #f4dc95;
+  --color-gold-300: #eec860;
+  --color-gold-400: #e8b33c;
+  --color-gold-500: #d99a22;
+  --color-gold-600: #b8791a;
+  --color-gold-700: #8f5b18;
+  --color-gold-800: #6b441a;
+  --color-gold-900: #4a3016;
+
+  /*
+   * Хоёрдогч өргөлтийн ягаан-час — брэндийн нил ягаантай ижил гэр бүлийн
+   * (магента) өнгө. Badge, avatar, график зэрэгт хоёр дахь тэмдэглэгээ
+   * болгон, харанхуй горимд dark:bg-pink-500/15 dark:text-pink-400 хэлбэрээр
+   * ашиглана.
+   */
+  --color-pink-25: #fff8fc;
+  --color-pink-50: #fef0f8;
+  --color-pink-100: #fde0f0;
+  --color-pink-200: #fac3e5;
+  --color-pink-300: #f6a0d9;
+  --color-pink-400: #f272cb;
+  --color-pink-500: #ee46bc;
+  --color-pink-600: #d02aa0;
+  --color-pink-700: #a81f80;
+  --color-pink-800: #801861;
+  --color-pink-900: #5c1146;
+  --color-pink-950: #3a0a2c;
+  /* khoroo-color шиг харанхуй дэвсгэр дээр тусгайлан зэрэглэсэн тод хувилбар */
+  --color-pink-500-dark: #f9a3db;
 
   --color-blue-light-25: #f5fbff;
   --color-blue-light-50: #f0f9ff;
@@ -168,7 +208,7 @@
     0px 20px 24px -4px rgba(16, 24, 40, 0.08),
     0px 8px 8px -4px rgba(16, 24, 40, 0.03);
   --shadow-datepicker: -5px 0 0 #262d3c, 5px 0 0 #262d3c;
-  --shadow-focus-ring: 0px 0px 0px 4px rgba(70, 95, 255, 0.12);
+  --shadow-focus-ring: 0px 0px 0px 4px rgba(127, 76, 188, 0.12);
   --shadow-slider-navigation:
     0px 1px 2px 0px rgba(16, 24, 40, 0.1), 0px 1px 3px 0px rgba(16, 24, 40, 0.1);
   --shadow-tooltip:
@@ -219,8 +259,9 @@
   @apply relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-theme-sm font-medium transition-colors duration-150;
 }
 
+/* Зүүн ирмэгийн алтан зурвас — сүлдний өнгөөр идэвхтэй цэсийг заана. */
 @utility nav-item-active {
-  @apply bg-white/10 text-white;
+  @apply bg-white/10 text-white before:absolute before:left-0 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-r-full before:bg-gold-400;
 }
 
 @utility nav-item-inactive {
@@ -514,13 +555,13 @@ span.flatpickr-weekday,
 .flatpickr-day.selected.nextMonthDay,
 .flatpickr-day.startRange.nextMonthDay,
 .flatpickr-day.endRange.nextMonthDay {
-  background: #465fff;
+  background: #7f4cbc;
   @apply !border-brand-500 !bg-brand-500 hover:!border-brand-50 hover:!bg-brand-500;
 }
 .flatpickr-day.selected.startRange + .endRange:not(:nth-child(7n + 1)),
 .flatpickr-day.startRange.startRange + .endRange:not(:nth-child(7n + 1)),
 .flatpickr-day.endRange.startRange + .endRange:not(:nth-child(7n + 1)) {
-  box-shadow: -10px 0 0 #465fff;
+  box-shadow: -10px 0 0 #7f4cbc;
 }
 
 .flatpickr-months .flatpickr-prev-month svg,

@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Бид туслая — Чуулганы удирдлага",
-  "short_name": "Бид туслая",
+  "name": "ББУЧ — Чуулганы удирдлага",
+  "short_name": "ББУЧ",
   "description": "Чуулганы санхүү, хөрөнгө, үйлчлэлийн удирдлагын систем",
   "lang": "mn",
   "dir": "ltr",
@@ -10,7 +10,7 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "theme_color": "#3f1668",
   "categories": ["business", "finance", "productivity"],
   "gcm_sender_id": "103953800507",
   "icons": [
