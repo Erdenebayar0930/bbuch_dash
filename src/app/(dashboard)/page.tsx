@@ -1,5 +1,6 @@
 import QuickLinks from "@/components/dashboard/QuickLinks";
 import WeeklySchedule from "@/components/dashboard/WeeklySchedule";
+import InstallPrompt from "@/components/pwa/InstallPrompt";
 
 export default function Dashboard() {
   return (
@@ -13,6 +14,7 @@ export default function Dashboard() {
         </p>
       </div>
 
+      <InstallPrompt />
       <WeeklySchedule />
       <QuickLinks />
     </div>
