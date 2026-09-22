@@ -1,206 +1,193 @@
 # Байршуулалт
 
-## Одоогийн бодит тохиргоо — Hostinger, `dash.bbuchmongol.com`
+## Одоогийн бодит тохиргоо — өөрийн VPS, `dash.bbuchmongol.com`
 
-Дашборд нь **Hostinger-ийн shared hosting** дээр, тэдний өөрсдийн git-деплой
-системээр (`hbuilds`) ажиллаж байна. VPS биш, root эрх байхгүй.
+Дашборд нь **Hostinger KVM VPS** дээр (AlmaLinux 9, cPanel/WHM суусан),
+systemd-ээр удирдагддаг `next start` процесс байдлаар ажиллана. Өгөгдлийн сан нь
+**PostgreSQL 13**, тэр же серверийн дотор.
 
 ```
-Интернэт ──► LiteSpeed + Passenger ──► Next.js standalone server.js (alt-nodejs22)
-                (public_html/.htaccess)      hbuilds/current/nodejs/
+Интернэт ──► Nginx (80) ──► next start (127.0.0.1:3002, systemd) ──► Postgres (127.0.0.1:5432)
+             conf.d/bbuch-dash.conf        bbuch-dash.service           bbuch_dash сан
 ```
 
-**Деплой хийх арга: `main` салбар руу push хийхэд л хангалттай.** Hostinger
-өөрөө repo-г татаж, `npm ci` + `npm run build` ажиллуулаад, шинэ хувилбарыг
-`hbuilds/versions/<id>/` дор байрлуулж `current` symlink-ийг сольдог.
+| Юу | Утга |
+|---|---|
+| SSH | `ssh -i ~/.ssh/bbuch_vps2 root@72.62.192.163` |
+| Аппын хэрэглэгч | `bbuch` |
+| Аппын фолдер | `/home/bbuch/app` |
+| Орчны хувьсагч | `/home/bbuch/app/.env.local` (systemd `EnvironmentFile`) |
+| systemd unit | `/etc/systemd/system/bbuch-dash.service` |
+| Лог | `/var/log/bbuch-dash.log` |
+| Nginx | `/etc/nginx/conf.d/bbuch-dash.conf` |
+| Порт | 3002 (зөвхөн локал, Nginx proxy хийнэ) |
+| Postgres | `postgresql://bbuch_dash@127.0.0.1:5432/bbuch_dash`, өгөгдөл нь `/var/lib/pgsql/data/` |
 
-### Hostinger build системийн онцлог — ЧУХАЛ
+> **Өмнөх хувилбар — Hostinger shared hosting (`hbuilds`, MySQL/MariaDB) нь
+> ХОЙШ ТАВИГДСАН.** `145.79.25.241` дээрх хуучин суурилуулалт устгаагүй хэвээр
+> байгаа ч ашиглагдахгүй. `main` руу push хийхэд ТЭНД автоматаар build хийгдэх
+> магадлалтай тул хуучин деплойг hPanel-аас унтраах нь зүйтэй.
 
-Build хийхийн өмнө Hostinger нь `next.config.ts`-ийг `<hash>.next.config.ts`
-болгон нэрлээд, өөрийн боодол файл үүсгэдэг:
+### ⚠ Деплой нь push хийхэд автоматаар ЯВАХГҮЙ
 
-```ts
-import baseConfig from "./<hash>.next.config";
-const config: NextConfig = { ...baseConfig, output: "standalone" };
-export default config;
-```
+VPS дээр git webhook байхгүй. Шинэчлэлт бүрийг доорх дарааллаар **гараар**
+хийнэ. Энэ нь санаатай: build нь сервер дээр ойролцоогоор хоёр минут авдаг тул
+санамсаргүй push ажиллаж буй сайтыг хөндөхгүй.
 
-Тиймээс [next.config.ts](../next.config.ts) нь **заавал ESM `export default`**
-байх ёстой. `module.exports =` (CommonJS) бол build нь
-`File ... is not a module` гэж унана.
+---
 
-### Орчны хувьсагч
+## Шинэчлэлт — алхам алхмаар
 
-Бүх хувьсагчийг **hPanel → Websites → dash.bbuchmongol.com →
-Deployment/Node.js → Environment variables** хэсэгт оруулна.
-
-hPanel эдгээрийг `hbuilds/config/.env` файлд хадгалж, build болон ажиллах үед
-процессын орчинд дамжуулдаг. Апп нь `.env`-ийг өөрөө уншдаггүй — файл нь зөвхөн
-Hostinger-ийн деплой системийн хадгалах байр.
+Шинэ хувилбарыг **тусдаа фолдерт** бэлдэж, бүрэн болсон хойно нь сольдог.
+Ингэснээр build унасан ч ажиллаж буй сайт хөндөгдөхгүй.
 
 ```bash
-ssh bbuch-vps
-grep -oE '^[A-Z_0-9]+' ~/domains/dash.bbuchmongol.com/hbuilds/config/.env
+# 1. Локал: buildийг серверээс ӨМНӨ барина
+npm run build
+
+# 2. Локал: commit + push (эх код хадгалагдана; деплойг энэ өдөөхгүй)
+git push origin main
+
+# 3. Локал: яг тэр commit-ын архивыг сервер рүү илгээнэ
+git archive --format=tar.gz -o /tmp/bbuch-app.tgz HEAD
+scp -i ~/.ssh/bbuch_vps2 /tmp/bbuch-app.tgz root@72.62.192.163:/tmp/
+
+# 4. Сервер: шинэ хувилбарыг ХАЖУУД нь бэлдэнэ
+ssh -i ~/.ssh/bbuch_vps2 root@72.62.192.163
+mkdir -p /home/bbuch/app-new
+tar -xzf /tmp/bbuch-app.tgz -C /home/bbuch/app-new
+cp /home/bbuch/app/.env.local /home/bbuch/app-new/.env.local   # нууц утгууд зөвхөн серверт
+chown -R bbuch:bbuch /home/bbuch/app-new
+
+cd /home/bbuch/app-new
+sudo -u bbuch npm ci
+sudo -u bbuch bash -c "set -a; source ./.env.local; set +a; npm run build"
+
+# 5. Сервер: солиод асаана (таслалт 10 орчим секунд)
+systemctl stop bbuch-dash
+mv /home/bbuch/app /home/bbuch/app-prev
+mv /home/bbuch/app-new /home/bbuch/app
+systemctl start bbuch-dash
+systemctl is-active bbuch-dash
+
+# 6. Шалгах
+curl -s http://127.0.0.1:3002/api/health
+curl -s https://dash.bbuchmongol.com/api/health
 ```
 
-> ⚠️ `public_html/.htaccess`-д зөвхөн Passenger-ийн дотоод тохиргоо (`NODE_OPTIONS`
-> г.м.) бичигддэг — аппын хувьсагчдыг тэндээс хайж болохгүй. Мөн деплой бүрт
-> дахин үүсдэг тул гараар засах утгагүй.
+> ⚠ **4-р алхам дахь `source ./.env.local` нь заавал.** `NEXT_PUBLIC_*`
+> хувьсагчид build хийх ҮЕД кодод шигддэг. Орчингүй build хийвэл Firebase-ийн
+> тохиргоо хоосон шигдэж, хэрэглэгч нэвтэрч чадахгүй болно.
 
-> ⚠️ `NEXT_PUBLIC_*` хувьсагчид **build хийх үед** кодод шигддэг. Тэдгээрийг
-> нэмсний дараа заавал дахин деплой хийнэ (push эсвэл hPanel-ийн Redeploy).
+> `npm ci` нь `package-lock.json`-оос яг тэр хувилбаруудыг суулгана. `npm
+> install` БИШ — тэр нь lock-ыг чимээгүй өөрчилж, локалд ажилласан код сервер
+> дээр өөр хувилбартай ажиллах эрсдэл үүсгэнэ.
 
-Шаардлагатай хувьсагчдын жагсаалтыг [.env.example](../.env.example)-аас үзнэ үү.
+### Буцаах (rollback)
 
-### Өгөгдлийн сан — MySQL
-
-Shared hosting дээр PostgreSQL байхгүй тул апп нь **MySQL** дээр ажиллана
-(hPanel → Databases хэсгээс сан, хэрэглэгчийг үүсгэнэ). Апптай нэг сервер
-дээр байгаа тул host нь `localhost`, SSL шаардлагагүй:
-
-```ini
-DATABASE_URL=mysql://u192470510_xxx:нууцүг@localhost:3306/u192470510_bbuch
-DATABASE_SSL=
-```
-
-> ⚠️ **Локал `DATABASE_URL`-аа хуулж болохгүй.** Hostinger дээр хэрэглэгч болон
-> сангийн нэр ЗААВАЛ дансны угтвартай (`u192470510_`) байна. Локалынхаа
-> `mysql://bbuch:…@localhost/bbuch`-ыг тавибал сервер дээр тийм хэрэглэгч
-> байхгүй тул `ER_ACCESS_DENIED_ERROR` өгнө. Үүнийг `/api/health` дээрх
-> `mysql.code` талбараас шууд харна.
-
-Схемийг үүсгэх (локалаас, эсвэл серверийн SSH-аас):
+Өмнөх хувилбар `/home/bbuch/app-prev` дотор build-тэйгээ бүрэн хэвээр байна —
+дахин build хийх шаардлагагүй:
 
 ```bash
-npm run db:push
+systemctl stop bbuch-dash
+mv /home/bbuch/app /home/bbuch/app-bad
+mv /home/bbuch/app-prev /home/bbuch/app
+systemctl start bbuch-dash
 ```
 
-**MySQL-ийн шаардлага:** схем нь цонхны функц (`row_number() over`) болон
-`JSON_CONTAINS` ашигладаг тул **MySQL 8.0+ эсвэл MariaDB 10.2+** байх ёстой.
+**Өгөгдлийг буцаах** нь тусдаа үйлдэл — доорх Backup хэсгийг үзнэ үү.
 
-Postgres-ээс хөрвүүлэхэд гарсан гол ялгаанууд [src/lib/db/schema.ts](../src/lib/db/schema.ts)-ийн
-толгой хэсэгт тэмдэглэгдсэн: UUID → `varchar(36)`, индекслэгдсэн бүх `text` →
-`varchar(n)`, `jsonb` → `json`, DB талын default-ыг `$defaultFn`-ээр
-орлуулсан, `INSERT/UPDATE/DELETE ... RETURNING` байхгүй тул бичсэний дараа
-буцааж уншдаг болсон.
-
-### Шалгах
-
-Өгөгдлийн сангийн тохиргоог (UTC цагийн бүс, `utf8mb4`, `DECIMAL` мөрөөр
-буцах, схемийн бүх хүснэгт байгаа эсэх) шалгана — алдаатай бол 0-ээс ялгаатай
-кодоор гарна:
+### Зөвхөн дахин асаах, лог харах
 
 ```bash
-npm run db:check
-```
-
-Аппын эрүүл мэнд:
-
-```bash
-curl https://dash.bbuchmongol.com/api/health
-```
-
-Хүлээгдэх хариу:
-
-```json
-{"timestamp":"...","mysql":"ok","firebase":{"status":"configured","projectId":"bbuch-edba7"}}
-```
-
-### Лог
-
-```bash
-ssh bbuch-vps
-D=~/domains/dash.bbuchmongol.com
-tail -f $D/hbuilds/current/nodejs/console.log      # ажиллах үеийн лог (JSON)
-ls -1t $D/hbuilds/logs/ | head -1                  # хамгийн сүүлийн build
-tail -50 $D/hbuilds/logs/<id>/*.log                # build-ын лог
-```
-
-`~/.ssh/config`-д `bbuch-vps` гэсэн богино нэр тохируулсан
-(145.79.25.241:65002, `u192470510`, `~/.ssh/bbuch_vps` түлхүүрээр).
-
-### Аппыг дахин асаах
-
-```bash
-touch ~/domains/dash.bbuchmongol.com/hbuilds/current/nodejs/tmp/restart.txt
+systemctl restart bbuch-dash
+tail -f /var/log/bbuch-dash.log
+journalctl -u bbuch-dash -n 50 --no-pager
 ```
 
 ---
 
-## Шинэчлэлт (update) — алхам алхмаар
+## Орчны хувьсагч
 
-Деплой нь `main` руу push хийхэд автоматаар явдаг ч, **өгөгдлийн санд нөлөөлөх
-өөрчлөлт** нь автоматаар хийгддэггүй. Дараалал нь чухал:
+Бүгд `/home/bbuch/app/.env.local` дотор. systemd үүнийг `EnvironmentFile`-аар
+уншиж процесст дамжуулна — зассаны дараа **заавал `systemctl restart
+bbuch-dash`**, `NEXT_PUBLIC_*`-ыг өөрчилсөн бол **дахин build**.
 
-| # | Алхам | Тайлбар |
-|---|---|---|
-| 1 | `npm run backup` | **Заавал эхэнд.** Буцах цэг үүсгэнэ |
-| 2 | Локал дээр `npm run build` | Build унах эсэхийг серверээс өмнө барина |
-| 3 | `git push origin main` | Hostinger өөрөө татаж, build хийж, `current` symlink-ийг солино |
-| 4 | `curl https://dash.bbuchmongol.com/api/health` | 200 ба `mysql: ok` эсэхийг шалгана |
-| 5 | Схем өөрчлөгдсөн бол `npm run db:push` | **ГАРААР**, гаралтыг нь уншиж байж |
+Бүрэн жагсаалт, тайлбарыг [.env.example](../.env.example)-аас үзнэ үү. Энэ
+серверийн онцлог утгууд:
 
-### ⚠ `drizzle-kit push` энэ бааз дээр ажиллахгүй байна
+```ini
+NEXT_PUBLIC_APP_URL=https://dash.bbuchmongol.com
+DATABASE_URL=postgresql://bbuch_dash:НУУЦҮГ@127.0.0.1:5432/bbuch_dash
+DATABASE_SSL=disable          # апп болон Postgres нэг серверт — SSL шаардлагагүй
+DATABASE_POOL_MAX=5
+```
 
-Одоогийн MariaDB (12.x) дээр `drizzle-kit push` нь «Pulling schema from
-database...» дээр **чимээгүй унаж** (exit 1, алдааны мессежгүй) юу ч
-хэрэглэхгүй. Хоосон санд ажилладаг ч, хүснэгттэй болсны дараа ажиллахаа болино.
+> `MYSQL_URL` гэсэн нэр нь код дотор **`DATABASE_URL`-ыг дардаг** нөөц зам болж
+> үлдсэн ([createPool.ts](../src/lib/db/createPool.ts)). Нэр нь хуучирсан ч утга
+> нь Postgres URL байна. VPS дээр хэрэггүй — тохируулахгүй байх нь зөв.
 
-Тиймээс схем өөрчлөгдөх үед **SQL-ийг гараар** хэрэглэнэ. Шаардлагатай SQL-ийг
-гаргах (энэ нь баазад ХАНДАХГҮЙ тул ажиллана):
+---
+
+## Өгөгдлийн сан — PostgreSQL
 
 ```bash
-npm run db:generate      # drizzle/<нэр>.sql дотор бүх CREATE TABLE гарна
+sudo -u postgres psql -d bbuch_dash        # сервер дээрээс шууд
 ```
 
-Тэндээс хэрэгтэй хэсгээ аваад phpMyAdmin (hPanel → Databases) эсвэл
-`mysql` клиентээр ажиллуулна. Дараа нь **заавал**:
+Схем нь [src/lib/db/schema.ts](../src/lib/db/schema.ts) дотор, `drizzle-orm/pg-core`
+дээр. MySQL-ээс хөрвүүлэхэд өөрчлөгдсөн гол зүйлс тэр файлын толгойд
+тэмдэглэгдсэн: `varchar(36)` → натив `uuid`, `json` → `jsonb`, бүх `timestamp`
+нь `{ withTimezone: true }`.
+
+### Схем өөрчлөгдсөн үед
 
 ```bash
-npm run db:check         # бүх хүснэгт байгаа эсэхийг батална
+npm run backup            # 1. буцах цэг — ЗААВАЛ эхэнд
+npm run db:push           # 2. гаралтыг УНШИЖ байж зөвшөөрнө
+npm run db:check          # 3. сан хэвийн эсэхийг батална
 ```
 
-`db:check` нь дутуу хүснэгтийг нэрээр нь хэлдэг тул алдаа чимээгүй өнгөрөхгүй.
+`drizzle-kit push` нь хуучин MariaDB дээр чимээгүй уначихдаг байсан тул SQL-ийг
+гараар ажиллуулдаг байв — **Postgres дээр энэ асуудал байхгүй**.
 
-#### Одоогийн шинэчлэлтэд шаардлагатай SQL
+> Устгах (`DROP COLUMN` / `DROP TABLE`) SQL санал болговол **зогсоод** схемээ
+> дахин харна уу — өгөгдөл алдагдана.
 
-Нөөцлөлтийн тохиргоог (Google Drive-ийн холболт) хадгалах хүснэгт:
+`db:check` нь цагийн бүс, кодчлол, схемийн бүх хүснэгт байгаа эсэхийг шалгаад
+алдаатай бол 0-ээс ялгаатай кодоор гарна. Локалаас ажиллуулах үед `.env.local`
+дахь `DATABASE_URL` нь **локал** сан руу заадгийг санаарай — серверийн санг
+шалгах бол `DATABASE_URL=... npm run db:check` гэж дарж өгнө.
 
-```sql
-CREATE TABLE IF NOT EXISTS `settings` (
-  `setting_key` varchar(64) NOT NULL,
-  `value` text NOT NULL,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT `settings_setting_key` PRIMARY KEY(`setting_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+### Тогтмол мэдэгдэл (cron)
+
+`/api/cron/notifications` нь товлосон мэдэгдлийг илгээнэ. `CRON_SECRET`
+тохируулаагүй бол энэ route **аль ч** хүсэлтийг татгалзана. cPanel → Advanced →
+Cron Jobs дээр 15 минут тутам:
+
+```
+*/15 * * * * curl -fsS "https://dash.bbuchmongol.com/api/cron/notifications?secret=НУУЦ" >/dev/null
 ```
 
-### Схемийн өөрчлөлтийг яагаад гараар хийдэг вэ
+---
 
-`drizzle-kit push` нь багана/хүснэгт **устгах** SQL үүсгэж чаддаг. Тиймээс
-[deploy.sh](deploy.sh) ч, Hostinger-ийн build ч түүнийг дуудахгүй. Схем
-өөрчлөгдсөн үед:
+## Nginx ба SSL
+
+Тохиргоо нь `/etc/nginx/conf.d/bbuch-dash.conf` — `dash.bbuchmongol.com`-ыг
+`127.0.0.1:3002` руу proxy хийнэ (WebSocket-ийн upgrade толгойнуудтай).
 
 ```bash
-npm run backup                # 1. буцах цэг
-npm run db:push               # 2. гаралтыг УНШИЖ байж зөвшөөрнө
-npm run db:check              # 3. сан хэвийн эсэхийг батална
+nginx -t && systemctl reload nginx
 ```
 
-Устгах SQL санал болговол **зогсоод** схемээ дахин харна уу — өгөгдөл алдагдана.
+> ⚠ **DNS.** Домэйныг энэ сервер рүү (`72.62.192.163`) заалгаагүй бол дээрх
+> бүхэн ажиллахгүй. A бичлэгийг сольж, хуучин серверийг заасан AAAA бичлэгүүдийг
+> ч мөн засах эсвэл устгана.
 
-### Буцаах (rollback)
-
-Кодыг буцаах нь хамгийн хурдан:
-
-```bash
-git revert <commit> && git push origin main    # шинэ commit-оор буцаана
-```
-
-hPanel → Deployment → өмнөх хувилбар руу шилжих сонголт ч бий (`hbuilds/versions/`
-дор хуучин build-ууд хадгалагдана).
-
-**Өгөгдлийг буцаах** нь тусдаа үйлдэл — доорх Backup хэсгийг үзнэ үү.
+> ⚠ **Сертификат.** Одоогоор зөвхөн 80 порт сонсож байна. DNS чиглүүлсний дараа
+> cPanel-ийн AutoSSL ашиглах, эсвэл certbot суулгаж https-ийг идэвхжүүлнэ:
+> `dnf install certbot python3-certbot-nginx && certbot --nginx -d dash.bbuchmongol.com`.
+> Үүнгүйгээр `NEXT_PUBLIC_APP_URL`-д бичсэн https хаяг ажиллахгүй.
 
 ---
 
@@ -244,16 +231,8 @@ Google Cloud Console дээр нэг удаагийн бэлтгэл:
 > чимээгүй зогсоно. Ашиглаж буй эрх (`drive.file`) нь эмзэг бус ангилалд
 > ордог тул нийтлэхэд баталгаажуулалт (verification) шаардахгүй.
 
-> Console-ийн цэс саяхан өөрчлөгдсөн: хуучин **APIs & Services → OAuth consent
-> screen** нь одоо **Google Auth Platform** доор **Branding / Audience /
-> Clients** гэж хуваагдсан. «Test users» нь **Audience** хэсэгт байдаг ч дээрх
-> шалтгаанаар бид Testing биш, In production горимыг ашиглана.
-
 > Эрх нь `drive.file` — энэ апп **өөрөө үүсгэсэн** файлд л хандана. Таны Drive
 > дээрх бусад файлыг унших боломж нээгдэхгүй.
-
-> Зөвшөөрөл ямар нэг шалтгаанаар хүчингүй болвол нөөцлөлтийн дэлгэц дээр
-> алдаа гарч, «Дахин холбох» товчоор шинэчилнэ.
 
 ### Автомат — өдөрт нэг удаа
 
@@ -261,7 +240,7 @@ Cron нь нэвтэрч чаддаггүй тул түүнд зориулсан
 **дэлгэцээс** хийнэ:
 
 1. `/backup` → «Автомат хуулбар» хэсэг → **«Токен үүсгэх»**
-2. Гарч ирэх бүтэн командыг **Хуулах** товчоор аваад, hPanel → **Advanced →
+2. Гарч ирэх бүтэн командыг **Хуулах** товчоор аваад, cPanel → **Advanced →
    Cron Jobs** дээр өдөр бүр (жишээ нь 03:00) ажиллахаар тавина
 
 Токен нь `settings` хүснэгтэд хадгалагдана — орчны хувьсагч нэмэх, дахин
@@ -285,17 +264,9 @@ Cron нь нэвтэрч чаддаггүй тул түүнд зориулсан
 ### Дэлгэцээс — «Нөөцлөлт» цэс
 
 Супер админ нэвтэрсэн үед хажуугийн цэсэнд **Нөөцлөлт** гарч ирнэ (`/backup`).
-Тэндээс:
-
-- сүүлийн хуулбар хэзээ хийгдсэн, хэр хуучирсныг харах
-- `BACKUP_TOKEN` тохируулсан эсэх — **cron ажиллахгүй байгаа хамгийн түгээмэл
-  шалтгааныг** лог уншилгүй шууд харах
-- «Одоо хуулбарлах» — гараар нэн даруй авах
-- архив бүрийг **Drive дээр нээх** — файл нь таны Drive дотор энгийн файл тул
-  серверээр дамжуулахгүй, тэндээс шууд татна
-
-Энгийн админ ч, хаягаар шууд орсон ч хандахгүй: цэс нь `superOnly`, дэлгэц нь
-шалгалттай, API нь `requireSuper`-тэй — гурван давхарга.
+Тэндээс сүүлийн хуулбарын огноо, токен тохируулсан эсэх, «Одоо хуулбарлах»,
+архив бүрийг Drive дээр нээх боломжтой. Энгийн админ ч, хаягаар шууд орсон ч
+хандахгүй: цэс нь `superOnly`, дэлгэц нь шалгалттай, API нь `requireSuper`-тэй.
 
 ### Гараар (терминалаас)
 
@@ -318,12 +289,12 @@ npm run restore -- --remote <drive-file-id> --write
 > зориудаар ийм байдлаар хийв. Тиймээс анхдагч горим нь зөвхөн харуулна.
 
 Сэргээлтийг **жилд нэг удаа туршиж** үзнэ үү — туршаагүй backup бол backup биш.
-Хоосон туршилтын сан үүсгээд `MYSQL_URL`-ыг түүн рүү заагаад сэргээж үзэхэд
-хангалттай:
+Хоосон туршилтын сан үүсгээд түүн рүү заагаад сэргээхэд хангалттай:
 
 ```bash
-npm run tenant:push -- "mysql://…/туршилтын_сан"   # схем суулгах
-MYSQL_URL="mysql://…/туршилтын_сан" npm run restore -- --file dump.gz --write
+sudo -u postgres createdb bbuch_test
+DATABASE_URL="postgresql://…/bbuch_test" npm run db:push
+DATABASE_URL="postgresql://…/bbuch_test" npm run restore -- --file dump.gz --write
 ```
 
 ### Сэргээлт хэрхэн хамгаалагдсан бэ
@@ -360,34 +331,18 @@ MYSQL_URL="mysql://…/туршилтын_сан" npm run restore -- --file dump
 curl -H "x-health-token: ТОКЕН" https://dash.bbuchmongol.com/api/health
 ```
 
-### Холболтын хязгаар — хамгийн түгээмэл "унах" шалтгаан
+Хариунд Postgres-ийн SQLSTATE код орж ирнэ — буруу нууц үг, байхгүй сан,
+хаалттай порт гурвыг лог уншилгүй ялгана.
 
-Passenger нь ачаалал ихсэхэд аппын **хэд хэдэн процесс** зэрэг ажиллуулна.
-Бодит холболт = `DATABASE_POOL_MAX` × процессын тоо. Hostinger дээр MySQL
-хэрэглэгчийн хязгаар ихэвчлэн 25-75 байдаг тул хэтэрвэл `ER_CON_COUNT_ERROR`
-гарч, апп бүхэлдээ 503 өгч эхэлнэ.
+### Холболтын хязгаар
 
-`/api/health`-ийн дэлгэрэнгүй хариунд `mysql.code` талбар үүнийг шууд
-харуулна. Гарвал `DATABASE_POOL_MAX`-ыг **3 болгож бууруулаад** дахин деплой
-хийнэ.
+Бодит холболт = `DATABASE_POOL_MAX` × процессын тоо. Одоогийн бүтцээр нэг л
+процесс ажиллаж байгаа тул дээд тал нь 5 холболт — Postgres-ийн анхдагч 100-гийн
+дэргэд огт асуудалгүй. Процессыг олшруулбал (systemd template, PM2 cluster г.м.)
+энэ үржвэрийг дахин тооцоолно.
 
-### Хэмжигдсэн ачааллын багтаамж
-
-Локал дээр production build дээр хийсэн хэмжилт (бодит тоо, таамаг биш):
-
-| Юу | Үр дүн |
-|---|---|
-| Статик хуудас, 100 зэрэг хүсэлт | 1023 хүс/сек, p50 95ms, p99 131ms, **алдаагүй** |
-| API хүсэлт (3 SQL), pool=3, 50 зэрэг | 2988 хүс/сек, p50 16ms, p95 19ms, **алдаагүй** |
-| Дараалал дүүрэх цэг (асуулга 1сек үед) | 103 хүсэлт хүлээнэ, түүнээс цааш шууд 503 |
-
-Өөрөөр хэлбэл **саад нь апп биш** — жинхэнэ хязгаар нь MySQL хэрэглэгчийн
-холболтын квот. Нэг байгууллагын хэдэн арван зэрэг хэрэглэгч энэ тааз руу
-ойртохгүй.
-
-> Хэмжилт нь локал MySQL дээр хийгдсэн. Hostinger-ийн shared сервер дээр
-> асуулгын хугацаа урт байх тул тоо нь бага гарна — харин **зан үйл** (нурахгүй,
-> шугаман удаашрал, хэт ачаалалд 503) ижил хэвээр байна.
+`/api/health`-ийн дэлгэрэнгүй хариунд гарах `53300` (`too_many_connections`) нь
+энэ таазанд хүрснийг шууд хэлнэ.
 
 ### Хэт ачааллын хариу
 
@@ -398,30 +353,31 @@ Passenger нь ачаалал ихсэхэд аппын **хэд хэдэн пр
 
 ### Процессын хамгаалалт
 
-[src/instrumentation.ts](../src/instrumentation.ts) нь баригдаагүй Promise
-алдааг барьж логт бичээд процессыг амьд үлдээнэ. Үүнгүйгээр Node 20 нь
-ийм алдаанд процессыг шууд унагаадаг — нэг хүсэлтийн алдаа бүх хэрэглэгчийг
-унагана гэсэн үг.
+Хоёр давхарга:
+
+- [src/instrumentation.ts](../src/instrumentation.ts) нь баригдаагүй Promise
+  алдааг барьж логт бичээд процессыг амьд үлдээнэ. Үүнгүйгээр Node 20 нь ийм
+  алдаанд процессыг шууд унагаадаг — нэг хүсэлтийн алдаа бүх хэрэглэгчийг
+  унагана гэсэн үг.
+- systemd `Restart=always`, `RestartSec=5` — процесс ямар ч шалтгаанаар унавал
+  5 секундын дараа сэргэнэ. Unit нь `enabled` тул сервер дахин асахад ч өөрөө
+  эхэлнэ.
 
 ### Санах ой
 
-`next build` нь Node-ын үндсэн heap-д багтдаггүй. Hostinger дээр
-`NODE_OPTIONS=--max-old-space-size=2048` тохируулсан байх ёстой (hPanel →
-Node.js тохиргоо). Build "Killed" гэж унавал хамгийн түрүүнд үүнийг шалгана.
+`next build` нь Node-ын үндсэн heap-д багтдаггүй тохиолдол гардаг. Build
+«Killed» гэж унавал:
+
+```bash
+sudo -u bbuch bash -c "set -a; source ./.env.local; set +a; NODE_OPTIONS=--max-old-space-size=2048 npm run build"
+```
 
 ---
 
-## Хувилбар Б — өөрийн Ubuntu VPS (одоогоор ХЭРЭГЛЭЭГҮЙ)
+## Энэ фолдор дахь хуучин скриптүүд
 
-Хэрэв ирээдүйд shared hosting-оос VPS рүү шилжвэл энэ фолдер дахь скриптүүд
-бэлэн байна. Одоогийн `dash.bbuchmongol.com` деплойд эдгээр нь **хэрэглэгддэггүй**.
-
-| Файл | Зориулалт |
-|---|---|
-| [setup-server.sh](setup-server.sh) | Нэг удаагийн provisioning (Node 20, PM2, Nginx, Postgres, swap, ufw) |
-| [deploy.sh](deploy.sh) | pull → build → PM2 reload → health check |
-| [ecosystem.config.js](ecosystem.config.js) | PM2 процессын тохиргоо |
-| [nginx/bid_tuslay.conf](nginx/bid_tuslay.conf) | Nginx reverse proxy |
-
-Бүтэц: Nginx (80/443) → `next start` (127.0.0.1:3000, PM2) → локал Postgres.
-Дэлгэрэнгүйг скриптүүдийн доторх тайлбараас үзнэ үү.
+[setup-server.sh](setup-server.sh), [deploy.sh](deploy.sh),
+[ecosystem.config.js](ecosystem.config.js), [nginx/bid_tuslay.conf](nginx/bid_tuslay.conf)
+нь **PM2 дээр суурилсан өөр нэг бүтцэд** зориулж бичигдсэн бөгөөд одоогийн
+systemd деплойд **хэрэглэгддэггүй**. Уншиж лавлахаас цаашгүй — ажиллуулбал
+одоогийн тохиргоотой зөрчилдөнө.
