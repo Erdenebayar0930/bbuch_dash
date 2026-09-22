@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
@@ -11,6 +11,7 @@ import { notifyUsers } from "@/lib/api/notify";
 import { readTask } from "@/lib/api/taskInput";
 import { db } from "@/lib/db";
 import { projects, tasks, users } from "@/lib/db/schema";
+import { isAdminRole } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
@@ -53,9 +54,19 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get("projectId");
     const mine = searchParams.get("mine") === "1";
 
+    // Аймагтай төслийн даалгавар зөвхөн тухайн аймгийн гишүүдэд харагдана —
+    // /api/projects-тэй ижил дүрэм. Аймаггүй ("") төсөл нийтийнх.
+    const myAimags = result.caller.user?.aimags ?? [];
+    const aimagVisibility = isAdminRole(result.caller.user?.role)
+      ? undefined
+      : myAimags.length > 0
+        ? or(eq(projects.aimag, ""), inArray(projects.aimag, myAimags))
+        : eq(projects.aimag, "");
+
     const filters = [
       projectId ? eq(tasks.projectId, projectId) : undefined,
       mine ? eq(tasks.assignedTo, result.caller.uid) : undefined,
+      aimagVisibility,
     ].filter(Boolean);
 
     const rows = await db

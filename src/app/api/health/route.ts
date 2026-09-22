@@ -53,29 +53,29 @@ async function canSeeDetails(request: NextRequest): Promise<boolean> {
 }
 
 /**
- * mysql2-ийн алдааны кодыг хүн ойлгохоор тайлбар руу буулгана.
+ * Postgres (`pg` драйвер)-ийн алдааны кодыг хүн ойлгохоор тайлбар руу буулгана.
  *
  * Эдгээр нь бодит байршуулалтад хамгийн олон тааралддаг гурав-дөрөв:
- * буруу нууц үг, байхгүй сан, хаалттай порт.
+ * буруу нууц үг, байхгүй сан, хаалттай порт. Түлхүүрүүд нь Postgres-ийн
+ * SQLSTATE код (тав оронтой) эсвэл Node-ийн сүлжээний алдааны код.
  */
-const MYSQL_HINTS: Record<string, string> = {
-  ER_ACCESS_DENIED_ERROR:
-    "Хэрэглэгчийн нэр эсвэл нууц үг буруу. Hosting дээрх хэрэглэгч ихэвчлэн дансны угтвартай байдгийг анхаарна уу.",
-  ER_DBACCESS_DENIED_ERROR: "Хэрэглэгчид энэ санд хандах эрх олгоогүй байна.",
-  ER_BAD_DB_ERROR: "Заасан нэртэй сан байхгүй байна.",
-  ER_NO_SUCH_TABLE: "Хүснэгт байхгүй — `npm run db:push` ажиллуулаагүй байж магадгүй.",
-  ECONNREFUSED: "MySQL сервер хариу өгсөнгүй — host болон порт-оо шалгана уу.",
-  ENOTFOUND: "MySQL-ийн хостын нэр олдсонгүй.",
-  ETIMEDOUT: "MySQL холболт хугацаа хэтэрлээ.",
-  PROTOCOL_CONNECTION_LOST: "MySQL холболт тасарлаа.",
+const PG_HINTS: Record<string, string> = {
+  "28P01":
+    "Хэрэглэгчийн нэр эсвэл нууц үг буруу (password authentication failed).",
+  "28000": "Хэрэглэгчид энэ санд хандах эрх олгоогүй байна.",
+  "3D000": "Заасан нэртэй сан байхгүй байна.",
+  "42P01": "Хүснэгт байхгүй — `npm run db:push` ажиллуулаагүй байж магадгүй.",
+  ECONNREFUSED: "Postgres сервер хариу өгсөнгүй — host болон порт-оо шалгана уу.",
+  ENOTFOUND: "Postgres-ийн хостын нэр олдсонгүй.",
+  ETIMEDOUT: "Postgres холболт хугацаа хэтэрлээ.",
+  "57P01": "Postgres холболт админаар таслагдлаа.",
   /**
    * Ачаалал ихсэхэд хамгийн түрүүнд илэрдэг хоёр алдаа. Хоёулаа "апп унасан"
    * мэт харагддаг ч шалтгаан нь ондоо — тиймээс зөвлөмжийг нь ялгав.
    */
-  ER_CON_COUNT_ERROR:
-    "MySQL-ийн холболтын хязгаар дүүрлээ. DATABASE_POOL_MAX-ыг бууруулна уу (Passenger процесс бүр өөрийн pool-той тул тоо үржинэ).",
-  ER_USER_LIMIT_REACHED:
-    "Hosting дээрх хэрэглэгчийн холболтын квот дүүрлээ. DATABASE_POOL_MAX-ыг бууруулах эсвэл багцаа ахиулна уу.",
+  "53300":
+    "Postgres-ийн холболтын хязгаар дүүрлээ. DATABASE_POOL_MAX-ыг бууруулна уу (Passenger процесс бүр өөрийн pool-той тул тоо үржинэ).",
+  "53400": "Hosting дээрх тохиргооны хязгаар дүүрлээ (configuration_limit_exceeded).",
 };
 
 /**
@@ -146,7 +146,7 @@ function describeVapidKey(key: string | undefined): Record<string, unknown> {
 /**
  * Драйверийн жинхэнэ алдааны кодыг олно.
  *
- * Drizzle нь mysql2-ийн алдааг өөрийн "Failed query: …" алдаагаар БООДОГ тул
+ * Drizzle нь pg драйверийн алдааг өөрийн "Failed query: …" алдаагаар БООДОГ тул
  * дээд түвшний мессеж нь юу болсныг огт хэлдэггүй. Жинхэнэ шалтгаан нь
  * `cause` гинжин дотор нуугдана — түүнийг гүйлгэж олно.
  */
@@ -194,7 +194,7 @@ function describeDbConfig() {
       // Loopback хаяг — нууц мэдээлэл биш, харин localhost/127.0.0.1 зөрүүг
       // шууд харуулдаг тул оношилгоонд хамгийн хэрэгтэй талбар.
       host: parsed.hostname,
-      port: parsed.port || "3306",
+      port: parsed.port || "5432",
       fingerprint,
     };
   } catch {
@@ -223,7 +223,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await db.execute(sql`select 1` as never);
-    checks.mysql = "ok";
+    checks.postgres = "ok";
   } catch (error) {
     dbOk = false;
     const code = findDriverCode(error);
@@ -260,7 +260,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    checks.mysql = {
+    checks.postgres = {
       status: "error",
       /**
        * Драйверийн бүтэн мессеж нь хэрэглэгчийн нэр, хостыг агуулдаг (жишээ нь
@@ -268,7 +268,7 @@ export async function GET(request: NextRequest) {
        * асуулгыг агуулна. Хоёул зөвхөн эрхтэй хүнд.
        */
       code: code ?? "UNKNOWN",
-      hint: code ? (MYSQL_HINTS[code] ?? null) : null,
+      hint: code ? (PG_HINTS[code] ?? null) : null,
       ...(detailed
         ? { message: error instanceof Error ? error.message : "Unknown error" }
         : {}),

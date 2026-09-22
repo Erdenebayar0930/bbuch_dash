@@ -68,6 +68,10 @@ type AssetRegistryProps = {
 export default function AssetRegistry({ aimag }: AssetRegistryProps) {
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
+  // Агуулах/төрлийн лавлах жагсаалтыг админ болон тухайн аймгийн гишүүд
+  // (жишээ нь Магтаалын аймаг) удирдана.
+  const canManageMeta =
+    isAdmin || (!!aimag && (user?.aimags ?? []).includes(aimag));
   /** Аймгийн хуудсанд аймаг нь тогтмол тул баганаар давтаж харуулах утгагүй */
   const columnCount = aimag ? 6 : 7;
 
@@ -313,8 +317,7 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
 
         <ExportButton dataset="assets" />
 
-        {/* Тооллого нь бүх бүртгэлийг хамрах тул зөвхөн үндсэн хуудсаас удирдана */}
-        {isAdmin && !aimag && !count.session && (
+        {canManageMeta && !count.session && (
           <button
             type="button"
             onClick={handleStartCount}
@@ -326,17 +329,20 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
           </button>
         )}
 
+        {/* Агуулах, төрлийн жагсаалтыг админ болон тухайн аймгийн гишүүд тохируулна */}
+        {canManageMeta && (
+          <button
+            type="button"
+            onClick={() => setMetaOpen(true)}
+            className="flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-theme-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
+          >
+            <Settings2 className="h-4 w-4" strokeWidth={1.8} />
+            Агуулах / төрөл
+          </button>
+        )}
+
         {isAdmin && (
           <>
-            <button
-              type="button"
-              onClick={() => setMetaOpen(true)}
-              className="flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-theme-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
-            >
-              <Settings2 className="h-4 w-4" strokeWidth={1.8} />
-              Агуулах / төрөл
-            </button>
-
             <button
               type="button"
               onClick={() => {
@@ -397,7 +403,7 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
             Зөвхөн тоологдоогүй
           </button>
 
-          {isAdmin && !aimag && (
+          {canManageMeta && (
             <button
               type="button"
               onClick={handleFinishCount}

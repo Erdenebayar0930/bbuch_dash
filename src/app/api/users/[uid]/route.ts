@@ -179,6 +179,15 @@ export async function PATCH(
       patch.callings = parsed.value;
     }
 
+    if (body.canNotify !== undefined) {
+      if (typeof body.canNotify !== "boolean") {
+        return badRequest("canNotify нь true/false байна.");
+      }
+
+      checks.push(canAssignGroups(actor, target));
+      patch.canNotify = body.canNotify;
+    }
+
     if (Object.keys(patch).length === 1) {
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }

@@ -13,7 +13,7 @@
  */
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/node-postgres";
 
 import { createDbPool, resolveDatabaseUrl } from "../src/lib/db/createPool";
 
@@ -48,7 +48,7 @@ if (!databaseUrl) {
 }
 
 const pool = createDbPool(databaseUrl);
-const db = drizzle(pool, { mode: "default" });
+const db = drizzle(pool);
 
 /** Firestore Timestamp | ISO текст → Date */
 function toDate(value: unknown): Date {
@@ -86,7 +86,9 @@ async function migrateUsers() {
         createdAt: toDate(data.createdAt),
         updatedAt: toDate(data.updatedAt ?? data.createdAt),
       })
-      .onDuplicateKeyUpdate({ set: {
+      .onConflictDoUpdate({
+        target: users.uid,
+        set: {
           email: str(data.email).toLowerCase(),
           firstName: str(data.first_name),
           lastName: str(data.last_name),
@@ -94,7 +96,7 @@ async function migrateUsers() {
           position: str(data.position),
           role: str(data.role, "user"),
           status: str(data.status, "active"),
-          },
+        },
       });
 
     count += 1;
@@ -161,7 +163,7 @@ async function migrateFcmTokens() {
     await db
       .insert(fcmTokens)
       .values({ token, uid: doc.id, updatedAt: toDate(doc.data().updatedAt) })
-      .onDuplicateKeyUpdate({ set: { uid: doc.id } });
+      .onConflictDoUpdate({ target: fcmTokens.token, set: { uid: doc.id } });
 
     count += 1;
   }
@@ -206,7 +208,7 @@ async function migrateConfig() {
   await db
     .insert(appConfig)
     .values({ id: "app", hasAdmin })
-    .onDuplicateKeyUpdate({ set: { hasAdmin } });
+    .onConflictDoUpdate({ target: appConfig.id, set: { hasAdmin } });
 
   return hasAdmin;
 }

@@ -79,8 +79,7 @@ export async function DELETE(
 
   try {
     const [{ aidCount }] = await db
-      // Postgres-ийн `::int` cast нь MySQL-д `cast(... as signed)`.
-      .select({ aidCount: sql<number>`cast(count(*) as signed)` })
+      .select({ aidCount: sql<number>`(count(*))::int` })
       .from(welfareAids)
       .where(eq(welfareAids.householdId, id));
 

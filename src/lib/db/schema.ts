@@ -1,82 +1,60 @@
 import {
   boolean,
-  customType,
   decimal,
-  double,
+  doublePrecision,
   index,
-  int,
-  mysqlTable,
+  integer,
+  jsonb,
+  pgTable,
   text,
   timestamp,
   uniqueIndex,
+  uuid,
   varchar,
-} from "drizzle-orm/mysql-core";
+} from "drizzle-orm/pg-core";
 
 /**
- * MySQL-ийн ялгаатай тал (Postgres-ээс хөрвүүлэхэд анхаарах зүйлс):
+ * Postgres-руу хөрвүүлсэн тэмдэглэл:
  *
- *  • UUID төрөл байхгүй — `varchar(36)` дээр апп талаас утга онооно.
- *    `crypto.randomUUID()` нь Node 20 ба браузарт глобалаар бэлэн тул
- *    `node:crypto` импортлохгүй (импортловол клиент бандлыг эвдэнэ).
- *  • TEXT багана индекслэхийн тулд урьдчилсан урт шаарддаг тул индекс,
- *    unique, foreign key-д оролцох бүх багана `varchar(n)` байна.
- *  • TEXT / JSON баганад DB талын DEFAULT тавих боломжгүй (MySQL 8.0.13-аас
- *    өмнө огт, дараа нь ч хязгаартай) — тиймээс `$defaultFn`-ээр апп талаас
- *    анхдагч утгыг өгнө. Бүх бичилт Drizzle-ээр явдаг тул энэ хангалттай.
- *  • TIMESTAMP нь дотооддоо UTC-гээр хадгалагдана. Холболтын цагийн бүсийг
- *    `src/lib/db/createPool.ts`-д драйвер талд (`timezone: "Z"`) БОЛОН session
- *    талд (`SET time_zone = '+00:00'`) хоёуланд нь тогтоосон — эс бөгөөс
- *    серверийн локал бүсээр хөрвүүлж, огноо нааш цааш зөрнө. Ажиллаж байгааг
- *    `npm run db:check` шалгана.
- *  • JSON баганыг `jsonCol` дамжуулан үүсгэнэ — MariaDB дээр JSON нь
- *    LONGTEXT тул драйвер мөрөөр буцаадаг (доорх тайлбарыг үзнэ үү).
- *
- * Шаардлага: MySQL 8.0+ эсвэл MariaDB 10.2+ — зарим асуулга цонхны функц
- * (`row_number() over`) болон `JSON_CONTAINS` ашигладаг.
+ *  • UUID нь Postgres дээр НАТИВ төрөл — `uuid("id").primaryKey().defaultRandom()`
+ *    ашиглана, апп талаас `crypto.randomUUID()` онооход хэрэгцээгүй болсон.
+ *  • JSON багана нь `jsonb`-ээр НАТИВ дэмжигдэнэ — драйвер аяндаа
+ *    задалж/сериалжуулдаг тул MariaDB-ийн мөрөөр буцаах асуудал байхгүй.
+ *  • TIMESTAMP бүгд `{ withTimezone: true }`-тэй зарлагдана — Postgres
+ *    "timestamptz" нь UTC-гээр хадгалж, session цагийн бүсээс үл хамааран
+ *    зөв утга буцаадаг тул MySQL-д хэрэгтэй байсан драйвер/session талын
+ *    цагийн бүс тохиргоо шаардлагагүй болсон.
  */
 
 /** Firebase UID нь 28 тэмдэгт — 128 нь ирээдүйд ч хүрэлцэнэ */
 const UID_LEN = 128;
 
-/** UUID хэлбэрийн үндсэн түлхүүр — MySQL-д төрөл нь байхгүй тул varchar(36) */
-const uuidPk = () =>
-  varchar("id", { length: 36 })
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID());
+/** UUID хэлбэрийн үндсэн түлхүүр — Postgres native UUID, DB талаас үүснэ */
+const uuidPk = () => uuid("id").primaryKey().defaultRandom();
 
 /** Бусад хүснэгт рүү заах UUID гадаад түлхүүр */
-const uuidRef = (name: string) => varchar(name, { length: 36 });
+const uuidRef = (name: string) => uuid(name);
 
 /** Firebase UID агуулах багана */
 const uidCol = (name: string) => varchar(name, { length: UID_LEN });
 
-/** Урт чөлөөт бичвэр — анхдагч нь хоосон мөр (DB default тавих боломжгүй) */
+/** Урт чөлөөт бичвэр — анхдагч нь хоосон мөр */
 const bodyText = (name: string) =>
   text(name)
     .notNull()
     .$defaultFn(() => "");
 
-/**
- * JSON багана — MySQL болон MariaDB хоёуланд ажиллана.
- *
- * MySQL 8-д JSON нь бие даасан төрөл тул драйвер өөрөө задалж объект өгдөг.
- * MariaDB-д JSON нь LONGTEXT-ийн ӨӨР НЭР бөгөөд драйвер МӨРӨӨР буцаадаг —
- * тэр үед `row.aimags` нь массив биш мөр болж, `Array.isArray` шалгалтууд
- * чимээгүйхэн хоосон үр дүн өгнө. Тиймээс мөр ирвэл өөрсдөө задална.
- */
-const jsonCol = <T>(name: string) =>
-  customType<{ data: T; driverData: string }>({
-    dataType: () => "json",
-    toDriver: (value: T) => JSON.stringify(value),
-    fromDriver: (value: unknown) =>
-      typeof value === "string" ? (JSON.parse(value) as T) : (value as T),
-  })(name);
+/** JSON багана — Postgres jsonb, драйвер өөрөө задалж/сериалжуулна. */
+const jsonCol = <T>(name: string) => jsonb(name).$type<T>();
+
+/** UTC-гээр хадгалагдах, цагийн бүстэй timestamp */
+const utcTimestamp = (name: string) => timestamp(name, { withTimezone: true });
 
 /**
  * Хэрэглэгч. `uid` нь Firebase Auth-ийн UID — аутентикац Firebase дээр
  * үлдсэн тул энэ багана нь гадаад системтэй холбогдох түлхүүр болно.
  */
-export const users = mysqlTable(
+export const users = pgTable(
   "users",
   {
     uid: uidCol("uid").primaryKey(),
@@ -95,7 +73,7 @@ export const users = mysqlTable(
       .$defaultFn(() => []),
     /**
      * Харьяалагдах аймгууд — нэг хүн олон аймагт байж болно.
-     * Мэдэгдлийг аймгаар чиглүүлэхэд `JSON_CONTAINS` хайлт хийнэ.
+     * Мэдэгдлийг аймгаар чиглүүлэхэд jsonb containment (`@>`) хайлт хийнэ.
      */
     aimags: jsonCol<string[]>("aimags")
       .notNull()
@@ -144,12 +122,17 @@ export const users = mysqlTable(
     spouseBirthDate: varchar("spouse_birth_date", { length: 10 })
       .notNull()
       .default(""),
+    /**
+     * Админ бус ч мэдэгдэл илгээх эрх авсан эсэх (зөвхөн админ оноодог).
+     * Админ/супер бол энэ талбараас үл хамааран үргэлж илгээх боломжтой.
+     */
+    canNotify: boolean("can_notify").notNull().default(false),
     /** super | admin | user */
     role: varchar("role", { length: 32 }).notNull().default("user"),
     /** active | pending | blocked */
     status: varchar("status", { length: 32 }).notNull().default("pending"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
     index("users_status_idx").on(table.status),
@@ -157,13 +140,13 @@ export const users = mysqlTable(
     // ТАЙЛБАР: Postgres дээр энд `aimags`-ийн GIN индекс байсан. MySQL-д JSON
     // массивыг индекслэхийн тулд multi-valued index (8.0.17+) хэрэгтэй бөгөөд
     // Drizzle-ээр илэрхийлэх боломжгүй. Хэрэглэгчийн тоо цөөн тул
-    // `JSON_CONTAINS`-ийн бүтэн скан хүлээн зөвшөөрөгдөнө; олон мянган
+    // jsonb containment-ийн бүтэн скан хүлээн зөвшөөрөгдөнө; олон мянган
     // хэрэглэгчтэй болвол generated column + индекс нэмнэ.
   ]
 );
 
 /** Орлого / зарлагын гүйлгээ */
-export const transactions = mysqlTable(
+export const transactions = pgTable(
   "transactions",
   {
     id: uuidPk(),
@@ -198,8 +181,8 @@ export const transactions = mysqlTable(
      */
     importKey: varchar("import_key", { length: 255 }),
     createdBy: uidCol("created_by"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
     index("transactions_date_idx").on(table.date),
@@ -216,13 +199,13 @@ export const transactions = mysqlTable(
  * жагсаалт кодод хатуу бичих нь болохгүй — админ энд нэмж, хасаж чадна.
  * Загварт таарсан гүйлгээний утга «1/10», бусад нь «Өргөл» болно.
  */
-export const tithePatterns = mysqlTable(
+export const tithePatterns = pgTable(
   "tithe_patterns",
   {
     id: uuidPk(),
     /** Хайх хэсэг — жижиг үсэг, зайгүй болгож харьцуулна */
     pattern: varchar("pattern", { length: 255 }).notNull(),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
   },
   (table) => [uniqueIndex("tithe_patterns_pattern_idx").on(table.pattern)]
 );
@@ -233,7 +216,7 @@ export const tithePatterns = mysqlTable(
  * Профайл хадгалахад бүх мөрийг солих (replace) зарчмаар бичнэ, тиймээс
  * дараалал `position`-оор тогтоно.
  */
-export const children = mysqlTable(
+export const children = pgTable(
   "children",
   {
     id: uuidPk(),
@@ -246,8 +229,8 @@ export const children = mysqlTable(
     /** male | female | "" */
     gender: varchar("gender", { length: 16 }).notNull().default(""),
     /** Маягт дээрх эрэмбэ */
-    position: int("position").notNull().default(0),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+    position: integer("position").notNull().default(0),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
   },
   (table) => [index("children_uid_idx").on(table.uid, table.position)]
 );
@@ -256,20 +239,20 @@ export const children = mysqlTable(
  * Агуулах — эд хөрөнгө хадгалагдаж буй байршил.
  * Эхний утгууд seed-ээр орох ба админ нэмж болно.
  */
-export const warehouses = mysqlTable("warehouses", {
+export const warehouses = pgTable("warehouses", {
   id: uuidPk(),
   name: varchar("name", { length: 255 }).notNull(),
   /** Жагсаалт дахь эрэмбэ */
-  position: int("position").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  position: integer("position").notNull().default(0),
+  createdAt: utcTimestamp("created_at").notNull().defaultNow(),
 });
 
 /** Эд хөрөнгийн төрөл — админ чөлөөтэй нэмнэ */
-export const assetCategories = mysqlTable("asset_categories", {
+export const assetCategories = pgTable("asset_categories", {
   id: uuidPk(),
   name: varchar("name", { length: 255 }).notNull(),
-  position: int("position").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  position: integer("position").notNull().default(0),
+  createdAt: utcTimestamp("created_at").notNull().defaultNow(),
 });
 
 /**
@@ -283,7 +266,7 @@ export const assetCategories = mysqlTable("asset_categories", {
  * агуулах нь БАЙРШИЛ, аймаг нь ЭЗЭМШИГЧ нэгжийг заана — нэг агуулахад олон
  * аймгийн хөрөнгө байж болно.
  */
-export const assets = mysqlTable(
+export const assets = pgTable(
   "assets",
   {
     id: uuidPk(),
@@ -296,15 +279,15 @@ export const assets = mysqlTable(
     warehouseId: uuidRef("warehouse_id").references(() => warehouses.id, {
       onDelete: "set null",
     }),
-    quantity: int("quantity").notNull().default(1),
+    quantity: integer("quantity").notNull().default(1),
     /** Хэмжих нэгж — ш, ком, кг гэх мэт */
     unit: varchar("unit", { length: 32 }).notNull().default("ш"),
     /** Дугаар, сериал, инвентарын код */
     code: varchar("code", { length: 128 }).notNull().default(""),
     note: bodyText("note"),
     createdBy: uidCol("created_by"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
     index("assets_warehouse_idx").on(table.warehouseId),
@@ -320,7 +303,7 @@ export const assets = mysqlTable(
  * доторх зам) хадгалагдана. `path` нь файлыг устгахад ЗААВАЛ хэрэгтэй —
  * URL-аас буцааж гаргах найдваргүй.
  */
-export const assetImages = mysqlTable(
+export const assetImages = pgTable(
   "asset_images",
   {
     id: uuidPk(),
@@ -330,8 +313,8 @@ export const assetImages = mysqlTable(
     url: varchar("url", { length: 1024 }).notNull(),
     /** Storage доторх зам — устгахад ашиглана */
     path: varchar("path", { length: 1024 }).notNull(),
-    position: int("position").notNull().default(0),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+    position: integer("position").notNull().default(0),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
   },
   (table) => [index("asset_images_asset_idx").on(table.assetId, table.position)]
 );
@@ -342,7 +325,7 @@ export const assetImages = mysqlTable(
  * Мөр бүр нэг удаагийн тооллого: хэдийд, хэн, ямар төлөвтэй, хэдэн ширхэг
  * олдсоныг тэмдэглэнэ. Хуучин бүртгэл хэзээ ч дарагдахгүй — түүх бүрэн үлдэнэ.
  */
-export const assetChecks = mysqlTable(
+export const assetChecks = pgTable(
   "asset_checks",
   {
     id: uuidPk(),
@@ -352,10 +335,10 @@ export const assetChecks = mysqlTable(
     /** ok | damaged | short | missing */
     status: varchar("status", { length: 32 }).notNull(),
     /** Тоолж олдсон тоо — бүртгэлийнхтэй харьцуулна */
-    foundQuantity: int("found_quantity").notNull().default(0),
+    foundQuantity: integer("found_quantity").notNull().default(0),
     note: bodyText("note"),
     checkedBy: uidCol("checked_by"),
-    checkedAt: timestamp("checked_at").notNull().defaultNow(),
+    checkedAt: utcTimestamp("checked_at").notNull().defaultNow(),
   },
   (table) => [index("asset_checks_asset_idx").on(table.assetId, table.checkedAt)]
 );
@@ -368,11 +351,11 @@ export const assetChecks = mysqlTable(
  * шалгалтын бүртгэл хөндөгдөхгүй, олон хүн зэрэг тоолоход ч нэг дүр зураг
  * харагдана. `ended_at` нь null бол тооллого идэвхтэй.
  */
-export const assetCountSessions = mysqlTable("asset_count_sessions", {
+export const assetCountSessions = pgTable("asset_count_sessions", {
   id: uuidPk(),
   startedBy: uidCol("started_by"),
-  startedAt: timestamp("started_at").notNull().defaultNow(),
-  endedAt: timestamp("ended_at"),
+  startedAt: utcTimestamp("started_at").notNull().defaultNow(),
+  endedAt: utcTimestamp("ended_at"),
 });
 
 /**
@@ -383,7 +366,7 @@ export const assetCountSessions = mysqlTable("asset_count_sessions", {
  * хадгалж байгаа нь мэдэгдэл илгээх, хэрэглэгчийн харьяаллаар шүүхэд
  * users.aimags-тай шууд тааруулах боломж өгнө.
  */
-export const projects = mysqlTable(
+export const projects = pgTable(
   "projects",
   {
     id: uuidPk(),
@@ -392,12 +375,12 @@ export const projects = mysqlTable(
     aimag: varchar("aimag", { length: 64 }).notNull().default(""),
     description: bodyText("description"),
     /** Жагсаалт дахь эрэмбэ */
-    position: int("position").notNull().default(0),
+    position: integer("position").notNull().default(0),
     /** Дууссан төслийг нуухад — мөрийг устгахгүй */
     archived: boolean("archived").notNull().default(false),
     createdBy: uidCol("created_by"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [index("projects_aimag_idx").on(table.aimag)]
 );
@@ -409,7 +392,7 @@ export const projects = mysqlTable(
  * `set null`. Багана доторх дараалал `position`-оор тогтох ба өөр багана руу
  * зөөхөд сүүлд нь тавигдана.
  */
-export const tasks = mysqlTable(
+export const tasks = pgTable(
   "tasks",
   {
     id: uuidPk(),
@@ -429,12 +412,12 @@ export const tasks = mysqlTable(
     /** YYYY-MM-DD, эсвэл хоосон */
     dueDate: varchar("due_date", { length: 10 }).notNull().default(""),
     /** Багана доторх эрэмбэ */
-    position: int("position").notNull().default(0),
+    position: integer("position").notNull().default(0),
     /** Дууссан төлөв рүү шилжсэн хугацаа — буцаахад null болно */
-    completedAt: timestamp("completed_at"),
+    completedAt: utcTimestamp("completed_at"),
     createdBy: uidCol("created_by"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
     index("tasks_project_status_idx").on(
@@ -453,7 +436,7 @@ export const tasks = mysqlTable(
  * хэрэглэгч апп нээгээгүй, зөвшөөрөл өгөөгүй байсан ч мэдэгдэл алдагдахгүй,
  * дараа нэвтрэхэд уншаагүй төлөвтэй хүлээж байна.
  */
-export const notifications = mysqlTable(
+export const notifications = pgTable(
   "notifications",
   {
     id: uuidPk(),
@@ -468,12 +451,52 @@ export const notifications = mysqlTable(
     /** Илгээсэн админы uid */
     createdBy: uidCol("created_by"),
     /** Уншсан хугацаа — null бол уншаагүй */
-    readAt: timestamp("read_at"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+    readAt: utcTimestamp("read_at"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
   },
   (table) => [
     index("notifications_uid_created_idx").on(table.uid, table.createdAt),
   ]
+);
+
+/**
+ * Тогтмол (давтагддаг) мэдэгдлийн тохиргоо — өдөр бүр/долоо хоног бүр/сар
+ * бүр тодорхой цагт `notifications`-руу шинэ мөр үүсгэж, боломжтой бол push
+ * илгээнэ. Бодит явуулалт `/api/cron/notifications`-аар гадны cron дуудахад
+ * хийгдэнэ — энэ хүснэгт зөвхөн ТОХИРГОО, түүхийг хадгална.
+ */
+export const scheduledNotifications = pgTable(
+  "scheduled_notifications",
+  {
+    id: uuidPk(),
+    title: varchar("title", { length: 255 }).notNull(),
+    body: bodyText("body"),
+    url: varchar("url", { length: 1024 }).notNull().default(""),
+    /** all | aimag | role — хэрэглэгч сонгож илгээх шаардлагагүй тул "user" алга */
+    targetType: varchar("target_type", { length: 16 }).notNull().default("all"),
+    /**
+     * targetType нь aimag/role үед л ашиглагдана. aimag үед олон утгатай
+     * байж болно (жишээ нь ["praise", "guard"]); role үед ганц утгатай массив.
+     */
+    targetValues: jsonCol<string[]>("target_values")
+      .notNull()
+      .$defaultFn(() => []),
+    /** daily | weekly | monthly */
+    frequency: varchar("frequency", { length: 16 }).notNull().default("daily"),
+    /** HH:mm, Улаанбаатарын цагаар */
+    timeOfDay: varchar("time_of_day", { length: 5 }).notNull().default("09:00"),
+    /** weekly үед 0(Ням)-6(Бямба); бусад үед -1 */
+    dayOfWeek: integer("day_of_week").notNull().default(-1),
+    /** monthly үед 1-28; бусад үед -1 */
+    dayOfMonth: integer("day_of_month").notNull().default(-1),
+    active: boolean("active").notNull().default(true),
+    /** Сүүлд илгээсэн YYYY-MM-DD — нэг өдөр хоёр удаа явахаас сэргийлнэ */
+    lastSentDate: varchar("last_sent_date", { length: 10 }).notNull().default(""),
+    createdBy: uidCol("created_by"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("scheduled_notifications_active_idx").on(table.active)]
 );
 
 /**
@@ -487,7 +510,7 @@ export const notifications = mysqlTable(
  * агшин биш — цагийн бүс хөрвүүлэлт өдрийг нааш цааш зөөх ёсгүй.
  * `doneAt` нь null бол ээлж хараахан гүйцэтгэгдээгүй.
  */
-export const scheduleShifts = mysqlTable(
+export const scheduleShifts = pgTable(
   "schedule_shifts",
   {
     id: uuidPk(),
@@ -503,11 +526,11 @@ export const scheduleShifts = mysqlTable(
     area: bodyText("area"),
     note: bodyText("note"),
     /** null бол гүйцэтгээгүй */
-    doneAt: timestamp("done_at"),
+    doneAt: utcTimestamp("done_at"),
     doneBy: uidCol("done_by"),
     createdBy: uidCol("created_by"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
     // Хуваарийг үргэлж төрөл + огноогоор шүүнэ — хамтарсан индекс хоёуланг барина
@@ -523,15 +546,15 @@ export const scheduleShifts = mysqlTable(
  * устгахгүйгээр `bought` болгоно — түүх нь дараагийн төлөвлөлтөд хэрэгтэй.
  * Үнийг бүхэл төгрөгөөр хадгална (мөнгөн тэмдэгтийн жижиг нэгж байхгүй).
  */
-export const purchaseRequests = mysqlTable(
+export const purchaseRequests = pgTable(
   "purchase_requests",
   {
     id: uuidPk(),
     name: varchar("name", { length: 255 }).notNull(),
-    quantity: int("quantity").notNull().default(1),
+    quantity: integer("quantity").notNull().default(1),
     unit: varchar("unit", { length: 32 }).notNull().default("ш"),
     /** Төсөвлөсөн нэгж үнэ, ₮ — 0 бол тодорхойгүй */
-    estimatedPrice: int("estimated_price").notNull().default(0),
+    estimatedPrice: integer("estimated_price").notNull().default(0),
     /** low | normal | high — taskOptions-ийн ач холбогдолтой ижил */
     priority: varchar("priority", { length: 16 }).notNull().default("normal"),
     /** requested | approved | bought | rejected */
@@ -542,10 +565,10 @@ export const purchaseRequests = mysqlTable(
       onDelete: "set null",
     }),
     /** Худалдаж авсан огноо — status = bought үед бөглөгдөнө */
-    boughtAt: timestamp("bought_at"),
+    boughtAt: utcTimestamp("bought_at"),
     createdBy: uidCol("created_by"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
     index("purchase_requests_status_idx").on(table.status, table.createdAt),
@@ -558,20 +581,20 @@ export const purchaseRequests = mysqlTable(
  * Хандивын хайрцагтай яг ижил хэв маяг: байршил нь баазад, эргэлт/шалгалтын
  * түүх нь тусдаа хүснэгтэд.
  */
-export const guardPoints = mysqlTable(
+export const guardPoints = pgTable(
   "guard_points",
   {
     id: uuidPk(),
     name: varchar("name", { length: 255 }).notNull(),
     address: bodyText("address"),
-    lat: double("lat").notNull(),
-    lng: double("lng").notNull(),
+    lat: doublePrecision("lat").notNull(),
+    lng: doublePrecision("lng").notNull(),
     note: bodyText("note"),
     /** false бол түр идэвхгүй — зураг дээр бүдэг харагдана */
     active: boolean("active").notNull().default(true),
     createdBy: uidCol("created_by"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [index("guard_points_active_idx").on(table.active)]
 );
@@ -582,7 +605,7 @@ export const guardPoints = mysqlTable(
  * Мөр бүр нэг удаагийн эргэлт: хэдийд, хэн, ямар байдалтай тэмдэглэсэн.
  * Хуучин бүртгэл хэзээ ч дарагдахгүй — түүх бүрэн үлдэнэ.
  */
-export const guardPointVisits = mysqlTable(
+export const guardPointVisits = pgTable(
   "guard_point_visits",
   {
     id: uuidPk(),
@@ -593,7 +616,7 @@ export const guardPointVisits = mysqlTable(
     status: varchar("status", { length: 32 }).notNull().default("ok"),
     note: bodyText("note"),
     visitedBy: uidCol("visited_by"),
-    visitedAt: timestamp("visited_at").notNull().defaultNow(),
+    visitedAt: utcTimestamp("visited_at").notNull().defaultNow(),
   },
   (table) => [
     index("guard_point_visits_point_idx").on(table.pointId, table.visitedAt),
@@ -608,21 +631,21 @@ export const guardPointVisits = mysqlTable(
  * Координатыг `double`-оор: decimal нь текст болж буцдаг тул Leaflet руу
  * дамжуулах бүрд хөрвүүлэлт шаардана.
  */
-export const donationBoxes = mysqlTable(
+export const donationBoxes = pgTable(
   "donation_boxes",
   {
     id: uuidPk(),
     name: varchar("name", { length: 255 }).notNull(),
     /** Хаяг, чиглүүлэг — «2 давхарт, хурлын танхимын үүдэнд» гэх мэт */
     address: bodyText("address"),
-    lat: double("lat").notNull(),
-    lng: double("lng").notNull(),
+    lat: doublePrecision("lat").notNull(),
+    lng: doublePrecision("lng").notNull(),
     note: bodyText("note"),
     /** Хайрцаг түр хураагдвал мөрийг устгалгүй нуух */
     active: boolean("active").notNull().default(true),
     createdBy: uidCol("created_by"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [index("donation_boxes_active_idx").on(table.active)]
 );
@@ -635,7 +658,7 @@ export const donationBoxes = mysqlTable(
  * тул түүх бүрэн үлдэх ёстой. Хайрцаг уствал эргэлтийн түүх нь ч дагаж
  * устана (`cascade`): эзэнгүй мөр үлдээх нь тайланг гуйвуулна.
  */
-export const donationBoxVisits = mysqlTable(
+export const donationBoxVisits = pgTable(
   "donation_box_visits",
   {
     id: uuidPk(),
@@ -645,17 +668,17 @@ export const donationBoxVisits = mysqlTable(
     /** collected | empty | issue */
     status: varchar("status", { length: 32 }).notNull().default("collected"),
     /** Хураасан дүн, ₮ — бүхэл тоо */
-    amount: int("amount").notNull().default(0),
+    amount: integer("amount").notNull().default(0),
     /**
      * Хураасан хувцасны тоо, ширхэг.
      *
      * Мөнгөнөөс тусдаа багана: нэг эргэлтээр мөнгө ба хувцас хоёуланг нь
      * хураасан байж болно, нийлбэрийг нь ч тусад нь гаргах шаардлагатай.
      */
-    clothingCount: int("clothing_count").notNull().default(0),
+    clothingCount: integer("clothing_count").notNull().default(0),
     note: bodyText("note"),
     visitedBy: uidCol("visited_by"),
-    visitedAt: timestamp("visited_at").notNull().defaultNow(),
+    visitedAt: utcTimestamp("visited_at").notNull().defaultNow(),
   },
   (table) => [
     index("donation_box_visits_box_idx").on(table.boxId, table.visitedAt),
@@ -665,7 +688,7 @@ export const donationBoxVisits = mysqlTable(
 /**
  * Хандив/1-10-ыг хүлээн авах банкны данс — «1/10 ба өргөл» хуудсанд харагдана.
  */
-export const donationAccounts = mysqlTable(
+export const donationAccounts = pgTable(
   "donation_accounts",
   {
     id: uuidPk(),
@@ -677,7 +700,7 @@ export const donationAccounts = mysqlTable(
     bank: varchar("bank", { length: 32 }).notNull().default(""),
     holder: varchar("holder", { length: 255 }).notNull().default(""),
     /** Жагсаалтын дараалал — бага нь эхэндээ */
-    position: int("position").notNull().default(0),
+    position: integer("position").notNull().default(0),
     /**
      * «1/10 ба өргөл» хуудас аль дансыг харуулах вэ. Яг нэг данс тэмдэглэгдэнэ
      * — шинээр тэмдэглэхэд өмнөхийнх нь автоматаар арилна.
@@ -705,8 +728,8 @@ export const donationAccounts = mysqlTable(
     allowedAimags: jsonCol<string[]>("allowed_aimags")
       .notNull()
       .$defaultFn(() => []),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [uniqueIndex("donation_accounts_number_idx").on(table.number)]
 );
@@ -718,7 +741,7 @@ export const donationAccounts = mysqlTable(
  * тусдаа хүснэгтэд. `active` нь өрх жагсаалтаас гарсан ч түүхийг устгалгүй
  * нуух боломж өгнө.
  */
-export const welfareHouseholds = mysqlTable(
+export const welfareHouseholds = pgTable(
   "welfare_households",
   {
     id: uuidPk(),
@@ -726,15 +749,15 @@ export const welfareHouseholds = mysqlTable(
     name: varchar("name", { length: 255 }).notNull(),
     phone: varchar("phone", { length: 32 }).notNull().default(""),
     /** Гэр бүлийн гишүүдийн тоо */
-    familySize: int("family_size").notNull().default(0),
+    familySize: integer("family_size").notNull().default(0),
     /** Нөхцөл байдлын тайлбар */
     note: bodyText("note"),
-    lat: double("lat").notNull(),
-    lng: double("lng").notNull(),
+    lat: doublePrecision("lat").notNull(),
+    lng: doublePrecision("lng").notNull(),
     active: boolean("active").notNull().default(true),
     createdBy: uidCol("created_by"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [index("welfare_households_active_idx").on(table.active)]
 );
@@ -745,7 +768,7 @@ export const welfareHouseholds = mysqlTable(
  * Мөр бүр нэг удаагийн тусламж: хэзээ, хэн, юу үзүүлсэн, ямар дүнтэй.
  * Хуучин бүртгэл хэзээ ч дарагдахгүй — тайлан гаргахад түүх бүрэн байх ёстой.
  */
-export const welfareAids = mysqlTable(
+export const welfareAids = pgTable(
   "welfare_aids",
   {
     id: uuidPk(),
@@ -755,10 +778,10 @@ export const welfareAids = mysqlTable(
     /** Юу үзүүлсэн — хүнс, түлш, эмчилгээний зардал гэх мэт */
     description: varchar("description", { length: 512 }).notNull(),
     /** Зарцуулсан дүн, ₮ — 0 бол мөнгөн бус тусламж */
-    amount: int("amount").notNull().default(0),
+    amount: integer("amount").notNull().default(0),
     note: bodyText("note"),
     providedBy: uidCol("provided_by"),
-    providedAt: timestamp("provided_at").notNull().defaultNow(),
+    providedAt: utcTimestamp("provided_at").notNull().defaultNow(),
   },
   (table) => [
     index("welfare_aids_household_idx").on(table.householdId, table.providedAt),
@@ -771,7 +794,7 @@ export const welfareAids = mysqlTable(
  * Файл нь Firebase Storage дээр; энд зөвхөн татах URL болон `filePath`
  * (Storage доторх зам, устгахад хэрэгтэй) хадгалагдана.
  */
-export const handbookDocuments = mysqlTable(
+export const handbookDocuments = pgTable(
   "handbook_documents",
   {
     id: uuidPk(),
@@ -781,11 +804,11 @@ export const handbookDocuments = mysqlTable(
     filePath: varchar("file_path", { length: 1024 }).notNull(),
     fileName: varchar("file_name", { length: 255 }).notNull().default(""),
     /** Байт */
-    fileSize: int("file_size").notNull().default(0),
+    fileSize: integer("file_size").notNull().default(0),
     /** Жагсаалтын дараалал — бага нь эхэндээ */
-    position: int("position").notNull().default(0),
+    position: integer("position").notNull().default(0),
     createdBy: uidCol("created_by"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
   },
   (table) => [index("handbook_documents_position_idx").on(table.position)]
 );
@@ -807,14 +830,14 @@ export const handbookDocuments = mysqlTable(
  * Token нь ~160 тэмдэгт байдаг ч 512 хүртэл зай авав; utf8mb4 дээр 512×4 =
  * 2048 байт нь InnoDB-ийн 3072 байтын индексийн хязгаарт багтана.
  */
-export const fcmTokens = mysqlTable(
+export const fcmTokens = pgTable(
   "fcm_tokens",
   {
     token: varchar("token", { length: 512 }).primaryKey(),
     uid: uidCol("uid")
       .notNull()
       .references(() => users.uid, { onDelete: "cascade" }),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
     // Мэдэгдэл илгээхэд `where uid in (…)` гэж хайдаг тул заавал индекстэй
@@ -831,7 +854,7 @@ export const fcmTokens = mysqlTable(
  * төхөөрөмж дараагийн API хүсэлт дээрээ шууд гарна — Firebase сесс өөрөө
  * "нэвтэрсэн" хэвээр харагдаж байсан ч ажиллахаа болино.
  */
-export const devices = mysqlTable(
+export const devices = pgTable(
   "devices",
   {
     id: uuidPk(),
@@ -844,8 +867,8 @@ export const devices = mysqlTable(
     label: varchar("label", { length: 255 }).notNull().default(""),
     userAgent: varchar("user_agent", { length: 512 }).notNull().default(""),
     active: boolean("active").notNull().default(true),
-    lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+    lastSeenAt: utcTimestamp("last_seen_at").notNull().defaultNow(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex("devices_uid_device_idx").on(table.uid, table.deviceId),
@@ -856,7 +879,7 @@ export const devices = mysqlTable(
 export type DeviceRow = typeof devices.$inferSelect;
 
 /** Бүртгэлийн лог — админ хянахад */
-export const registrations = mysqlTable("registrations", {
+export const registrations = pgTable("registrations", {
   id: uuidPk(),
   uid: uidCol("uid").notNull(),
   email: varchar("email", { length: 320 }).notNull(),
@@ -865,17 +888,17 @@ export const registrations = mysqlTable("registrations", {
   phone: varchar("phone", { length: 32 }).notNull().default(""),
   role: varchar("role", { length: 32 }).notNull(),
   status: varchar("status", { length: 32 }).notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: utcTimestamp("created_at").notNull().defaultNow(),
 });
 
 /**
  * Системийн тохиргоо — нэг мөртэй хүснэгт (id = 'app').
  * `hasAdmin` нь анхны админ үүссэн эсэхийг тэмдэглэнэ.
  */
-export const appConfig = mysqlTable("app_config", {
+export const appConfig = pgTable("app_config", {
   id: varchar("id", { length: 32 }).primaryKey().default("app"),
   hasAdmin: boolean("has_admin").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: utcTimestamp("created_at").notNull().defaultNow(),
 });
 
 /**
@@ -891,7 +914,7 @@ export const appConfig = mysqlTable("app_config", {
  *   • `drive_refresh_token` нь НӨӨЦЛӨЛТӨД ОРОХГҮЙ (src/lib/backup/dump.ts) —
  *     эс бөгөөс архив гарт орсон хүн Drive рүү ч хандана
  */
-export const settings = mysqlTable("settings", {
+export const settings = pgTable("settings", {
   /**
    * Баганын нэр `setting_key` — `key` нь MySQL/MariaDB-ийн НӨӨЦЛӨГДСӨН үг
    * бөгөөд зарим хэрэгсэл (drizzle-kit-ийн introspection орно) түүнтэй
@@ -899,7 +922,7 @@ export const settings = mysqlTable("settings", {
    */
   key: varchar("setting_key", { length: 64 }).primaryKey(),
   value: text("value").notNull(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
 });
 
 export type SettingRow = typeof settings.$inferSelect;
@@ -908,6 +931,7 @@ export type UserRow = typeof users.$inferSelect;
 export type TransactionRow = typeof transactions.$inferSelect;
 export type TithePatternRow = typeof tithePatterns.$inferSelect;
 export type NotificationRow = typeof notifications.$inferSelect;
+export type ScheduledNotificationRow = typeof scheduledNotifications.$inferSelect;
 export type ChildRow = typeof children.$inferSelect;
 export type WarehouseRow = typeof warehouses.$inferSelect;
 export type AssetCategoryRow = typeof assetCategories.$inferSelect;

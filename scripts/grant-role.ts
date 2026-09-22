@@ -11,7 +11,7 @@
  *
  * Шаардлагатай env (.env.local): DATABASE_URL
  */
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { eq } from "drizzle-orm";
 
 import { createDbPool, resolveDatabaseUrl } from "../src/lib/db/createPool";
@@ -40,7 +40,7 @@ if (!connectionString) {
 }
 
 const pool = createDbPool(connectionString);
-const db = drizzle(pool, { mode: "default" });
+const db = drizzle(pool);
 
 async function main() {
   const [existing] = await db
@@ -57,7 +57,6 @@ async function main() {
     return;
   }
 
-  // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина
   await db
     .update(users)
     .set({ role, status: "active", updatedAt: new Date() })
@@ -74,7 +73,10 @@ async function main() {
     await db
       .insert(appConfig)
       .values({ id: "app", hasAdmin: true })
-      .onDuplicateKeyUpdate({ set: { hasAdmin: true } });
+      .onConflictDoUpdate({
+        target: appConfig.id,
+        set: { hasAdmin: true },
+      });
   }
 
   console.log(

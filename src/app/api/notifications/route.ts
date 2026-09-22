@@ -29,8 +29,7 @@ export async function GET(request: NextRequest) {
       .limit(PAGE_SIZE);
 
     const [counted] = await db
-      // Postgres-ийн `::int` cast нь MySQL-д `cast(... as signed)`.
-      .select({ unread: sql<number>`cast(count(*) as signed)` })
+      .select({ unread: sql<number>`(count(*))::int` })
       .from(notifications)
       .where(
         and(eq(notifications.uid, caller.uid), isNull(notifications.readAt))
@@ -63,17 +62,16 @@ export async function PATCH(request: NextRequest) {
     const now = new Date();
 
     if (body.all === true) {
-      // MySQL нь UPDATE ... RETURNING дэмждэггүй. Энд зөвхөн ЗАССАН МӨРИЙН ТОО
-      // хэрэгтэй тул үр дүнгийн `affectedRows`-ыг шууд авна — нэмэлт асуулга
-      // хийх шаардлагагүй.
-      const [res] = await db
+      // Энд зөвхөн ЗАССАН МӨРИЙН ТОО хэрэгтэй тул үр дүнгийн `rowCount`-ыг
+      // шууд авна — нэмэлт асуулга хийх шаардлагагүй.
+      const res = await db
         .update(notifications)
         .set({ readAt: now })
         .where(
           and(eq(notifications.uid, caller.uid), isNull(notifications.readAt))
         );
 
-      return NextResponse.json({ updated: res.affectedRows });
+      return NextResponse.json({ updated: res.rowCount ?? 0 });
     }
 
     if (!Array.isArray(body.ids) || body.ids.length === 0) {
@@ -84,7 +82,7 @@ export async function PATCH(request: NextRequest) {
       return badRequest("ids нь текстийн жагсаалт байх ёстой.");
     }
 
-    const [res] = await db
+    const res = await db
       .update(notifications)
       .set({ readAt: now })
       .where(
@@ -95,7 +93,7 @@ export async function PATCH(request: NextRequest) {
         )
       );
 
-    return NextResponse.json({ updated: res.affectedRows });
+    return NextResponse.json({ updated: res.rowCount ?? 0 });
   } catch (error) {
     return serverError(error, "Мэдэгдэл тэмдэглэхэд алдаа гарлаа");
   }

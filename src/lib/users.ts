@@ -52,6 +52,8 @@ export type AppUser = {
 
   role: UserRole;
   status: UserStatus;
+  /** Админ бус ч мэдэгдэл илгээх эрх авсан эсэх (зөвхөн админ оноодог) */
+  can_notify: boolean;
   createdAt: Date | null;
 };
 
@@ -82,6 +84,7 @@ type UserRow = {
   spouseBirthDate: string | null;
   role: string;
   status: string;
+  canNotify: boolean | null;
   createdAt: string | null;
 };
 
@@ -113,6 +116,7 @@ function toAppUser(row: UserRow): AppUser {
     spouse_birth_date: row.spouseBirthDate ?? "",
     role: asRole(row.role),
     status: (row.status ?? "active") as UserStatus,
+    can_notify: row.canNotify ?? false,
     createdAt: row.createdAt ? new Date(row.createdAt) : null,
   };
 }
@@ -309,6 +313,11 @@ export async function setUserRole(uid: string, role: UserRole) {
 /** Хэрэглэгчийн төлөвийг солино — зөвшөөрөх / блоклох (зөвхөн админ). */
 export async function setUserStatus(uid: string, status: UserStatus) {
   await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: { status } });
+}
+
+/** Админ бус хэрэглэгчид мэдэгдэл илгээх эрх олгох/хасах (зөвхөн админ). */
+export async function setUserCanNotify(uid: string, canNotify: boolean) {
+  await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: { canNotify } });
 }
 
 /**

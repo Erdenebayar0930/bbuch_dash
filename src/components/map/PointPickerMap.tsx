@@ -89,7 +89,10 @@ export default function PointPickerMap<T extends MapPoint>({
       center={center}
       zoom={points.length > 0 ? 15 : 12}
       scrollWheelZoom
-      className={`h-[420px] w-full ${picking ? "cursor-crosshair" : ""}`}
+      // `isolate` шинэ stacking context үүсгэнэ — эс бөгөөс Leaflet-ийн дотоод
+      // давхаргууд (pane 400+, control 1000) хуудасны бусад элементтэй шууд
+      // өрсөлдөж, жишээ нь хажуугийн цэсний (z-50) дээгүүр гарч ирдэг байсан.
+      className={`relative isolate z-0 h-[420px] w-full ${picking ? "cursor-crosshair" : ""}`}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

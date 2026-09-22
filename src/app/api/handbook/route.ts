@@ -1,7 +1,7 @@
 import { asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { badRequest, requireActiveUser, requireAdmin, serverError } from "@/lib/api/auth";
+import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { handbookDocuments } from "@/lib/db/schema";
 
@@ -24,9 +24,9 @@ function isStorageUrl(value: string) {
   }
 }
 
-/** Гарын авлагын баримтууд — дараалалаар. Идэвхтэй хэрэглэгч бүр уншина. */
+/** Гарын авлагын баримтууд — дараалалаар. Цэс идэвхгүй болсон тул зөвхөн админ уншина. */
 export async function GET(request: NextRequest) {
-  const result = await requireActiveUser(request);
+  const result = await requireAdmin(request);
   if ("error" in result) return result.error;
 
   try {

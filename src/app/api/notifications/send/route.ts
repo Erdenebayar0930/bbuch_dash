@@ -1,12 +1,14 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { aimags, isValidOption } from "@/data/profileOptions";
-import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
+import { badRequest, forbidden, requireNotifier, serverError } from "@/lib/api/auth";
+import { resolveNotifyTargets, type NotifyTarget } from "@/lib/api/notify";
 import { sendPush } from "@/lib/api/push";
 import { rateLimit } from "@/lib/api/rateLimit";
 import { db } from "@/lib/db";
-import { fcmTokens, notifications, users } from "@/lib/db/schema";
+import { fcmTokens, notifications } from "@/lib/db/schema";
+import { isAdminRole } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
@@ -14,44 +16,10 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Target =
-  | { type: "all" }
-  | { type: "aimag"; aimag: string }
-  | { type: "role"; role: string }
-  | { type: "user"; userId: string };
-
-/** Чиглэлээс хамаарч хүлээн авагчдын uid-г олно */
-async function resolveRecipients(target: Target): Promise<string[]> {
-  if (target.type === "user") {
-    // Байхгүй uid руу мэдэгдэл бичвэл FK алдаа өгнө — эхлээд шалгана
-    const rows = await db
-      .select({ uid: users.uid })
-      .from(users)
-      .where(eq(users.uid, target.userId))
-      .limit(1);
-
-    return rows.map((row) => row.uid);
-  }
-
-  const where =
-    target.type === "aimag"
-      ? // Нэг хүн олон аймагт харьяалагдаж болох тул containment хайлт.
-        // Postgres дээр `aimags @> '["x"]'::jsonb` байсан — MySQL-ийн
-        // дүйцэх функц нь JSON_CONTAINS(баримт, хайх_утга).
-        and(
-          eq(users.status, "active"),
-          sql`json_contains(${users.aimags}, ${JSON.stringify(target.aimag)})`
-        )
-      : target.type === "role"
-      ? and(eq(users.status, "active"), eq(users.role, target.role))
-      : eq(users.status, "active");
-
-  const rows = await db.select({ uid: users.uid }).from(users).where(where);
-  return rows.map((row) => row.uid);
-}
+type Target = NotifyTarget;
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin(request);
+  const auth = await requireNotifier(request);
   if ("error" in auth) return auth.error;
 
   // Хамгийн их урвуулан ашиглагдах чадвартай үйлдэл: нэг дуудалт бүх гишүүний
@@ -81,20 +49,27 @@ export async function POST(request: NextRequest) {
     if (
       !target ||
       (target.type === "role" && !target.role) ||
-      (target.type === "user" && !target.userId)
+      (target.type === "user" && !target.userId) ||
+      (target.type === "aimag" && (!Array.isArray(target.aimags) || target.aimags.length === 0))
     ) {
       return badRequest("Хүлээн авагчийн чиглэл (target) буруу байна.");
+    }
+
+    // Админ бус (зөвхөн canNotify эрхтэй) хэрэглэгч бүх хэрэглэгч рүү эсвэл
+    // эрхийн бүлгээр (role) илгээж чадахгүй — зөвхөн тодорхой аймаг/хүн рүү.
+    if (!isAdminRole(auth.caller.user?.role) && target.type !== "aimag" && target.type !== "user") {
+      return forbidden("Зөвхөн тодорхой аймаг эсвэл хүн рүү мэдэгдэл илгээх боломжтой.");
     }
 
     // Аймаг нь тогтсон жагсаалттай — байхгүй нэр рүү илгээхийг зөвшөөрөхгүй
     if (
       target.type === "aimag" &&
-      (!target.aimag || !isValidOption(aimags, target.aimag))
+      !target.aimags.every((value) => isValidOption(aimags, value))
     ) {
       return badRequest("Аймаг буруу байна.");
     }
 
-    const uids = await resolveRecipients(target);
+    const uids = await resolveNotifyTargets(target);
 
     const result = {
       recipients: uids.length,
@@ -112,20 +87,21 @@ export async function POST(request: NextRequest) {
 
     // Эхлээд DB-д бичнэ. Push нь зөвхөн мэдэгдүүлэг тул түүнгүйгээр ч
     // хэрэглэгч дараагийн удаа ороход уншаагүй мэдэгдлээ харна.
-    // MySQL нь INSERT ... RETURNING дэмждэггүй. Энд зөвхөн БИЧИГДСЭН МӨРИЙН ТОО
-    // хэрэгтэй тул үр дүнгийн `affectedRows`-ыг авна.
-    const [stored] = await db.insert(notifications).values(
-      uids.map((uid) => ({
-        id: crypto.randomUUID(),
-        uid,
-        title: notification.title as string,
-        body: notification.body as string,
-        url: typeof data?.url === "string" ? data.url : "",
-        createdBy: auth.caller.uid,
-      }))
-    );
+    const stored = await db
+      .insert(notifications)
+      .values(
+        uids.map((uid) => ({
+          id: crypto.randomUUID(),
+          uid,
+          title: notification.title as string,
+          body: notification.body as string,
+          url: typeof data?.url === "string" ? data.url : "",
+          createdBy: auth.caller.uid,
+        }))
+      )
+      .returning({ id: notifications.id });
 
-    result.stored = stored.affectedRows;
+    result.stored = stored.length;
 
     const tokenRows = await db
       .select({ uid: fcmTokens.uid, token: fcmTokens.token })
@@ -142,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     const payloadData: Record<string, string> = { ...(data ?? {}) };
     if (target.type === "aimag") {
-      payloadData.aimag = target.aimag;
+      payloadData.aimags = target.aimags.join(",");
     }
 
     const outcome = await sendPush(

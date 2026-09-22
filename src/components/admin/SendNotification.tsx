@@ -3,14 +3,22 @@
 import { BellRing, Loader2, Send, Sparkles, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { sendNotificationToAllUsers, sendNotificationToUser } from "@/lib/fcm";
+import { useUser } from "@/app/(auth)/UserProvider";
+import Checkbox from "@/components/form/input/Checkbox";
+import { aimags as aimagOptions, labelOf } from "@/data/profileOptions";
+import {
+  sendNotificationToAimags,
+  sendNotificationToAllUsers,
+  sendNotificationToUser,
+} from "@/lib/fcm";
+import { isAdminRole } from "@/lib/permissions";
 import { listUsers, type AppUser } from "@/lib/users";
 
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
 
-type Audience = "all" | "user";
+type Audience = "all" | "user" | "aimag";
 type Feedback = { type: "success" | "error" | "info"; text: string };
 
 type TemplateItem = {
@@ -39,7 +47,11 @@ const notificationTemplates: TemplateItem[] = [
 ];
 
 export default function SendNotification() {
+  const { user: viewer } = useUser();
+  const isAdmin = isAdminRole(viewer?.role);
+
   const [audience, setAudience] = useState<Audience>("all");
+  const [selectedAimags, setSelectedAimags] = useState<string[]>([]);
   const [userId, setUserId] = useState("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -71,13 +83,35 @@ export default function SendNotification() {
     void loadUsers();
   }, []);
 
+  // Зөвхөн canNotify эрхтэй (админ бус) хэрэглэгч "Бүх хэрэглэгчид"-рүү
+  // илгээх боломжгүй — сервер ч мөн адил хориглоно. `viewer` эхэндээ
+  // sessionStorage-аас синхроноор ирдэг ч Firebase-ийн шалгалт дуустал
+  // хоцорч болох тул эффектээр давхар барина.
+  useEffect(() => {
+    if (viewer && !isAdmin && audience === "all") setAudience("aimag");
+  }, [viewer, isAdmin, audience]);
+
   const recipientCount = useMemo(() => {
     if (audience === "user") {
       return userId ? 1 : 0;
     }
 
+    if (audience === "aimag") {
+      return users.filter(
+        (user) =>
+          user.status === "active" &&
+          user.aimags.some((a) => selectedAimags.includes(a))
+      ).length;
+    }
+
     return users.filter((user) => user.status === "active").length;
-  }, [audience, userId, users]);
+  }, [audience, userId, selectedAimags, users]);
+
+  const toggleAimag = (value: string, checked: boolean) => {
+    setSelectedAimags((prev) =>
+      checked ? [...prev, value] : prev.filter((item) => item !== value)
+    );
+  };
 
   const displayName = (user: AppUser) =>
     [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email;
@@ -122,6 +156,11 @@ export default function SendNotification() {
       return;
     }
 
+    if (audience === "aimag" && selectedAimags.length === 0) {
+      setMessage({ type: "error", text: "Дор хаяж нэг аймаг сонгоно уу." });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 
@@ -132,7 +171,9 @@ export default function SendNotification() {
       const result =
         audience === "all"
           ? await sendNotificationToAllUsers(title.trim(), body.trim(), data)
-          : await sendNotificationToUser(userId, title.trim(), body.trim(), data);
+          : audience === "aimag"
+            ? await sendNotificationToAimags(selectedAimags, title.trim(), body.trim(), data)
+            : await sendNotificationToUser(userId, title.trim(), body.trim(), data);
 
       // Мэдэгдэл нь DB-д бичигдсэн бол хүрсэнд тооцно — push нь зөвхөн
       // мэдэгдүүлэг. Хэрэглэгч апп нээхэд уншаагүй төлөвтэй хүлээж байна.
@@ -208,7 +249,8 @@ export default function SendNotification() {
 
           <div className="flex flex-wrap gap-2">
             {[
-              { value: "all", label: "Бүх хэрэглэгчид" },
+              ...(isAdmin ? [{ value: "all", label: "Бүх хэрэглэгчид" }] : []),
+              { value: "aimag", label: "Аймаг" },
               { value: "user", label: "Нэг хэрэглэгч" },
             ].map((option) => (
               <button
@@ -229,6 +271,13 @@ export default function SendNotification() {
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
             <Users className="h-4 w-4" />
             {audience === "all" && <span>Идэвхтэй бүх хэрэглэгчид</span>}
+            {audience === "aimag" && (
+              <span>
+                {selectedAimags.length > 0
+                  ? `${selectedAimags.map((value) => labelOf(aimagOptions, value)).join(", ")} аймгийн идэвхтэй гишүүд`
+                  : "Аймгаа сонгоно уу"}
+              </span>
+            )}
             {audience === "user" && (
               <span>
                 {selectedUser
@@ -238,6 +287,25 @@ export default function SendNotification() {
             )}
           </div>
         </div>
+
+        {audience === "aimag" && (
+          <div>
+            <Label>
+              Аймаг (хэд хэдийг зэрэг сонгож болно) <span className="text-error-500">*</span>
+            </Label>
+            <div className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 p-3 sm:grid-cols-2 dark:border-gray-800">
+              {aimagOptions.map((option) => (
+                <Checkbox
+                  key={option.value}
+                  id={`notify-aimag-${option.value}`}
+                  label={option.label}
+                  checked={selectedAimags.includes(option.value)}
+                  onChange={(checked) => toggleAimag(option.value, checked)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {audience === "user" && (
           <div>
@@ -380,9 +448,11 @@ export default function SendNotification() {
             <p>
               {audience === "all"
                 ? `Бүх идэвхтэй хэрэглэгчид — ${recipientCount} хэрэглэгч`
-                : selectedUser
-                  ? displayName(selectedUser)
-                  : "Хэрэглэгч сонгоогүй"}
+                : audience === "aimag"
+                  ? `${selectedAimags.map((value) => labelOf(aimagOptions, value)).join(", ") || "Сонгоогүй"} — ${recipientCount} хэрэглэгч`
+                  : selectedUser
+                    ? displayName(selectedUser)
+                    : "Хэрэглэгч сонгоогүй"}
             </p>
           </div>
           <Button type="submit" disabled={loading} className="min-w-[180px]" size="sm">
@@ -396,7 +466,9 @@ export default function SendNotification() {
                 <Send className="h-4 w-4" />
                 {audience === "all"
                   ? "Бүх хэрэглэгчдэд илгээх"
-                  : "Нэг хэрэглэгчид илгээх"}
+                  : audience === "aimag"
+                    ? "Аймагт илгээх"
+                    : "Нэг хэрэглэгчид илгээх"}
               </>
             )}
           </Button>

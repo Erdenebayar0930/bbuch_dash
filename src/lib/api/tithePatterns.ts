@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, sql } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 
 import { defaultTithePatterns } from "@/data/titheOptions";
 import { db } from "@/lib/db";
@@ -21,9 +21,8 @@ export async function readTithePatterns(): Promise<string[]> {
 
   if (rows.length > 0) return rows.map((row) => row.pattern);
 
-  // Анхдагч загваруудыг нэг удаа суулгана. MySQL-д onConflictDoNothing
-  // байхгүй тул `pattern`-ыг өөр дээр нь оноох no-op update-ээр давхардлыг
-  // залгина (pattern дээр unique индекстэй).
+  // Анхдагч загваруудыг нэг удаа суулгана. `pattern` дээр unique индекстэй
+  // тул давхардсаныг onConflictDoNothing-оор чимээгүй алгасна.
   await db
     .insert(tithePatterns)
     .values(
@@ -32,7 +31,7 @@ export async function readTithePatterns(): Promise<string[]> {
         pattern,
       }))
     )
-    .onDuplicateKeyUpdate({ set: { pattern: sql`pattern` } });
+    .onConflictDoNothing({ target: tithePatterns.pattern });
 
   return [...defaultTithePatterns].sort();
 }

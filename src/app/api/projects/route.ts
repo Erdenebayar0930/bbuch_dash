@@ -1,4 +1,4 @@
-import { asc, count, eq, sql } from "drizzle-orm";
+import { asc, count, eq, inArray, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
@@ -10,13 +10,29 @@ import {
 import { readProject } from "@/lib/api/taskInput";
 import { db } from "@/lib/db";
 import { projects, tasks } from "@/lib/db/schema";
+import { isAdminRole } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Бүх төсөл — даалгаврын тоотой хамт. */
+/**
+ * Аймагтай төсөл зөвхөн тухайн аймгийн гишүүдэд харагдана — өөр аймгийн
+ * ажлын самбар руу нэвтэрч мэдээлэл алдагдахаас сэргийлнэ. Аймаггүй ("")
+ * төсөл нийтийнх тул бүгд харна. Админ ба super бүгдийг харна.
+ */
+function visibleProjectsFilter(caller: Awaited<ReturnType<typeof requireActiveUser>>) {
+  if ("error" in caller) return undefined;
+  if (isAdminRole(caller.caller.user?.role)) return undefined;
+
+  const myAimags = caller.caller.user?.aimags ?? [];
+  return myAimags.length > 0
+    ? or(eq(projects.aimag, ""), inArray(projects.aimag, myAimags))
+    : eq(projects.aimag, "");
+}
+
+/** Төсөл — тухайн хэрэглэгчид харагдах аймгуудынх, даалгаврын тоотой хамт. */
 export async function GET(request: NextRequest) {
   const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
@@ -25,6 +41,7 @@ export async function GET(request: NextRequest) {
     const rows = await db
       .select()
       .from(projects)
+      .where(visibleProjectsFilter(result))
       .orderBy(asc(projects.position), asc(projects.createdAt));
 
     // Төсөл тус бүрийн нийт ба дуусаагүй даалгаврын тоо — сонголтын жагсаалтад
@@ -34,7 +51,7 @@ export async function GET(request: NextRequest) {
         total: count(),
         // Postgres-ийн `count(*) filter (where ...)`-ийг MySQL дэмждэггүй тул
         // нөхцөлт нийлбэрээр орлууллаа.
-        open: sql<number>`cast(sum(case when ${tasks.status} <> 'done' then 1 else 0 end) as signed)`,
+        open: sql<number>`sum(case when ${tasks.status} <> 'done' then 1 else 0 end)::int`,
       })
       .from(tasks)
       .groupBy(tasks.projectId);

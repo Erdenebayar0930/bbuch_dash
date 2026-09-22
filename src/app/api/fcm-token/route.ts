@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
     await db
       .insert(fcmTokens)
       .values({ token, uid: caller.uid })
-      .onDuplicateKeyUpdate({
+      .onConflictDoUpdate({
+        target: fcmTokens.token,
         set: { uid: caller.uid, updatedAt: new Date() },
       });
 

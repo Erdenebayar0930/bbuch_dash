@@ -21,6 +21,9 @@ const labels: Record<Kind, { title: string; placeholder: string }> = {
   category: { title: "Төрөл", placeholder: "Шинэ төрлийн нэр" },
 };
 
+/** Тодорхойгүй/агуулахгүй эд хөрөнгийг ялгаж тэмдэглэхэд зориулсан нэр. */
+const BLANK_NAME = "Хоосон";
+
 /** Агуулах ба төрлийн жагсаалтыг нэмэх / устгах цонх (зөвхөн админ) */
 export default function MetaManagerModal({
   isOpen,
@@ -60,6 +63,9 @@ export default function MetaManagerModal({
       setDrafts((prev) => ({ ...prev, [kind]: "" }));
     });
   };
+
+  const hasBlank = (items: RefItem[]) =>
+    items.some((item) => item.name === BLANK_NAME);
 
   const section = (kind: Kind, items: RefItem[]) => (
     <div>
@@ -118,6 +124,17 @@ export default function MetaManagerModal({
           Нэмэх
         </button>
       </div>
+
+      {!hasBlank(items) && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => run(() => addMetaItem(kind, BLANK_NAME))}
+          className="mt-2 text-theme-xs font-medium text-gray-500 underline-offset-2 transition-colors hover:text-accent-600 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:text-accent-400"
+        >
+          + &quot;{BLANK_NAME}&quot; сонголт нэмэх
+        </button>
+      )}
     </div>
   );
 

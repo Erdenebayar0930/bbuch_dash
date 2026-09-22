@@ -6,17 +6,20 @@ import { Plus, X } from "lucide-react";
 import Checkbox from "@/components/form/input/Checkbox";
 import { Modal } from "@/components/ui/modal";
 import { aimags as aimagOptions } from "@/data/profileOptions";
-import { setUserChurchInfo, type AppUser } from "@/lib/users";
+import { setUserCanNotify, setUserChurchInfo, type AppUser } from "@/lib/users";
 
 const MAX_CALLINGS = 5;
 
 type ChurchInfoModalProps = {
   user: AppUser | null;
   onClose: () => void;
-  onSaved: (uid: string, patch: { aimags: string[]; callings: string[] }) => void;
+  onSaved: (
+    uid: string,
+    patch: { aimags: string[]; callings: string[]; can_notify: boolean }
+  ) => void;
 };
 
-/** Тухайн хэрэглэгчийн дуудлага, аймгийг оноох админы цонх. */
+/** Тухайн хэрэглэгчийн дуудлага, аймаг, мэдэгдэл илгээх эрхийг оноох админы цонх. */
 export default function ChurchInfoModal({
   user,
   onClose,
@@ -24,6 +27,7 @@ export default function ChurchInfoModal({
 }: ChurchInfoModalProps) {
   const [aimags, setAimags] = useState<string[]>([]);
   const [callings, setCallings] = useState<string[]>([]);
+  const [canNotify, setCanNotify] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -32,6 +36,7 @@ export default function ChurchInfoModal({
     if (user) {
       setAimags(user.aimags);
       setCallings(user.callings);
+      setCanNotify(user.can_notify);
       setDraft("");
       setError("");
     }
@@ -69,8 +74,13 @@ export default function ChurchInfoModal({
     setError("");
 
     try {
-      await setUserChurchInfo(user.uid, { aimags, callings });
-      onSaved(user.uid, { aimags, callings });
+      await Promise.all([
+        setUserChurchInfo(user.uid, { aimags, callings }),
+        canNotify !== user.can_notify
+          ? setUserCanNotify(user.uid, canNotify)
+          : Promise.resolve(),
+      ]);
+      onSaved(user.uid, { aimags, callings, can_notify: canNotify });
       onClose();
     } catch (err) {
       console.error("Чуулганы мэдээлэл хадгалахад алдаа гарлаа:", err);
@@ -152,6 +162,15 @@ export default function ChurchInfoModal({
             Нэмэх
           </button>
         </form>
+      </div>
+
+      <div className="mt-5">
+        <Checkbox
+          id="can-notify"
+          label="Мэдэгдэл илгээх эрх (аймаг/тодорхой хүн рүү)"
+          checked={canNotify}
+          onChange={setCanNotify}
+        />
       </div>
 
       {error && (

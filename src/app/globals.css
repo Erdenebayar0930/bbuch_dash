@@ -254,18 +254,18 @@
   }
 }
 
-/* ── Хажуугийн харанхуй самбарын цэс ───────────────────────────── */
+/* ── Хажуугийн ягаан градиент премиум самбарын цэс ─────────────── */
 @utility nav-item {
-  @apply relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-theme-sm font-medium transition-colors duration-150;
+  @apply relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-theme-sm font-medium transition-colors duration-150;
 }
 
-/* Зүүн ирмэгийн алтан зурвас — сүлдний өнгөөр идэвхтэй цэсийг заана. */
+/* Бүтэн өргөнөөрөө тод дугуйруулсан "pill" дэвсгэрээр идэвхтэй цэсийг заана. */
 @utility nav-item-active {
-  @apply bg-white/10 text-white before:absolute before:left-0 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-r-full before:bg-gold-400;
+  @apply bg-white/15 text-white shadow-theme-xs;
 }
 
 @utility nav-item-inactive {
-  @apply text-white/60 hover:bg-white/5 hover:text-white;
+  @apply text-white/65 hover:bg-white/8 hover:text-white;
 }
 
 /* ── Самбарын хуудасны нийтлэг гадаргуу ────────────────────────── */

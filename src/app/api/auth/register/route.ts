@@ -53,14 +53,11 @@ export async function POST(request: NextRequest) {
     const email = (caller.email || String(body.email ?? "")).trim().toLowerCase();
 
     const created = await db.transaction(async (tx) => {
-      // Тохиргооны мөр байхгүй бол үүсгэнэ
-      // MySQL-ийн "мөр байхгүй бол үүсгэ" — Postgres-ийн onConflictDoNothing
-      // нь энд `onDuplicateKeyUpdate`-аар илэрхийлэгдэнэ. `id`-г өөр дээр нь
-      // онооно: жинхэнэ өөрчлөлт хийхгүй, зөвхөн алдааг залгина.
+      // Тохиргооны мөр байхгүй бол үүсгэнэ — байгаа бол юу ч хийхгүй
       await tx
         .insert(appConfig)
         .values({ id: "app", hasAdmin: false })
-        .onDuplicateKeyUpdate({ set: { id: "app" } });
+        .onConflictDoNothing({ target: appConfig.id });
 
       const [config] = await tx
         .select()

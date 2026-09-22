@@ -2,8 +2,7 @@ import { createGzip } from "node:zlib";
 import { Readable, pipeline } from "node:stream";
 import { promisify } from "node:util";
 
-import type { Connection as CallbackConnection } from "mysql2";
-import type { Pool } from "mysql2/promise";
+import type { Pool } from "pg";
 import type { Writable } from "node:stream";
 
 const streamPipeline = promisify(pipeline);
@@ -11,14 +10,14 @@ const streamPipeline = promisify(pipeline);
 /**
  * Өгөгдлийн сангийн бүрэн хуулбарыг NDJSON + gzip болгож гаргана.
  *
- * ЯАГААД mysqldump БИШ ВЭ: shared hosting дээр аппын хэрэглэгчид shell
- * хандалт, `mysqldump` binary байхгүй. Тиймээс хуулбарыг драйвераар өөрөө
- * унших ёстой.
+ * ЯАГААД pg_dump БИШ ВЭ: shared hosting дээр аппын хэрэглэгчид shell
+ * хандалт, `pg_dump` binary байхгүй байж болно. Тиймээс хуулбарыг драйвераар
+ * өөрөө унших ёстой.
  *
- * ЯАГААД УРСГАЛААР (stream) ВЭ: Passenger процесс нь санах ойн хатуу
+ * ЯАГААД БАГЦААР (batch) ВЭ: Passenger процесс нь санах ойн хатуу
  * хязгаартай. Бүх мөрийг массивт цуглуулбал том хүснэгт дээр процесс OOM-оор
- * унаж, УГ НЬ АЖИЛЛАЖ БАЙСАН аппыг хамт унагана. Мөр бүрийг уншмагц шууд
- * бичих нь санах ойн хэрэглээг мөрийн хэмжээгээр хязгаарлана.
+ * унаж, УГ НЬ АЖИЛЛАЖ БАЙСАН аппыг хамт унагана. Хүснэгтийг `LIMIT/OFFSET`-ээр
+ * багц багцаар уншиж бичих нь санах ойн хэрэглээг багцын хэмжээгээр хязгаарлана.
  *
  * Формат — мөр тутамд нэг JSON:
  *   {"v":1,"createdAt":"...","tables":[...]}        ← толгой мөр
@@ -35,12 +34,14 @@ export type DumpSummary = {
   totalRows: number;
 };
 
+/** Нэг удаад уншиж бичих мөрийн тоо */
+const BATCH_SIZE = 500;
+
 /** Драйвераас ирсэн утгыг JSON-д аюулгүй хэлбэрт буулгана. */
 function encodeValue(value: unknown): unknown {
   if (value instanceof Date) {
-    // MySQL-ийн `YYYY-MM-DD HH:mm:ss` — pool нь UTC сессээр ажилладаг тул
-    // ISO мөрийн оронд энэ хэлбэрийг хэрэглэвэл сэргээхэд хөрвүүлэлт хэрэггүй.
-    return value.toISOString().slice(0, 19).replace("T", " ");
+    // Postgres timestamptz нь UTC-гээр хадгалагддаг тул ISO мөр найдвартай.
+    return value.toISOString();
   }
 
   if (Buffer.isBuffer(value)) {
@@ -48,13 +49,11 @@ function encodeValue(value: unknown): unknown {
   }
 
   /**
-   * JSON багана.
+   * jsonb багана.
    *
-   * MySQL 8 дээр драйвер нь JSON-ыг ЗАДАЛЖ объект/массив болгож өгдөг
-   * (MariaDB дээр мөрөөр). Задарсан утгыг задарсан хэвээр нь буцааж бичвэл
-   * mysql2 нь массивыг SQL-ийн жагсаалт, объектыг `[object Object]` болгож
-   * escape хийдэг тул INSERT нь синтакс алдаа өгнө. Тиймээс мөр болгож
-   * тэмдэглэж хадгална — сэргээхэд MySQL өөрөө JSON гэж хүлээж авна.
+   * node-postgres драйвер jsonb-г ЗАДАЛЖ объект/массив болгож өгдөг. Задарсан
+   * утгыг тэмдэглэж хадгална — сэргээхэд параметрчилсан insert руу шууд JS
+   * утга дамжуулбал драйвер өөрөө jsonb болгож бичдэг.
    */
   if (value !== null && typeof value === "object") {
     return { __json: JSON.stringify(value) };
@@ -72,9 +71,9 @@ export function decodeValue(value: unknown): unknown {
       return Buffer.from(String(wrapper.__buffer), "base64");
     }
 
-    // JSON баганад мөр дамжуулна — MySQL өөрөө задална
+    // jsonb баганад JS утгыг шууд дамжуулна — драйвер өөрөө jsonb болгоно
     if ("__json" in wrapper) {
-      return String(wrapper.__json);
+      return JSON.parse(String(wrapper.__json));
     }
   }
 
@@ -98,11 +97,11 @@ const SECRET_SETTING_KEYS = new Set([
 
 /** Санд БОДИТООР байгаа хүснэгтүүд — схемийн жагсаалтад найдахгүй */
 export async function listTables(pool: Pool): Promise<string[]> {
-  const [rows] = await pool.query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'");
+  const { rows } = await pool.query<{ table_name: string }>(
+    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name"
+  );
 
-  return (rows as Record<string, string>[])
-    .map((row) => Object.values(row)[0])
-    .sort();
+  return rows.map((row) => row.table_name).sort();
 }
 
 /**
@@ -138,34 +137,24 @@ export async function dumpDatabase(
 
     for (const table of tables) {
       rows[table] = 0;
+      let offset = 0;
 
-      /**
-       * `connection.query(...).stream()` нь мөрийг нэг нэгээр өгнө.
-       * Pool-оос холболтыг ГАРААР авна: урсгал дуустал тэр холболт эзлэгдэх
-       * тул `pool.query`-ийн автомат буцаалт энд тохирохгүй.
-       */
-      const connection = await pool.getConnection();
+      for (;;) {
+        const { rows: batch } = await pool.query(
+          `select * from "${table}" order by 1 limit ${BATCH_SIZE} offset ${offset}`
+        );
 
-      try {
-        /**
-         * `.stream()` нь mysql2-ийн CALLBACK API дээр л байдаг. Promise
-         * боодол нь бүх мөрийг санах ойд цуглуулж байж буцаадаг тул урсгал
-         * авахын тулд доод давхаргын холболт руу шууд хандана.
-         */
-        const raw = connection.connection as unknown as CallbackConnection;
-        const stream = raw.query(`select * from \`${table}\``).stream();
+        if (batch.length === 0) break;
+        offset += batch.length;
 
-        for await (const row of stream) {
+        for (const row of batch) {
           const record = row as Record<string, unknown>;
 
           /**
            * Нууц тохиргооны мөрийг БҮХЭЛД нь алгасна.
            *
-           * ⚠ Багана нь `setting_key` (`key` нь MySQL-ийн нөөцлөгдсөн үг тул
-           * ингэж нэрлэсэн). Энэ урсгал нь Drizzle-ээр биш ТҮҮХИЙ SQL-ээр
-           * уншдаг учир талбарын нэр нь баазынхаараа ирнэ — Drizzle-ийн
-           * `key` гэсэн нэрээр хайвал ҮРГЭЛЖ `undefined` гарч, шүүлтүүр
-           * чимээгүй ажиллахгүй өнгөрнө (яг ингэж алдаа гарч байсан).
+           * ⚠ Багана нь `setting_key` (`key` нь SQL-ийн нөөцлөгдсөн үг тул
+           * ингэж нэрлэсэн).
            */
           if (
             table === "settings" &&
@@ -183,8 +172,8 @@ export async function dumpDatabase(
 
           yield `${JSON.stringify({ t: table, r: encoded })}\n`;
         }
-      } finally {
-        connection.release();
+
+        if (batch.length < BATCH_SIZE) break;
       }
     }
 

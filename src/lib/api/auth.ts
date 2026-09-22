@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { devices, users } from "@/lib/db/schema";
 import { adminAuth } from "@/lib/firebaseAdmin";
-import { asRole, isAdminRole, isSuperRole } from "@/lib/permissions";
+import { asRole, canSendNotifications, isAdminRole, isSuperRole } from "@/lib/permissions";
 import { backfillClaimsIfStale } from "./claims";
 
 import type { NextRequest } from "next/server";
@@ -277,6 +277,22 @@ export async function requireAdmin(request: NextRequest) {
 }
 
 /**
+ * Мэдэгдэл илгээх эрхтэй эсэхийг шаардана — админ/супер, эсвэл админаас
+ * `canNotify` эрх авсан энгийн хэрэглэгч.
+ */
+export async function requireNotifier(request: NextRequest) {
+  const result = await requireActiveUser(request);
+
+  if ("error" in result) return result;
+
+  if (!canSendNotifications(result.caller.user?.role, result.caller.user?.canNotify)) {
+    return { error: forbidden("Мэдэгдэл илгээх эрхгүй байна.") } as const;
+  }
+
+  return result;
+}
+
+/**
  * Тухайн аймагт харьяалагдах эсэхийг шаардана.
  *
  * Админ ба super бүх аймагт нэвтэрнэ — тэд бүхнийг хянадаг. Цэс нуух нь
@@ -345,19 +361,20 @@ export const serviceUnavailable = (error: unknown) => {
 /**
  * Алдаа нь ТҮР ЗУУРЫН хэт ачаалал мөн үү (кодын алдаа биш).
  *
- * ЯАГААД ХЭРЭГТЭЙ ВЭ: холболтын дараалал дүүрэхэд mysql2 нь ЗӨВХӨН
- * `Error("Queue limit reached.")` шиднэ — `code` талбаргүй. Ялгаж
- * танихгүй бол энэ нь 500 болж буцна: клиент "апп эвдэрсэн" гэж ойлгоод
- * дахин оролдохгүй, лог нь жинхэнэ програмын алдаануудтай холилдоно.
- * Бодит байдал дээр энэ нь зүгээр л "одоо завгүй байна" гэсэн үг —
- * хэдхэн секундын дараа өөрөө засагдана.
+ * ЯАГААД ХЭРЭГТЭЙ ВЭ: холболтын дараалал дүүрэхэд ялгаж танихгүй бол энэ
+ * нь 500 болж буцна: клиент "апп эвдэрсэн" гэж ойлгоод дахин оролдохгүй,
+ * лог нь жинхэнэ програмын алдаануудтай холилдоно. Бодит байдал дээр энэ
+ * нь зүгээр л "одоо завгүй байна" гэсэн үг — хэдхэн секундын дараа өөрөө
+ * засагдана.
+ *
+ * Кодууд нь Postgres (`pg` драйвер)-ийн SQLSTATE — холболт хэтэрсэн
+ * (`53300`), сервер бэлэн биш (`57P03`) гэх мэт.
  */
 const OVERLOAD_CODES = new Set([
-  "ER_CON_COUNT_ERROR",
-  "ER_USER_LIMIT_REACHED",
-  "ER_TOO_MANY_USER_CONNECTIONS",
+  "53300", // too_many_connections
+  "53400", // configuration_limit_exceeded
+  "57P03", // cannot_connect_now
   "ETIMEDOUT",
-  "PROTOCOL_SEQUENCE_TIMEOUT",
 ]);
 
 export function isOverloadError(error: unknown): boolean {

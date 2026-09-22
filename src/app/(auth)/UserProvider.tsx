@@ -24,6 +24,8 @@ type UserType = {
    * хуучин сессийн кэшэд байхгүй байж болох тул заавал биш.
    */
   aimags?: string[];
+  /** Админ бус ч мэдэгдэл илгээх эрх авсан эсэх */
+  can_notify?: boolean;
 };
 
 type UserContextType = {

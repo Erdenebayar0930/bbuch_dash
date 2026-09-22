@@ -16,7 +16,11 @@ export default function QuickLinks() {
   const { user } = useUser();
 
   const visible = shortcuts.filter((item) =>
-    canSeeNavItem(item, { role: user?.role, aimags: user?.aimags })
+    canSeeNavItem(item, {
+      role: user?.role,
+      aimags: user?.aimags,
+      canNotify: user?.can_notify,
+    })
   );
 
   return (

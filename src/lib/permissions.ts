@@ -21,6 +21,15 @@ export const isAdminRole = (role?: string | null): boolean =>
 
 export const isSuperRole = (role?: string | null): boolean => role === "super";
 
+/**
+ * Мэдэгдэл илгээх боломжтой эсэх — админ/супер үргэлж боломжтой, бусад
+ * хэрэглэгч зөвхөн админаас `canNotify` эрх авсан бол.
+ */
+export const canSendNotifications = (
+  role?: string | null,
+  canNotify?: boolean | null
+): boolean => isAdminRole(role) || !!canNotify;
+
 export const asRole = (role?: string | null): UserRole =>
   role === "super" || role === "admin" ? role : "user";
 

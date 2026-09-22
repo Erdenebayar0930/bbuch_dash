@@ -148,6 +148,7 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
       // Цэсийг аймгаар шүүхэд хэрэгтэй — админ харьяаллыг сольмогц дараагийн
       // шалгалтаар цэс нь өөрөө шинэчлэгдэнэ
       aimags: profile.aimags,
+      can_notify: profile.can_notify,
     };
 
     // Өөрчлөгдөөгүй бол дэмий рендер хийхгүй. Өөрчлөгдсөн бол эрх нь шууд

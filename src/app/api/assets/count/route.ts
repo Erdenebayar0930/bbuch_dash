@@ -1,7 +1,7 @@
 import { desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { badRequest, requireActiveUser, requireAdmin, serverError } from "@/lib/api/auth";
+import { badRequest, requireActiveUser, requireAimag, serverError } from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { assetChecks, assetCountSessions } from "@/lib/db/schema";
 
@@ -53,9 +53,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Шинэ тооллого эхлүүлнэ (зөвхөн админ). */
+/** Шинэ тооллого эхлүүлнэ (админ болон Магтаалын аймгийн гишүүд). */
 export async function POST(request: NextRequest) {
-  const result = await requireAdmin(request);
+  const result = await requireAimag(request, "praise");
   if ("error" in result) return result.error;
 
   try {
@@ -81,9 +81,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** Идэвхтэй тооллогыг дуусгана (зөвхөн админ). */
+/** Идэвхтэй тооллогыг дуусгана (админ болон Магтаалын аймгийн гишүүд). */
 export async function PATCH(request: NextRequest) {
-  const result = await requireAdmin(request);
+  const result = await requireAimag(request, "praise");
   if ("error" in result) return result.error;
 
   try {

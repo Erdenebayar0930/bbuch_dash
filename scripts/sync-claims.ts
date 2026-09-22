@@ -23,7 +23,7 @@
  */
 import { cert, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/node-postgres";
 
 import { getFirebaseAdminConfig } from "../src/lib/config";
 import { createDbPool, resolveDatabaseUrl } from "../src/lib/db/createPool";
@@ -87,7 +87,7 @@ const app = initializeApp({ credential: cert({ projectId, clientEmail, privateKe
 const auth = getAuth(app);
 
 const pool = createDbPool(connectionString);
-const db = drizzle(pool, { mode: "default" });
+const db = drizzle(pool);
 
 type Outcome = "шинэчилсэн" | "аль хэдийн зөв" | "Firebase-д алга" | "алдаа";
 

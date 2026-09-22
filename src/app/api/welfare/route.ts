@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     // Postgres дээр `distinct on (household_id)` байсан — MySQL-д ийм бүтэц
     // байхгүй тул цонхны функцээр мөр бүрийг дугаарлаад эхнийхийг нь авна.
-    const [latest] = await db.execute(sql`
+    const { rows: latest } = await db.execute(sql`
       select household_id, description, amount, provided_at
       from (
         select
@@ -65,12 +65,11 @@ export async function GET(request: NextRequest) {
     `);
 
     // Нийт зарцуулалт ба тусламжийн тоо — тайлангийн үндсэн тоо тул баазад.
-    // Postgres-ийн `::int` cast нь MySQL-д `cast(... as signed)`.
-    const [totals] = await db.execute(sql`
+    const { rows: totals } = await db.execute(sql`
       select
         household_id,
-        cast(coalesce(sum(amount), 0) as signed) as total,
-        cast(count(*) as signed) as times
+        (coalesce(sum(amount), 0))::int as total,
+        (count(*))::int as times
       from welfare_aids
       group by household_id
     `);

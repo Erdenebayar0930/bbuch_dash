@@ -199,11 +199,13 @@ export type SendResult = {
 };
 
 /**
- * Сервер талын /api/notifications/send нь `aimag`, `role` чиглэлийг мөн
- * дэмждэг — гэвч UI-аас тэдгээрийг хассан тул энд зөвхөн ашиглагдаж буй
- * хоёрыг үлдээв.
+ * Сервер талын /api/notifications/send нь `role` чиглэлийг мөн дэмждэг —
+ * гэвч UI-аас хассан тул энд ороогүй.
  */
-type Target = { type: "all" } | { type: "user"; userId: string };
+type Target =
+  | { type: "all" }
+  | { type: "user"; userId: string }
+  | { type: "aimag"; aimags: string[] };
 
 async function postNotification(
   target: Target,
@@ -250,6 +252,16 @@ export async function sendNotificationToAllUsers(
   data?: { [key: string]: string }
 ): Promise<SendResult> {
   return postNotification({ type: "all" }, title, body, data);
+}
+
+/** Сонгосон аймгуудын аль нэгэнд харьяалагдах хэрэглэгчдэд мэдэгдэл илгээнэ */
+export async function sendNotificationToAimags(
+  aimags: string[],
+  title: string,
+  body: string,
+  data?: { [key: string]: string }
+): Promise<SendResult> {
+  return postNotification({ type: "aimag", aimags }, title, body, data);
 }
 
 /**

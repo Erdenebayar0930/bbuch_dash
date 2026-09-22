@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     // Хайрцаг тус бүрийн сүүлийн эргэлт. Postgres дээр `distinct on (box_id)`
     // байсан — MySQL-д ийм бүтэц байхгүй тул цонхны функцээр дугаарлана.
-    const [latest] = await db.execute(sql`
+    const { rows: latest } = await db.execute(sql`
       select box_id, status, amount, clothing_count, visited_at
       from (
         select
@@ -63,12 +63,11 @@ export async function GET(request: NextRequest) {
     `);
 
     // Нийт хураалт — тайлангийн үндсэн тоо тул баазад бодуулна.
-    // Postgres-ийн `::int` cast нь MySQL-д `cast(... as signed)`.
-    const [totals] = await db.execute(sql`
+    const { rows: totals } = await db.execute(sql`
       select
         box_id,
-        cast(coalesce(sum(amount), 0) as signed) as total,
-        cast(coalesce(sum(clothing_count), 0) as signed) as clothing
+        (coalesce(sum(amount), 0))::int as total,
+        (coalesce(sum(clothing_count), 0))::int as clothing
       from donation_box_visits
       where status = 'collected'
       group by box_id

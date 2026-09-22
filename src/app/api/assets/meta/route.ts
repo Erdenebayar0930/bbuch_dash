@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import {
   badRequest,
   requireActiveUser,
-  requireAdmin,
+  requireAimag,
   serverError,
 } from "@/lib/api/auth";
 import { db } from "@/lib/db";
@@ -49,11 +49,12 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Шинэ агуулах эсвэл төрөл нэмнэ (зөвхөн админ).
+ * Шинэ агуулах эсвэл төрөл нэмнэ (админ болон Магтаалын аймгийн гишүүд —
+ * эд хөрөнгийн бүртгэл өөр аймагт нээгдвэл энд мөн нэмэх шаардлагатай).
  * Эрэмбийг сүүлд нь тавина — одоо байгаа дараалал өөрчлөгдөхгүй.
  */
 export async function POST(request: NextRequest) {
-  const result = await requireAdmin(request);
+  const result = await requireAimag(request, "praise");
   if ("error" in result) return result.error;
 
   try {
@@ -104,11 +105,11 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Агуулах эсвэл төрлийг устгана (зөвхөн админ).
+ * Агуулах эсвэл төрлийг устгана (админ болон Магтаалын аймгийн гишүүд).
  * Холбогдох эд хөрөнгийн мөр УСТАХГҮЙ — тухайн талбар нь хоосон болно.
  */
 export async function DELETE(request: NextRequest) {
-  const result = await requireAdmin(request);
+  const result = await requireAimag(request, "praise");
   if ("error" in result) return result.error;
 
   try {

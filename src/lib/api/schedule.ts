@@ -22,5 +22,8 @@ export async function writeSchedulePosterUrl(url: string): Promise<void> {
   await db
     .insert(settings)
     .values({ key: SETTING_KEY, value: url })
-    .onDuplicateKeyUpdate({ set: { value: url, updatedAt: new Date() } });
+    .onConflictDoUpdate({
+      target: settings.key,
+      set: { value: url, updatedAt: new Date() },
+    });
 }

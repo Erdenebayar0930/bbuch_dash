@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       checked_at: Date;
     };
 
-    const [latestCheckRows] = await db.execute(sql`
+    const { rows: latestCheckRows } = await db.execute(sql`
       select asset_id, status, found_quantity, checked_at
       from (
         select

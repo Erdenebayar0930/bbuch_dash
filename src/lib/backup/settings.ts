@@ -86,7 +86,10 @@ export async function setSettings(
     await db
       .insert(settings)
       .values({ key, value })
-      .onDuplicateKeyUpdate({ set: { value, updatedAt: new Date() } });
+      .onConflictDoUpdate({
+        target: settings.key,
+        set: { value, updatedAt: new Date() },
+      });
   }
 
 }

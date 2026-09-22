@@ -1,10 +1,48 @@
 import "server-only";
 
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { sendPush } from "@/lib/api/push";
 import { db } from "@/lib/db";
-import { fcmTokens, notifications } from "@/lib/db/schema";
+import { fcmTokens, notifications, users } from "@/lib/db/schema";
+
+export type NotifyTarget =
+  | { type: "all" }
+  | { type: "aimag"; aimags: string[] }
+  | { type: "role"; role: string }
+  | { type: "user"; userId: string };
+
+/** Чиглэлээс хамаарч хүлээн авагчдын uid-г олно. */
+export async function resolveNotifyTargets(target: NotifyTarget): Promise<string[]> {
+  if (target.type === "user") {
+    const rows = await db
+      .select({ uid: users.uid })
+      .from(users)
+      .where(eq(users.uid, target.userId))
+      .limit(1);
+
+    return rows.map((row) => row.uid);
+  }
+
+  const where =
+    target.type === "aimag"
+      ? // Postgres-ийн jsonb containment хайлт: `баримт @> утга`.
+        // Сонгосон аймгуудын АЛЬ НЭГЭНД нь харьяалагдвал хангалттай (OR).
+        and(
+          eq(users.status, "active"),
+          or(
+            ...target.aimags.map(
+              (aimag) => sql`${users.aimags} @> ${JSON.stringify([aimag])}::jsonb`
+            )
+          )
+        )
+      : target.type === "role"
+        ? and(eq(users.status, "active"), eq(users.role, target.role))
+        : eq(users.status, "active");
+
+  const rows = await db.select({ uid: users.uid }).from(users).where(where);
+  return rows.map((row) => row.uid);
+}
 
 type Message = {
   title: string;

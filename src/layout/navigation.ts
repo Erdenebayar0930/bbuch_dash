@@ -1,8 +1,6 @@
 import {
   Bell,
-  BookOpen,
   Boxes,
-  Briefcase,
   CalendarClock,
   ClipboardList,
   DatabaseBackup,
@@ -20,7 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { isAdminRole, isSuperRole } from "@/lib/permissions";
+import { canSendNotifications, isAdminRole, isSuperRole } from "@/lib/permissions";
 
 export type NavItem = {
   name: string;
@@ -28,6 +26,11 @@ export type NavItem = {
   icon: LucideIcon;
   /** Зөвхөн админ эрхтэй хэрэглэгчид харагдах цэс */
   adminOnly?: boolean;
+  /**
+   * Зөвхөн мэдэгдэл илгээх эрхтэй хэрэглэгчид (админ ба `canNotify` эрхтэй
+   * бусад хэрэглэгч) харагдах цэс — `adminOnly`-тай хамт ашиглахгүй.
+   */
+  notifierOnly?: boolean;
   /**
    * Зөвхөн СУПЕР админд. `adminOnly`-оос хатуу: энгийн админ ч харахгүй.
    * Өгөгдлийн сангийн бүрэн хуулбар авах зэрэг бүх мэдээлэлд хүрдэг үйлдэлд.
@@ -54,7 +57,6 @@ export type NavItem = {
  */
 export const navItems: NavItem[] = [
   { name: "Үндсэн цэс", path: "/", icon: LayoutGrid },
-  { name: "Гарын авлага", path: "/handbook", icon: BookOpen },
   {
     name: "Харуулын аймаг",
     path: "/aimag/guard",
@@ -62,6 +64,7 @@ export const navItems: NavItem[] = [
     aimag: "guard",
     children: [
       { name: "Газрын зураг", path: "/aimag/guard/map", icon: MapPin },
+      { name: "Тахилт", path: "/aimag/guard/tahilt", icon: HandCoins },
     ],
   },
   {
@@ -75,6 +78,18 @@ export const navItems: NavItem[] = [
         path: "/aimag/praise/assets",
         icon: Boxes,
       },
+      {
+        name: "Тахилт",
+        path: "/aimag/praise/tahilt",
+        icon: HandCoins,
+        children: [
+          {
+            name: "Халамж",
+            path: "/aimag/praise/tahilt/welfare",
+            icon: HandHeart,
+          },
+        ],
+      },
     ],
   },
   {
@@ -84,6 +99,7 @@ export const navItems: NavItem[] = [
     aimag: "supply",
     children: [
       { name: "Төлөвлөгөө", path: "/aimag/supply/plan", icon: ClipboardList },
+      { name: "Тахилт", path: "/aimag/supply/tahilt", icon: HandCoins },
     ],
   },
   {
@@ -102,6 +118,7 @@ export const navItems: NavItem[] = [
         path: "/aimag/commission/schedule",
         icon: CalendarClock,
       },
+      { name: "Тахилт", path: "/aimag/commission/tahilt", icon: HandCoins },
     ],
   },
   {
@@ -116,20 +133,10 @@ export const navItems: NavItem[] = [
         path: "/aimag/service/donations",
         icon: Gift,
       },
+      { name: "Тахилт", path: "/aimag/service/tahilt", icon: HandCoins },
     ],
   },
-  {
-    name: "Тахилт",
-    path: "/tahilt",
-    icon: HandCoins,
-    aimag: "tahilt",
-    children: [
-      { name: "Төлөвлөгөө", path: "/tahilt/plan", icon: ClipboardList },
-      { name: "Халамж", path: "/tahilt/welfare", icon: HandHeart },
-      { name: "Ажлын байраар хангах", path: "/tahilt/jobs", icon: Briefcase },
-    ],
-  },
-  { name: "Мэдэгдэл илгээх", path: "/admin/notifications", icon: Bell, adminOnly: true },
+  { name: "Мэдэгдэл илгээх", path: "/admin/notifications", icon: Bell, notifierOnly: true },
   { name: "Хэрэглэгчид", path: "/users", icon: Users, adminOnly: true },
   {
     name: "Нөөцлөлт",
@@ -144,6 +151,8 @@ export type NavViewer = {
   role?: string;
   /** Харьяалагдах аймгуудын түлхүүр */
   aimags?: string[];
+  /** Админ бус ч мэдэгдэл илгээх эрх авсан эсэх */
+  canNotify?: boolean;
 };
 
 /**
@@ -161,6 +170,7 @@ export function canSeeNavItem(item: NavItem, viewer: NavViewer): boolean {
   // админыг ч багтаадаг тул дараа нь шалгавал энгийн админд ил гарна.
   if (item.superOnly) return isSuperRole(viewer.role);
   if (isAdminRole(viewer.role)) return true;
+  if (item.notifierOnly) return canSendNotifications(viewer.role, viewer.canNotify);
   if (item.adminOnly) return false;
   if (item.aimag && !(viewer.aimags ?? []).includes(item.aimag)) return false;
   return true;
@@ -182,20 +192,31 @@ export type Shortcut = NavItem & {
 export const shortcuts: Shortcut[] = (() => {
   const seen = new Map<string, Shortcut>();
 
+  // Эцэг мөрийн хязгаарлалт болон нэрийг хүүхдэд нь (хэдийгээр хэдэн
+  // үедээ ч байсан) дамжуулна — тэрхүү үед дэргэдэх "group" нь ХАМГИЙН
+  // ДОТООД эцгийн нэр байна (жишээ нь Тахилт > Халамж — group нь "Тахилт").
+  function collectLeaves(
+    item: NavItem,
+    parentGroup: string | undefined,
+    inheritedAdminOnly: boolean | undefined,
+    inheritedAimag: string | undefined
+  ): Shortcut[] {
+    const adminOnly = inheritedAdminOnly || item.adminOnly;
+    const aimag = item.aimag ?? inheritedAimag;
+
+    if (!item.children?.length) {
+      return [{ ...item, group: parentGroup, adminOnly, aimag }];
+    }
+
+    return item.children.flatMap((child) =>
+      collectLeaves(child, item.name, adminOnly, aimag)
+    );
+  }
+
   for (const item of navItems) {
     if (item.path === "/") continue;
 
-    const entries: Shortcut[] = item.children?.length
-      ? item.children.map((child) => ({
-          ...child,
-          group: item.name,
-          // Хүүхэд нь эцгийнхээ хязгаарлалтыг өвлөнө
-          adminOnly: item.adminOnly || child.adminOnly,
-          aimag: child.aimag ?? item.aimag,
-        }))
-      : [item];
-
-    for (const entry of entries) {
+    for (const entry of collectLeaves(item, undefined, undefined, undefined)) {
       if (!seen.has(entry.path)) seen.set(entry.path, entry);
     }
   }
@@ -225,8 +246,14 @@ const extraTitles: Record<string, string> = {
 const flatItems = (() => {
   const seen = new Map<string, NavItem>();
 
+  function collectAll(item: NavItem): NavItem[] {
+    return item.children?.length
+      ? [item, ...item.children.flatMap(collectAll)]
+      : [item];
+  }
+
   for (const item of navItems) {
-    for (const entry of item.children ? [item, ...item.children] : [item]) {
+    for (const entry of collectAll(item)) {
       if (!seen.has(entry.path)) seen.set(entry.path, entry);
     }
   }

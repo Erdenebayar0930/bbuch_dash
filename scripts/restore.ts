@@ -24,6 +24,8 @@ import { Readable } from "node:stream";
 import { createDbPool, resolveDatabaseUrl } from "../src/lib/db/createPool";
 import { decodeValue } from "../src/lib/backup/dump";
 
+import type { PoolClient } from "pg";
+
 const args = process.argv.slice(2);
 const flag = (name: string) => {
   const index = args.indexOf(name);
@@ -35,7 +37,7 @@ const remoteName = flag("--remote");
 const write = args.includes("--write");
 const list = args.includes("--list");
 
-/** Нэг INSERT-д багтаах мөрийн тоо — том пакет нь max_allowed_packet-д хүрнэ */
+/** Нэг INSERT-д багтаах мөрийн тоо */
 const CHUNK = 200;
 
 /**
@@ -98,11 +100,12 @@ async function main() {
   /**
    * БҮХ үйлдлийг НЭГ холболтоор хийнэ.
    *
-   * `FOREIGN_KEY_CHECKS` болон гүйлгээ хоёул СЕССИЙН шинжтэй: pool-оос өөр
-   * өөр холболт авбал тохиргоо нэг холболт дээр тавигдаад, бичилт нь өөр
-   * холболтоор явж, хамгаалалт огт ажиллахгүй.
+   * FK шалгалт хойшлуулах (`SET CONSTRAINTS ALL DEFERRED`) болон гүйлгээ
+   * хоёул СЕССИЙН шинжтэй: pool-оос өөр өөр холболт авбал тохиргоо нэг
+   * холболт дээр тавигдаад, бичилт нь өөр холболтоор явж, хамгаалалт огт
+   * ажиллахгүй.
    */
-  const connection = await pool.getConnection();
+  const connection: PoolClient = await pool.connect();
 
   /**
    * Гүйлгээ эхэлсэн эсэх — `catch` блокоос ч харагдах ёстой тул `try`-аас
@@ -119,11 +122,11 @@ async function main() {
     const skipped: string[] = [];
 
     /** Баазад БОДИТООР байгаа хүснэгтүүд — архивт байгаа ч энд байхгүй байж болно */
-    const [existingRows] = await connection.query(
-      "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'"
+    const { rows: existingRows } = await connection.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
     );
     const existing = new Set(
-      (existingRows as Record<string, string>[]).map((row) => Object.values(row)[0])
+      (existingRows as { table_name: string }[]).map((row) => row.table_name)
     );
 
     /**
@@ -138,15 +141,18 @@ async function main() {
      *    бичигдсэн бай, зөвхөн ҮНЭХЭЭР байгаа багана л асуулгад орно.
      *
      * 2. ХУУЧИН АРХИВ. Схем өөрчлөгдөж багана хасагдсаны дараа хуучин
-     *    архиваас сэргээхэд "Unknown column" гэж унахын оронд тэр баганыг
-     *    алгасаад үлдсэнийг нь сэргээнэ.
+     *    архиваас сэргээхэд "column does not exist" гэж унахын оронд тэр
+     *    баганыг алгасаад үлдсэнийг нь сэргээнэ.
      */
     const columnsOf = new Map<string, Set<string>>();
     for (const table of existing) {
-      const [cols] = await connection.query(`SHOW COLUMNS FROM \`${table}\``);
+      const { rows: cols } = await connection.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1",
+        [table]
+      );
       columnsOf.set(
         table,
-        new Set((cols as { Field: string }[]).map((col) => col.Field))
+        new Set((cols as { column_name: string }[]).map((col) => col.column_name))
       );
     }
 
@@ -157,9 +163,8 @@ async function main() {
      * ⚠ `createInterface`-ийг БҮХ бэлтгэл дууссаны ДАРАА үүсгэнэ.
      *
      * readline нь үүсмэгц урсгалыг "flowing" горимд оруулж мөрүүдийг цацаж
-     * эхэлдэг. Хэрэв энэ хооронд `await` хийвэл (жишээ нь дээрх SHOW TABLES)
-     * тэр мөрүүд сонсогчгүй алга болж, доорх `for await` нь хэзээ ч ирэхгүй
-     * мөр хүлээсээр ГАЦНА. Энэ нь ЯГ ингэж илэрсэн алдаа.
+     * эхэлдэг. Хэрэв энэ хооронд `await` хийвэл тэр мөрүүд сонсогчгүй алга
+     * болж, доорх `for await` нь хэзээ ч ирэхгүй мөр хүлээсээр ГАЦНА.
      */
     const reader = createInterface({
       input: (await source()).pipe(createGunzip()),
@@ -171,25 +176,25 @@ async function main() {
      *
      * Хоёр зүйлийг ЭНД, бичилт эхлэхээс ӨМНӨ хийх нь чухал:
      *
-     * 1. `FOREIGN_KEY_CHECKS = 0` — архив дахь хүснэгтүүд цагаан толгойн
-     *    дарааллаар ирдэг (children нь users-ээс өмнө). Шалгалттай бол
-     *    хүүхдийн мөр эцгээсээ өмнө ороход FK алдаа өгнө. Дарааллыг бүрэн
-     *    зөв тооцоолох нь хамаарлын графыг шаардах бөгөөд мөчлөгтэй үед
-     *    боломжгүй — тиймээс шалгалтыг түр унтраана. Архив нь өөрөө
-     *    бүрэн бүтэн байсан тул холбоос нь зөв хэвээр.
+     * 1. `SET CONSTRAINTS ALL DEFERRED` — архив дахь хүснэгтүүд цагаан
+     *    толгойн дарааллаар ирдэг (children нь users-ээс өмнө). Шалгалттай
+     *    бол хүүхдийн мөр эцгээсээ өмнө ороход FK алдаа өгнө. Дарааллыг
+     *    бүрэн зөв тооцоолох нь хамаарлын графыг шаардах бөгөөд мөчлөгтэй
+     *    үед боломжгүй — тиймээс шалгалтыг гүйлгээ дуустал хойшлуулна.
+     *    Архив нь өөрөө бүрэн бүтэн байсан тул холбоос нь зөв хэвээр.
      *
      * 2. БҮХ хүснэгтийг УРЬДЧИЛАН хоослоно. Урьд нь хүснэгт бүрийг эхний
-     *    мөр ирэхэд нь цэвэрлэдэг байсан бөгөөд `users`-ийг цэвэрлэх үед
-     *    `ON DELETE CASCADE` нь аль хэдийн сэргээгдсэн `children`,
-     *    `notifications`-ыг ДАГУУЛЖ УСТГАДАГ байв — сэргээлт "амжилттай"
-     *    гэж дуусаад өгөгдөл дутуу үлдэнэ.
+     *    мөр ирэхэд нь цэвэрлэдэг байсан бөгөөд `ON DELETE CASCADE` нь
+     *    аль хэдийн сэргээгдсэн `children`, `notifications`-ыг ДАГУУЛЖ
+     *    УСТГАДАГ байв — сэргээлт "амжилттай" гэж дуусаад өгөгдөл дутуу
+     *    үлдэнэ.
      */
     const begin = async (tables: string[]) => {
       if (!write || started) return;
       started = true;
 
-      await connection.query("SET FOREIGN_KEY_CHECKS = 0");
-      await connection.beginTransaction();
+      await connection.query("BEGIN");
+      await connection.query("SET CONSTRAINTS ALL DEFERRED");
 
       for (const table of tables) {
         if (!existing.has(table)) {
@@ -208,15 +213,15 @@ async function main() {
          */
         if (table === "settings") {
           await connection.query(
-            `delete from \`settings\` where setting_key not in (${SECRET_SETTING_KEYS.map(
-              () => "?"
+            `delete from "settings" where setting_key not in (${SECRET_SETTING_KEYS.map(
+              (_, index) => `$${index + 1}`
             ).join(",")})`,
             SECRET_SETTING_KEYS
           );
           continue;
         }
 
-        await connection.query(`delete from \`${table}\``);
+        await connection.query(`delete from "${table}"`);
       }
     };
 
@@ -237,15 +242,24 @@ async function main() {
           return;
         }
 
-        const placeholders = `(${columns.map(() => "?").join(",")})`;
         const values = rows.flatMap((row) =>
           columns.map((column) => decodeValue(row[column]))
         );
 
+        let placeholderIndex = 0;
+        const placeholders = rows
+          .map(
+            () =>
+              `(${columns
+                .map(() => `$${++placeholderIndex}`)
+                .join(",")})`
+          )
+          .join(",");
+
         await connection.query(
-          `insert into \`${table}\` (${columns
-            .map((column) => `\`${column}\``)
-            .join(",")}) values ${rows.map(() => placeholders).join(",")}`,
+          `insert into "${table}" (${columns
+            .map((column) => `"${column}"`)
+            .join(",")}) values ${placeholders}`,
           values
         );
       }
@@ -298,7 +312,7 @@ async function main() {
 
     for (const table of buffer.keys()) await flush(table);
 
-    if (started) await connection.commit();
+    if (started) await connection.query("COMMIT");
 
     console.log("Архив :", header?.createdAt ?? "?");
     console.log();
@@ -334,12 +348,9 @@ async function main() {
      * хоосруулагдсан хэрнээ шинэ өгөгдөл нь дутуу — өөрөөр хэлбэл сэргээх
      * гэж оролдоод байсан өгөгдлөө устгачихна.
      */
-    if (started) await connection.rollback().catch(() => {});
+    if (started) await connection.query("ROLLBACK").catch(() => {});
     throw error;
   } finally {
-    // Шалгалтыг ЗААВАЛ буцааж асаана — холболт pool руу буцаж, дараагийн
-    // хэрэглэгчид шалгалтгүй очих ёсгүй.
-    await connection.query("SET FOREIGN_KEY_CHECKS = 1").catch(() => {});
     connection.release();
     await pool.end();
   }

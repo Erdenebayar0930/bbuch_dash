@@ -1,14 +1,14 @@
-import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import { createDbPool, resolveDatabaseUrl } from "./createPool";
 import * as schema from "./schema";
 
-import type { Pool } from "mysql2/promise";
+import type { Pool } from "pg";
 
-type Database = MySql2Database<typeof schema>;
+type Database = NodePgDatabase<typeof schema>;
 
 /**
- * MySQL холболт.
+ * Postgres холболт.
  *
  * `server-only`-г ЗОРИУДААР импортлохгүй: `scripts/`-ийн tsx скриптүүд ч
  * (жишээ нь `npm run backup`) энэ холболтыг ашиглана. Сервер талын
@@ -19,7 +19,7 @@ type Database = MySql2Database<typeof schema>;
  * Мөн serverless орчинд холболт хуримтлагдахаас сэргийлж global дээр кэшлэнэ.
  */
 const globalForDb = globalThis as unknown as {
-  __mysqlPool?: Pool;
+  __pgPool?: Pool;
   __drizzle?: Database;
 };
 
@@ -34,10 +34,10 @@ function getDb(): Database {
     );
   }
 
-  const pool = globalForDb.__mysqlPool ?? createDbPool(connectionString);
+  const pool = globalForDb.__pgPool ?? createDbPool(connectionString);
 
-  globalForDb.__mysqlPool = pool;
-  globalForDb.__drizzle = drizzle(pool, { schema, mode: "default" });
+  globalForDb.__pgPool = pool;
+  globalForDb.__drizzle = drizzle(pool, { schema });
 
   return globalForDb.__drizzle;
 }

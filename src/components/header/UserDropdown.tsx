@@ -40,9 +40,9 @@ function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
     <div className="relative">
       <button
         onClick={toggleDropdown}
-        className="dropdown-toggle flex items-center gap-2 rounded-lg border border-white/20 py-1.5 pl-1.5 pr-2.5 text-white transition-colors hover:bg-white/10"
+        className="dropdown-toggle flex items-center gap-2 rounded-lg border border-gray-200 py-1.5 pl-1.5 pr-2.5 text-gray-700 transition-colors hover:bg-gray-100 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-xs font-semibold uppercase text-white">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-50 text-xs font-semibold uppercase text-brand-600 dark:bg-white/15 dark:text-white">
           {initial}
         </span>
 
@@ -51,7 +51,7 @@ function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
         </span>
 
         <svg
-          className={`stroke-white/60 transition-transform duration-200 ${
+          className={`stroke-gray-400 transition-transform duration-200 dark:stroke-white/60 ${
             isOpen ? "rotate-180" : ""
           }`}
           width="16"
