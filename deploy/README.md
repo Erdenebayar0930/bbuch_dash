@@ -173,8 +173,15 @@ Cron Jobs дээр 15 минут тутам:
 
 ## Nginx ба SSL
 
-Тохиргоо нь `/etc/nginx/conf.d/bbuch-dash.conf` — `dash.bbuchmongol.com`-ыг
-`127.0.0.1:3002` руу proxy хийнэ (WebSocket-ийн upgrade толгойнуудтай).
+Тохиргоо нь `/etc/nginx/conf.d/bbuch-dash.conf` — `dash.bbuchmongol.com`
+болон `dash.bbuch.com` хоёрыг `127.0.0.1:3002` руу proxy хийнэ (WebSocket-ийн
+upgrade толгойнуудтай).
+
+> `dash.bbuch.com` нь **нэмэлт** хаяг. Аппын `NEXT_PUBLIC_APP_URL` нь
+> `dash.bbuchmongol.com` хэвээр тул нэвтрэлт, Google OAuth-ийн redirect,
+> мэдэгдлийн холбоосууд бүгд тэр хаягаар явна. Үндсэн хаягийг солих бол
+> `.env.local`-ыг зассаны дараа **заавал дахин build** (`NEXT_PUBLIC_*` нь
+> build-д шигддэг), мөн Google Cloud Console дээрх redirect URI-г шинэчилнэ.
 
 ```bash
 nginx -t && systemctl reload nginx
@@ -184,10 +191,14 @@ nginx -t && systemctl reload nginx
 > бүхэн ажиллахгүй. A бичлэгийг сольж, хуучин серверийг заасан AAAA бичлэгүүдийг
 > ч мөн засах эсвэл устгана.
 
-> ⚠ **Сертификат.** Одоогоор зөвхөн 80 порт сонсож байна. DNS чиглүүлсний дараа
-> cPanel-ийн AutoSSL ашиглах, эсвэл certbot суулгаж https-ийг идэвхжүүлнэ:
-> `dnf install certbot python3-certbot-nginx && certbot --nginx -d dash.bbuchmongol.com`.
+> ⚠ **Сертификат.** Одоогоор зөвхөн 80 порт сонсож байна. certbot нь сервер
+> дээр суусан. DNS чиглүүлсний дараа домэйн тус бүрээр идэвхжүүлнэ:
+> `certbot --nginx -d dash.bbuchmongol.com -d dash.bbuch.com`.
 > Үүнгүйгээр `NEXT_PUBLIC_APP_URL`-д бичсэн https хаяг ажиллахгүй.
+>
+> certbot нь A бичлэг нь **энэ сервер рүү** заасан домэйнд л гэрчилгээ өгнө.
+> Заагаагүй нэрийг командад оруулбал бүх гэрчилгээ нь бүтэлгүйтнэ — тиймээс
+> чиглүүлж дууссан домэйноо л нэг бүрчлэн нэмнэ.
 
 ---
 
