@@ -4,6 +4,9 @@ import { apiFetch } from "./apiClient";
 
 import type { VisitStatus } from "@/data/donationBoxOptions";
 
+/** Эргэлтийн зураг — `path` нь Storage дахь зам */
+export type VisitPhoto = { url: string; path: string };
+
 /** Жагсаалтад харуулах хамгийн сүүлийн эргэлтийн товч */
 export type LastVisit = {
   status: VisitStatus;
@@ -108,6 +111,8 @@ export type BoxVisit = {
   /** Хураасан хувцас, ширхэг */
   clothingCount: number;
   note: string;
+  /** Эргэлтийн үеэр авсан зургууд */
+  photos: VisitPhoto[];
   visitedAt: Date;
   /** Эргэсэн хүний нэр — устсан бүртгэл дээр хоосон байж болно */
   visitedByName: string;
@@ -119,6 +124,7 @@ type VisitRow = {
   amount: number;
   clothingCount: number;
   note: string | null;
+  photos: VisitPhoto[] | null;
   visitedAt: string;
   visitedByName: string | null;
   visitedByLastName: string | null;
@@ -136,6 +142,7 @@ export async function listBoxVisits(boxId: string): Promise<BoxVisit[]> {
     amount: row.amount ?? 0,
     clothingCount: row.clothingCount ?? 0,
     note: row.note ?? "",
+    photos: row.photos ?? [],
     visitedAt: new Date(row.visitedAt),
     visitedByName:
       [row.visitedByName, row.visitedByLastName].filter(Boolean).join(" ") ||
@@ -148,9 +155,8 @@ export async function recordBoxVisit(
   boxId: string,
   input: {
     status: VisitStatus;
-    amount: number;
-    clothingCount: number;
     note: string;
+    photos: VisitPhoto[];
   }
 ): Promise<void> {
   await apiFetch(`/api/donation-boxes/${boxId}/visits`, {

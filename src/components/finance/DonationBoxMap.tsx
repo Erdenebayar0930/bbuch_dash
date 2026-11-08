@@ -17,7 +17,6 @@ import { isAdminRole } from "@/lib/permissions";
 import DonationBoxModal from "./DonationBoxModal";
 import DonationBoxVisitModal from "./DonationBoxVisitModal";
 
-const money = new Intl.NumberFormat("mn-MN");
 
 const shortDate = new Intl.DateTimeFormat("mn-MN", {
   year: "2-digit",
@@ -228,15 +227,7 @@ export default function DonationBoxMap() {
                 {box.lastVisit ? (
                   <>
                     Сүүлд {shortDate.format(box.lastVisit.visitedAt)} ·{" "}
-                    {visitStatusLabels[box.lastVisit.status]} · нийт{" "}
-                    <span className="font-medium text-gray-700 dark:text-gray-300">
-                      {money.format(box.totalCollected)}₮
-                    </span>
-                    {" · "}
-                    <span className="font-medium text-gray-700 dark:text-gray-300">
-                      {money.format(box.totalClothing)} ш
-                    </span>{" "}
-                    хувцас
+                    {visitStatusLabels[box.lastVisit.status]}
                   </>
                 ) : (
                   "Хараахан эргээгүй"

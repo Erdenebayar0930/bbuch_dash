@@ -16,3 +16,5 @@ export const visitStatusLabels: Record<VisitStatus, string> = {
 
 export const isVisitStatus = (value: unknown): value is VisitStatus =>
   typeof value === "string" && visitStatuses.includes(value as VisitStatus);
+/** Нэг эргэлтэд оруулах зургийн дээд тоо — клиент ба сервер хоёул шалгана */
+export const MAX_VISIT_PHOTOS = 6;

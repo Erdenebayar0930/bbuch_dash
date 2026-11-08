@@ -88,6 +88,34 @@ export async function uploadAssetImage(
   return { url: await getDownloadURL(snapshot.ref), path };
 }
 
+// ---------------------------------------------------------------------------
+// Хандивын хайрцгийн эргэлтийн зураг — нэг эргэлтэд олон файл
+// ---------------------------------------------------------------------------
+
+/** Эргэлтийн зургийн дээд хэмжээ — storage.rules-тэй ижил байлгана */
+export const MAX_VISIT_PHOTO_BYTES = 10 * 1024 * 1024;
+
+/** Хайрцгийн эргэлтийн зургийг байршуулна (зөвхөн идэвхтэй админ). */
+export async function uploadVisitPhoto(
+  boxId: string,
+  file: File
+): Promise<UploadedImage> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Зөвхөн зураг оруулах боломжтой.");
+  }
+  if (file.size > MAX_VISIT_PHOTO_BYTES) {
+    throw new Error("Зургийн хэмжээ 10MB-аас хэтэрч болохгүй.");
+  }
+
+  const path = `donation_box_visits/${boxId}/${crypto.randomUUID()}.${extensionOf(file)}`;
+  const snapshot = await uploadBytes(ref(storage, path), file, {
+    contentType: file.type,
+    cacheControl: "public, max-age=31536000",
+  });
+
+  return { url: await getDownloadURL(snapshot.ref), path };
+}
+
 /** Эд хөрөнгийн зургийн файлыг Storage-оос устгана. */
 export async function deleteAssetImageFile(path: string): Promise<void> {
   try {

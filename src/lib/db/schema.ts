@@ -658,6 +658,9 @@ export const donationBoxes = pgTable(
  * тул түүх бүрэн үлдэх ёстой. Хайрцаг уствал эргэлтийн түүх нь ч дагаж
  * устана (`cascade`): эзэнгүй мөр үлдээх нь тайланг гуйвуулна.
  */
+/** Эргэлтийн зураг — `path` нь Storage дахь зам (устгахад) */
+export type VisitPhoto = { url: string; path: string };
+
 export const donationBoxVisits = pgTable(
   "donation_box_visits",
   {
@@ -677,6 +680,13 @@ export const donationBoxVisits = pgTable(
      */
     clothingCount: integer("clothing_count").notNull().default(0),
     note: bodyText("note"),
+    /**
+     * Эргэлтийн үеэр авсан зургууд (Firebase Storage). Хуучин мөрөнд null.
+     *
+     * Мөнгө/хувцасны тоог одоо оруулахгүй — тэмдэглэл ба зураг л үлдсэн.
+     * Дээрх хоёр багана нь өмнөх түүхийг хадгалахын тулд үлдсэн.
+     */
+    photos: jsonCol<VisitPhoto[]>("photos"),
     visitedBy: uidCol("visited_by"),
     visitedAt: utcTimestamp("visited_at").notNull().defaultNow(),
   },

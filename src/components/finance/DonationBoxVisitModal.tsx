@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { History } from "lucide-react";
+import { History, ImagePlus, X } from "lucide-react";
 
+import ImageViewer from "@/components/common/ImageViewer";
 import { Modal } from "@/components/ui/modal";
 import {
+  MAX_VISIT_PHOTOS,
   visitStatusLabels,
   visitStatuses,
   type VisitStatus,
@@ -15,6 +17,10 @@ import {
   type BoxVisit,
   type DonationBox,
 } from "@/lib/donationBoxes";
+import { MAX_VISIT_PHOTO_BYTES, uploadVisitPhoto } from "@/lib/storage";
+
+/** Сонгосон боловч хараахан байршуулаагүй зураг */
+type PendingPhoto = { file: File; preview: string };
 
 type DonationBoxVisitModalProps = {
   /** null бол цонх хаалттай */
@@ -25,8 +31,6 @@ type DonationBoxVisitModalProps = {
   /** Бүртгэсний дараа жагсаалтыг шинэчлэхэд */
   onRecorded: () => void;
 };
-
-const money = new Intl.NumberFormat("mn-MN");
 
 const dateTime = new Intl.DateTimeFormat("mn-MN", {
   year: "2-digit",
@@ -61,9 +65,11 @@ export default function DonationBoxVisitModal({
   onRecorded,
 }: DonationBoxVisitModalProps) {
   const [status, setStatus] = useState<VisitStatus>("collected");
-  const [amount, setAmount] = useState(0);
-  const [clothingCount, setClothingCount] = useState(0);
   const [note, setNote] = useState("");
+  /** Хадгалахаас өмнө сонгосон зургууд — илгээх үед л байршуулна */
+  const [pending, setPending] = useState<PendingPhoto[]>([]);
+  /** Томруулж харах зураг */
+  const [viewer, setViewer] = useState<string | null>(null);
 
   const [visits, setVisits] = useState<BoxVisit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -89,9 +95,8 @@ export default function DonationBoxVisitModal({
   // Цонх нээгдэх бүрд маягтыг цэвэрлээд түүхийг татна
   useEffect(() => {
     setStatus("collected");
-    setAmount(0);
-    setClothingCount(0);
     setNote("");
+    setPending([]);
     setError(null);
     setVisits([]);
     loadHistory();
@@ -99,26 +104,61 @@ export default function DonationBoxVisitModal({
 
   if (!box) return null;
 
+  const handlePick = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    // Ижил файлыг дахин сонгож болохоор утгыг цэвэрлэнэ
+    event.target.value = "";
+
+    const images = files.filter((file) => file.type.startsWith("image/"));
+    if (images.length < files.length) {
+      setError("Зөвхөн зураг оруулах боломжтой.");
+    }
+
+    const tooBig = images.find((file) => file.size > MAX_VISIT_PHOTO_BYTES);
+    if (tooBig) {
+      setError("Зургийн хэмжээ 10MB-аас хэтэрч болохгүй.");
+      return;
+    }
+
+    const room = MAX_VISIT_PHOTOS - pending.length;
+    if (images.length > room) {
+      setError(`Нэг эргэлтэд ${MAX_VISIT_PHOTOS} хүртэл зураг оруулна.`);
+    }
+
+    setPending((current) => [
+      ...current,
+      ...images.slice(0, Math.max(0, room)).map((file) => ({
+        file,
+        preview: URL.createObjectURL(file),
+      })),
+    ]);
+  };
+
+  const removePending = (index: number) => {
+    setPending((current) => {
+      URL.revokeObjectURL(current[index].preview);
+      return current.filter((_, i) => i !== index);
+    });
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setError(null);
 
     try {
-      // Хураагаагүй эргэлтэд хураалт байх учиргүй — сервер ч үүнийг шаарддаг
-      const collected = status === "collected";
+      const photos = await Promise.all(
+        pending.map((photo) => uploadVisitPhoto(box.id, photo.file))
+      );
 
-      await recordBoxVisit(box.id, {
-        status,
-        amount: collected ? amount : 0,
-        clothingCount: collected ? clothingCount : 0,
-        note,
-      });
+      await recordBoxVisit(box.id, { status, note, photos });
       await loadHistory();
       onRecorded();
-      setAmount(0);
-      setClothingCount(0);
       setNote("");
+      setPending((current) => {
+        current.forEach((photo) => URL.revokeObjectURL(photo.preview));
+        return [];
+      });
     } catch (err) {
       console.error("Эргэлт бүртгэхэд алдаа гарлаа:", err);
       setError(err instanceof Error ? err.message : "Бүртгэхэд алдаа гарлаа.");
@@ -136,18 +176,6 @@ export default function DonationBoxVisitModal({
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
           {box.name}
           {box.address ? ` · ${box.address}` : ""}
-        </p>
-
-        <p className="mt-3 rounded-lg bg-gray-50 px-3.5 py-2.5 text-theme-sm text-gray-700 dark:bg-white/[0.03] dark:text-gray-300">
-          Нийт хураасан:{" "}
-          <span className="font-semibold">
-            {money.format(box.totalCollected)}₮
-          </span>
-          {" · "}
-          <span className="font-semibold">
-            {money.format(box.totalClothing)}
-          </span>{" "}
-          ширхэг хувцас
         </p>
 
         {canRecord && (
@@ -172,45 +200,54 @@ export default function DonationBoxVisitModal({
               </select>
             </div>
 
-            {/* Хураалт зөвхөн "Хураасан" үед утгатай — нэг эргэлтээр мөнгө ба
-                хувцас хоёуланг нь хураасан байж болно */}
-            {status === "collected" && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="visit-amount" className={labelClass}>
-                    Хураасан мөнгө, ₮
-                  </label>
-                  <input
-                    id="visit-amount"
-                    type="number"
-                    min={0}
-                    value={amount}
-                    onChange={(event) =>
-                      setAmount(Math.max(0, Number(event.target.value) || 0))
-                    }
-                    className={fieldClass}
-                  />
-                </div>
+            <div>
+              <p className={labelClass}>
+                Зураг{" "}
+                <span className="text-gray-400">
+                  (заавал биш, {MAX_VISIT_PHOTOS} хүртэл)
+                </span>
+              </p>
 
-                <div>
-                  <label htmlFor="visit-clothing" className={labelClass}>
-                    Хувцас, ширхэг
+              <div className="flex flex-wrap gap-2">
+                {pending.map((photo, index) => (
+                  <div
+                    key={photo.preview}
+                    className="relative h-20 w-20 overflow-hidden rounded-lg border border-gray-200 dark:border-white/10"
+                  >
+                    {/* blob: хаяг тул next/image биш */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo.preview}
+                      alt=""
+                      className="h-full w-full cursor-zoom-in object-cover"
+                      onClick={() => setViewer(photo.preview)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePending(index)}
+                      aria-label="Зургийг хасах"
+                      className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+
+                {pending.length < MAX_VISIT_PHOTOS && (
+                  <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-gray-300 text-theme-xs text-gray-500 transition-colors hover:border-accent-400 hover:text-accent-600 dark:border-white/15 dark:text-gray-400">
+                    <ImagePlus className="h-5 w-5" strokeWidth={1.8} />
+                    Нэмэх
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handlePick}
+                      className="sr-only"
+                    />
                   </label>
-                  <input
-                    id="visit-clothing"
-                    type="number"
-                    min={0}
-                    value={clothingCount}
-                    onChange={(event) =>
-                      setClothingCount(
-                        Math.max(0, Number(event.target.value) || 0)
-                      )
-                    }
-                    className={fieldClass}
-                  />
-                </div>
+                )}
               </div>
-            )}
+            </div>
 
             <div>
               <label htmlFor="visit-note" className={labelClass}>
@@ -271,21 +308,6 @@ export default function DonationBoxVisitModal({
                     {visitStatusLabels[visit.status]}
                   </span>
 
-                  {visit.status === "collected" && (
-                    <>
-                      {visit.amount > 0 && (
-                        <span className="text-theme-sm font-semibold text-gray-900 dark:text-white">
-                          {money.format(visit.amount)}₮
-                        </span>
-                      )}
-                      {visit.clothingCount > 0 && (
-                        <span className="text-theme-sm font-semibold text-gray-900 dark:text-white">
-                          {money.format(visit.clothingCount)} ш хувцас
-                        </span>
-                      )}
-                    </>
-                  )}
-
                   <span className="ml-auto text-theme-xs text-gray-400">
                     {dateTime.format(visit.visitedAt)}
                   </span>
@@ -295,6 +317,27 @@ export default function DonationBoxVisitModal({
                   {visit.visitedByName}
                   {visit.note ? ` · ${visit.note}` : ""}
                 </p>
+
+                {visit.photos.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {visit.photos.map((photo) => (
+                      <button
+                        key={photo.path}
+                        type="button"
+                        onClick={() => setViewer(photo.url)}
+                        className="h-14 w-14 overflow-hidden rounded-md border border-gray-200 dark:border-white/10"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={photo.url}
+                          alt=""
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -310,6 +353,8 @@ export default function DonationBoxVisitModal({
           </button>
         </div>
       </div>
+
+      <ImageViewer src={viewer} onClose={() => setViewer(null)} />
     </Modal>
   );
 }

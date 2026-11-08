@@ -5,8 +5,6 @@ import { visitStatusLabels } from "@/data/donationBoxOptions";
 
 import type { DonationBox } from "@/lib/donationBoxes";
 
-const money = new Intl.NumberFormat("mn-MN");
-
 const shortDate = new Intl.DateTimeFormat("mn-MN", {
   year: "2-digit",
   month: "2-digit",
@@ -58,20 +56,11 @@ export default function DonationBoxLeafletMap({
           {/* Сүүлийн эргэлт — зураг дээрээс шууд харагдах ёстой мэдээлэл */}
           <div className="mt-2 space-y-0.5 rounded-lg bg-gray-50 p-2 text-xs text-gray-600">
             {box.lastVisit ? (
-              <>
-                <p>
-                  <span className="font-semibold">Сүүлд эргэсэн:</span>{" "}
-                  {shortDate.format(box.lastVisit.visitedAt)} ·{" "}
-                  {visitStatusLabels[box.lastVisit.status]}
-                  {box.lastVisit.status === "collected" &&
-                    ` · ${money.format(box.lastVisit.amount)}₮ · ${money.format(box.lastVisit.clothingCount)} ш хувцас`}
-                </p>
-                <p>
-                  <span className="font-semibold">Нийт хураасан:</span>{" "}
-                  {money.format(box.totalCollected)}₮ ·{" "}
-                  {money.format(box.totalClothing)} ш хувцас
-                </p>
-              </>
+              <p>
+                <span className="font-semibold">Сүүлд эргэсэн:</span>{" "}
+                {shortDate.format(box.lastVisit.visitedAt)} ·{" "}
+                {visitStatusLabels[box.lastVisit.status]}
+              </p>
             ) : (
               <p>Хараахан эргээгүй байна.</p>
             )}

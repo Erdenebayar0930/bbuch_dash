@@ -30,10 +30,10 @@ export const mbtiTypes: Option[] = [
 /** Хайрын 5 хэл */
 export const loveLanguages: Option[] = [
   { value: "words", label: "Урамшуулах үг" },
-  { value: "time", label: "Хамт өнгөрүүлэх цаг" },
-  { value: "gifts", label: "Бэлэг" },
-  { value: "service", label: "Тусламж үйлчилгээ" },
-  { value: "touch", label: "Биет ойртолт" },
+  { value: "time", label: "Чанартай цаг (Хамт цаг өнгөрүүлэх)" },
+  { value: "gifts", label: "Бэлэг өгөх, авах" },
+  { value: "service", label: "Туслах, үйлчлэх үйлдлүүд" },
+  { value: "touch", label: "Хүрэлцэх (Physical Touch)" },
 ];
 
 /** Темперамент — сонгодог 4 төрөл */

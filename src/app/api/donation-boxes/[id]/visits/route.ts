@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { isVisitStatus } from "@/data/donationBoxOptions";
+import { isVisitStatus, MAX_VISIT_PHOTOS } from "@/data/donationBoxOptions";
 import {
   badRequest,
   requireAdmin,
@@ -9,7 +9,12 @@ import {
   serverError,
 } from "@/lib/api/auth";
 import { db } from "@/lib/db";
-import { donationBoxVisits, donationBoxes, users } from "@/lib/db/schema";
+import {
+  donationBoxVisits,
+  donationBoxes,
+  users,
+  type VisitPhoto,
+} from "@/lib/db/schema";
 
 import type { NextRequest } from "next/server";
 
@@ -27,6 +32,30 @@ const MAX_AMOUNT = 1_000_000_000;
 
 /** Нэг эргэлтээр хураах хувцасны боломжит дээд тоо, ширхэг */
 const MAX_CLOTHING = 100_000;
+
+/**
+ * Клиентийн илгээсэн зургийн жагсаалтыг шалгана. Буруу бол null.
+ *
+ * Зам нь ЗААВАЛ тухайн хайрцгийн хавтас дотор, хаяг нь Firebase Storage-ийн
+ * байх ёстой — дурын гадны URL-ыг түүхэнд шигтгэхээс сэргийлнэ.
+ */
+function readPhotos(input: unknown, boxId: string): VisitPhoto[] | null {
+  if (input === undefined || input === null) return [];
+  if (!Array.isArray(input) || input.length > MAX_VISIT_PHOTOS) return null;
+
+  const prefix = `donation_box_visits/${boxId}/`;
+  const photos: VisitPhoto[] = [];
+
+  for (const item of input) {
+    const { url, path } = (item ?? {}) as Record<string, unknown>;
+    if (typeof url !== "string" || typeof path !== "string") return null;
+    if (!path.startsWith(prefix) || path.includes("..")) return null;
+    if (!url.startsWith("https://firebasestorage.googleapis.com/")) return null;
+    photos.push({ url, path });
+  }
+
+  return photos;
+}
 
 /** Тухайн хайрцгийн эргэлтийн түүх — сүүлийнх нь эхэндээ. */
 export async function GET(
@@ -46,6 +75,7 @@ export async function GET(
         amount: donationBoxVisits.amount,
         clothingCount: donationBoxVisits.clothingCount,
         note: donationBoxVisits.note,
+        photos: donationBoxVisits.photos,
         visitedAt: donationBoxVisits.visitedAt,
         visitedByName: users.firstName,
         visitedByLastName: users.lastName,
@@ -83,7 +113,8 @@ export async function POST(
 
     if (!isVisitStatus(body.status)) return badRequest("Төлөв буруу байна.");
 
-    const amount = body.amount;
+    // Мөнгө/хувцасны тоог UI одоо оруулахгүй — өгөөгүй бол 0 (хуучин клиентэд нийцтэй)
+    const amount = body.amount ?? 0;
     if (
       typeof amount !== "number" ||
       !Number.isInteger(amount) ||
@@ -112,6 +143,9 @@ export async function POST(
 
     const note = typeof body.note === "string" ? body.note.trim() : "";
 
+    const photos = readPhotos(body.photos, id);
+    if (!photos) return badRequest("Зургийн мэдээлэл буруу байна.");
+
     const [box] = await db
       .select({ id: donationBoxes.id })
       .from(donationBoxes)
@@ -132,6 +166,7 @@ export async function POST(
       amount,
       clothingCount,
       note,
+      photos,
       visitedBy: result.caller.uid,
     });
 
