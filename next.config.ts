@@ -150,7 +150,11 @@ const csp = [
   "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
   "font-src 'self' data:",
   // Дев дээр HMR нь ws:// ашиглана
-  `connect-src 'self'${isDev ? " ws: http://localhost:*" : ""} https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com`,
+  // ⚠ OSM хавтан энд ЗААВАЛ байна: next-pwa-гийн "cross-origin" дүрэм нь гадны
+  // бүх хүсэлтийг service worker дотор fetch()-ээр дахин илгээдэг бөгөөд
+  // worker-ийн fetch нь img-src биш connect-src-д захирагдана. Үгүй бол SW
+  // суусан төхөөрөмж (ялангуяа утас/PWA) дээр газрын зураг хоосон саарал болно.
+  `connect-src 'self'${isDev ? " ws: http://localhost:*" : ""} https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org`,
   "frame-src 'self' https://*.firebaseapp.com",
   // Service worker + видео шахалтын worker
   "worker-src 'self' blob:",
