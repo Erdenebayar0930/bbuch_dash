@@ -23,6 +23,36 @@ export default function ServiceWorkerRegister() {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
     let cancelled = false;
+    const loadedAt = Date.now();
+
+    /**
+     * Шинэ deploy-ийн SW (skipWaiting + clientsClaim) хяналтаа авахад хуудсыг
+     * НЭГ удаа дахин ачаална. Үгүй бол энэ хуудас хуучин SW-ийн дүрмээр
+     * ачаалагдсан хэвээр үлдэнэ — жишээ нь хуучин SW-ийн CSP газрын зургийн
+     * хавтанг хааж байсан тул утсан дээр зураг саарал хоосон харагдаж, хэрэглэгч
+     * аппаа гараар хааж нээх хэрэгтэй болдог байсан.
+     *
+     * Анх суулгахад (өмнө нь controller байгаагүй) дахин ачаалахгүй. Мөн
+     * хэрэглэгч аль хэдийн маягт бөглөж эхэлсэн байж болох тул зөвхөн хуудас
+     * нээгдээд удаагүй байхад л ачаална — бусад үед дараагийн шилжилт шинэ SW
+     * дээр явна.
+     */
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    const onControllerChange = () => {
+      if (!hadController || reloaded) return;
+      if (Date.now() - loadedAt > 20_000) return;
+      reloaded = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+
+    // PWA-г арын фоноос сэргээхэд навигаци болдоггүй тул шинэчлэлтийг гараар шалгана.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      navigator.serviceWorker.getRegistration().then((reg) => reg?.update().catch(() => {}));
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     // Хуудасны эхний ачаалалттай өрсөлдөхгүйн тулд load хүлээнэ.
     const register = () => {
@@ -47,6 +77,8 @@ export default function ServiceWorkerRegister() {
     return () => {
       cancelled = true;
       window.removeEventListener("load", register);
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 

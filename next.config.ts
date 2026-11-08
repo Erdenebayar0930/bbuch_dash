@@ -27,10 +27,25 @@ const runtimeCaching = [
   // ээлжлэн нэвтэрдэг бөгөөд service worker-ийн кэш нь хэрэглэгчээр
   // тусгаарлагддаггүй — өмнөх хүний гүйлгээ/хандивын жагсаалт дараагийнх нь
   // дэлгэц дээр гарч ирнэ. Мөн гараас нь хассан өгөгдөл 24 цаг "амьд" үлдэнэ.
-  ...defaultRuntimeCaching.filter(
-    (entry: { options?: { cacheName?: string } }) =>
-      entry.options?.cacheName !== "apis"
-  ),
+  ...defaultRuntimeCaching
+    .filter(
+      (entry: { options?: { cacheName?: string } }) =>
+        entry.options?.cacheName !== "apis"
+    )
+    // Газрын зургийн хавтанг SW-ээр ДАМЖУУЛАХГҮЙ — хөтөч шууд татна.
+    // "cross-origin" дүрэм нь зөвхөн 32 хавтан кэшлэдэг тул ашиг бараг үгүй,
+    // харин SW доторх fetch нь connect-src-д захирагддаг тул CSP-ийн жижиг
+    // алдаа утсан дээр газрын зургийг бүхэлд нь хоосон болгодог байсан.
+    .map((entry: { urlPattern: unknown; options?: { cacheName?: string } }) =>
+      entry.options?.cacheName === "cross-origin"
+        ? {
+            ...entry,
+            urlPattern: ({ url }: { url: URL }) =>
+              self.origin !== url.origin &&
+              !url.hostname.endsWith("tile.openstreetmap.org"),
+          }
+        : entry
+    ),
 ];
 
 const withPWA = require("next-pwa")({
