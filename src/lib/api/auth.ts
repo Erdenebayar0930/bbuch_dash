@@ -299,15 +299,20 @@ export async function requireNotifier(request: NextRequest) {
  * зөвхөн UI; жинхэнэ хаалт нь ЭНЭ функц: хаягаар нь шууд орсон ч, API руу
  * гараар хүсэлт явуулсан ч аймгийн гишүүн биш бол өгөгдөл гарахгүй.
  */
-export async function requireAimag(request: NextRequest, aimag: string) {
+export async function requireAimag(
+  request: NextRequest,
+  /** Нэг аймаг, эсвэл аль нэгд нь харьяалагдахад хангалттай жагсаалт */
+  aimag: string | readonly string[]
+) {
   const result = await requireActiveUser(request);
 
   if ("error" in result) return result;
   if (isAdminRole(result.caller.user?.role)) return result;
 
   const aimags = result.caller.user?.aimags ?? [];
+  const allowed = typeof aimag === "string" ? [aimag] : aimag;
 
-  if (!aimags.includes(aimag)) {
+  if (!allowed.some((item) => aimags.includes(item))) {
     return {
       error: forbidden("Энэ хэсэг таны харьяалагдах аймагт хамаарахгүй."),
     } as const;

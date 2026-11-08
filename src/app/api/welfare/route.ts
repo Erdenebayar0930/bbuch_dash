@@ -1,6 +1,8 @@
 import { asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import { welfareAimags } from "@/data/profileOptions";
+
 import {
   badRequest,
   requireAdmin,
@@ -16,8 +18,8 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Халамжийн үйлчлэл нь Тахилтын хариуцлага */
-const AIMAG = "tahilt";
+/** Халамжийг аль ч аймгийн гишүүн үзнэ — цэс нь аймаг бүрийн Тахилт доор */
+const AIMAG = welfareAimags;
 
 /**
  * Халамжийн үйлчлэлд хамрагдах өрхүүд — сүүлийн тусламж ба нийт дүнтэй хамт.

@@ -70,7 +70,12 @@ export async function GET(
   if (!isAdmin) {
     const mine = result.caller.user?.aimags ?? [];
     const blocked = selected.find(
-      (item) => item!.aimag && !mine.includes(item!.aimag)
+      (item) => {
+        const need = item!.aimag;
+        if (!need) return false;
+        const list = typeof need === "string" ? [need] : need;
+        return !list.some((aimag) => mine.includes(aimag));
+      }
     );
 
     if (blocked) {

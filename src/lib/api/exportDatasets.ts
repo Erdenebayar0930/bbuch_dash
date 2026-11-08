@@ -2,7 +2,7 @@ import "server-only";
 
 import { asc, desc, eq } from "drizzle-orm";
 
-import { labelOf, aimags } from "@/data/profileOptions";
+import { labelOf, aimags, welfareAimags } from "@/data/profileOptions";
 import { visitStatusLabels, type VisitStatus } from "@/data/donationBoxOptions";
 import { scheduleConfigs, scheduleKinds } from "@/data/scheduleOptions";
 import { purchaseStatusLabels, type PurchaseStatus } from "@/data/supplyOptions";
@@ -55,7 +55,7 @@ export type Dataset = {
    * Аль аймгийн өгөгдөл вэ. Заасан бол тухайн аймгийн гишүүн (эсвэл админ) л
    * татна — эс бөгөөс цэс, хуудсыг хаачихаад татацаар нь бүгд гоожно.
    */
-  aimag?: string;
+  aimag?: string | readonly string[];
   // Хуудас бүр өөр мөрийн төрөлтэй — гетероген массивт `any` зайлшгүй
   build: () => Promise<Sheet<any>[]>;
 };
@@ -65,7 +65,8 @@ const welfareDataset: Dataset = {
   key: "welfare",
   label: "Халамжийн үйлчлэл",
   adminOnly: false,
-  aimag: "tahilt",
+  // Цэс нь аймаг бүрийн Тахилт доор — аль ч аймгийн гишүүн татна
+  aimag: welfareAimags,
   build: async () => {
     const households = await db
       .select()
