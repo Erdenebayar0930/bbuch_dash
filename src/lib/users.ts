@@ -213,6 +213,33 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   return data.user ? toAppUser(data.user) : null;
 }
 
+/**
+ * Firebase дээр бүртгэлтэй боловч Postgres-д мөргүй хэрэглэгчийн мөрийг үүсгэнэ.
+ *
+ * Бааз шинээр үүссэн/цэвэрлэгдсэн үед (жишээ нь локал хөгжүүлэлт, шилжилт)
+ * хуучин Firebase бүртгэлээр нэвтэрсэн хүн "no-profile"-оор гарч, дахин
+ * бүртгүүлэх гэвэл имэйл нь Firebase-д аль хэдийн байгаа тул бас чадахгүй —
+ * гацаа үүсдэг. Эрх/төлөвийг сервер шийднэ (анхны → super/active, бусад → pending).
+ */
+export async function ensureCurrentUserProfile(): Promise<AppUser | null> {
+  const firebaseUser = auth.currentUser;
+  if (!firebaseUser) return null;
+
+  const [firstName = "", ...rest] = (firebaseUser.displayName ?? "").trim().split(/\s+/);
+
+  const data = await apiFetch<{ user: UserRow | null }>("/api/auth/register", {
+    method: "POST",
+    body: {
+      firstName,
+      lastName: rest.join(" "),
+      phone: firebaseUser.phoneNumber ?? "",
+      email: firebaseUser.email ?? "",
+    },
+  });
+
+  return data.user ? toAppUser(data.user) : null;
+}
+
 /** Өөрийн профайлаа шинэчилнэ. */
 export async function updateCurrentUser(patch: {
   firstName?: string;

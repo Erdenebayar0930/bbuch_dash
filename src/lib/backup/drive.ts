@@ -217,7 +217,10 @@ export async function listFiles(): Promise<DriveFile[]> {
     const params = new URLSearchParams({
       q: `'${config.folderId}' in parents and trashed = false`,
       fields: "nextPageToken, files(id, name, size, createdTime, webViewLink)",
-      orderBy: "name desc",
+      // Нэрээр БИШ: архивын угтвар өөрчлөгдсөн (bid-tuslay- → bbuch-) тул нэрийн
+      // дараалал цагийн дараалал биш болсон. `pruneBackups`-ын «сүүлийн N-ийг
+      // хадгал» хамгаалалт энэ дараалалд тулгуурладаг.
+      orderBy: "createdTime desc",
       pageSize: "100",
       // Workspace-ийн Shared Drive дээр ч ажиллана
       supportsAllDrives: "true",

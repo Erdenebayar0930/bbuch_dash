@@ -120,3 +120,15 @@ export function getFirebaseAdminConfig(): FirebaseAdminConfig {
 export function getAppBaseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 }
+
+/**
+ * Гаднаас харагдах origin — OAuth redirect, cron команд гэх мэт гадагш өгөх хаягт.
+ *
+ * ⚠ `request.nextUrl.origin`-ыг шууд БҮҮ хэрэглэ: reverse proxy (Apache/Nginx)-ийн
+ * ард Next.js нь дотоод `localhost:3002`-ыг өгдөг бөгөөд `X-Forwarded-Host`-ыг ч
+ * тоодоггүй. `NEXT_PUBLIC_APP_URL` байхгүй (локал хөгжүүлэлт) үед л request-ийнхийг авна.
+ */
+export function getPublicOrigin(request: { nextUrl: { origin: string } }): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL;
+  return configured ? new URL(configured).origin : request.nextUrl.origin;
+}

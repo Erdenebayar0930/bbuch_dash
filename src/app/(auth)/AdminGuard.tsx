@@ -8,7 +8,7 @@ import { refreshClaimsIfStale } from "@/lib/claims";
 import { auth } from "@/lib/firebase";
 import { isAdminRole } from "@/lib/permissions";
 import { forceSignOut, signOutCompletely } from "@/lib/session";
-import { getCurrentUser } from "@/lib/users";
+import { ensureCurrentUserProfile, getCurrentUser } from "@/lib/users";
 import { useUser } from "./UserProvider";
 
 type Props = {
@@ -114,6 +114,14 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
       }
 
       return;
+    }
+
+    // Firebase бүртгэлтэй ч Postgres-д мөргүй бол мөрийг нь нөхөж үүсгэнэ
+    if (!profile) {
+      profile = await ensureCurrentUserProfile().catch((cause) => {
+        console.error("Профайл үүсгэхэд алдаа гарлаа:", cause);
+        return null;
+      });
     }
 
     if (!profile) {

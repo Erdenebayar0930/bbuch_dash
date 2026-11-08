@@ -80,7 +80,7 @@ export async function GET(
     }
   }
 
-  const name = key === "all" ? "bid-tuslay-burtgel" : key;
+  const name = key === "all" ? "bbuch-burtgel" : key;
 
   /**
    * Файлыг САНАХ ОЙД БҮТНЭЭР барихгүй, шууд хариу руу урсгана.

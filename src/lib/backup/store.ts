@@ -47,12 +47,12 @@ export const isConfigured = async (): Promise<boolean> =>
 /**
  * Архивын нэр.
  *
- * Огноогоороо цагаан толгойн дараалалтай байхаар сонгосон — Drive-ийн
- * `orderBy: name desc` нь ингэснээр цагийн дараалал болно.
+ * Жагсаалтын дараалал нэрээс хамаарахгүй (`listFiles` нь `createdTime desc`) —
+ * огноо нь зөвхөн хүн уншихад зориулагдсан.
  */
 export function backupName(now = new Date()): string {
   const stamp = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  return `bid-tuslay-${stamp}.ndjson.gz`;
+  return `bbuch-${stamp}.ndjson.gz`;
 }
 
 export async function listBackups(): Promise<BackupFile[]> {

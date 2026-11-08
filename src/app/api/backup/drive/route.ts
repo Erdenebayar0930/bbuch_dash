@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
+import { getPublicOrigin } from "@/lib/config";
 import { badRequest, requireSuper, serverError } from "@/lib/api/auth";
 import { DRIVE_KEYS, getSetting, removeSettings, setSettings } from "@/lib/backup/settings";
 
@@ -28,7 +29,7 @@ const SCOPE = "https://www.googleapis.com/auth/drive.file";
  * төрлийн шалгалтыг унагаана.
  */
 function redirectUri(request: NextRequest): string {
-  return new URL("/api/backup/drive/callback", request.nextUrl.origin).toString();
+  return new URL("/api/backup/drive/callback", getPublicOrigin(request)).toString();
 }
 
 /** Холболтын одоогийн төлөв — дэлгэцэд харуулна. Нууц утга ХЭЗЭЭ Ч гарахгүй. */

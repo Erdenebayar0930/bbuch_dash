@@ -2,8 +2,8 @@
 
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useMemo, type ReactNode } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from "react-leaflet";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 
 import type { LatLngExpression } from "leaflet";
 
@@ -52,6 +52,65 @@ function ClickCatcher({ onPick }: { onPick: (lat: number, lng: number) => void }
   return null;
 }
 
+/**
+ * MapContainer-ийн center/zoom нь зөвхөн анх үүсэхэд уншигддаг — цэгүүд
+ * сервэрээс хожуу ирэхэд зураг хотын төв дээр үлддэг байсан. Анх цэгүүд
+ * ирэхэд бүгдийг нь багтаана; дараагийн сэргээлтэд хэрэглэгчийн харж буй
+ * хэсгийг хөдөлгөхгүй.
+ */
+function FitToPoints({ points }: { points: MapPoint[] }) {
+  const map = useMap();
+  const fitted = useRef(false);
+
+  useEffect(() => {
+    if (fitted.current || points.length === 0) return;
+    fitted.current = true;
+
+    const active = points.filter((point) => point.active);
+    const target = active.length > 0 ? active : points;
+    map.fitBounds(
+      L.latLngBounds(target.map((point) => [point.lat, point.lng])),
+      { padding: [40, 40], maxZoom: 15 }
+    );
+  }, [map, points]);
+
+  return null;
+}
+
+/**
+ * Leaflet зөвхөн цонхны resize-ийг сонсдог — хажуугийн цэс нээгдэж/хаагдахад
+ * контейнер өөрчлөгдөж, зургийн нэг хэсэг саарал хоосон үлддэг байсан.
+ */
+function ResizeWatcher() {
+  const map = useMap();
+
+  useEffect(() => {
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+
+  return null;
+}
+
+/**
+ * leaflet.css-ийн `.leaflet-grab` нь layer-гүй тул Tailwind-ийн
+ * `cursor-crosshair` (utilities layer)-ийг дардаг — inline style-аар тавина.
+ */
+function PickCursor({ picking }: { picking: boolean }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const container = map.getContainer();
+    container.style.cursor = picking ? "crosshair" : "";
+    return () => {
+      container.style.cursor = "";
+    };
+  }, [map, picking]);
+
+  return null;
+}
+
 type PointPickerMapProps<T extends MapPoint> = {
   points: T[];
   /** Байршил сонгох горим идэвхтэй эсэх — зөвхөн эрхтэй хэрэглэгчид */
@@ -92,13 +151,16 @@ export default function PointPickerMap<T extends MapPoint>({
       // `isolate` шинэ stacking context үүсгэнэ — эс бөгөөс Leaflet-ийн дотоод
       // давхаргууд (pane 400+, control 1000) хуудасны бусад элементтэй шууд
       // өрсөлдөж, жишээ нь хажуугийн цэсний (z-50) дээгүүр гарч ирдэг байсан.
-      className={`relative isolate z-0 h-[420px] w-full ${picking ? "cursor-crosshair" : ""}`}
+      className="relative isolate z-0 h-[420px] w-full"
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
+      <FitToPoints points={points} />
+      <ResizeWatcher />
+      <PickCursor picking={picking} />
       {picking && <ClickCatcher onPick={onPick} />}
 
       {points.map((point) => (

@@ -2,6 +2,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
+import { getPublicOrigin } from "@/lib/config";
 import {
   badRequest,
   requireSuper,
@@ -170,7 +171,7 @@ async function cronCommand(request: NextRequest): Promise<string | null> {
   const token = (await getSetting(BACKUP_TOKEN_KEY)) ?? process.env.BACKUP_TOKEN;
   if (!token) return null;
 
-  const url = new URL("/api/backup", request.nextUrl.origin).toString();
+  const url = new URL("/api/backup", getPublicOrigin(request)).toString();
   return `curl -fsS -X POST -H "x-backup-token: ${token}" ${url}`;
 }
 

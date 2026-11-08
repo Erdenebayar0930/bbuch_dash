@@ -61,7 +61,7 @@ async function execute(): Promise<BackupResult> {
   const startedAt = Date.now();
   const pool = createDbPool(connectionString, 1);
   const name = backupName();
-  const workDir = await mkdtemp(join(tmpdir(), "bid-tuslay-backup-"));
+  const workDir = await mkdtemp(join(tmpdir(), "bbuch-backup-"));
   const localPath = join(workDir, name);
 
   try {

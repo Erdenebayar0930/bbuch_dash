@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { Pencil, ZoomIn } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
+import ImageViewer from "@/components/common/ImageViewer";
 import { getSchedulePosterUrl } from "@/lib/schedule";
 import { isAdminRole } from "@/lib/permissions";
 
@@ -13,6 +14,7 @@ export default function WeeklySchedule() {
   const { user } = useUser();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const canEdit = isAdminRole(user?.role);
 
@@ -68,13 +70,27 @@ export default function WeeklySchedule() {
         </Link>
       )}
 
-      {/* Админ дурын хэмжээтэй постер байршуулдаг тул intrinsic харьцааг нь хадгална */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={imageUrl}
-        alt="Долоо хоногийн хуваарь"
-        className="block w-full rounded-2xl"
-      />
+      {/* Дарахад дэлгэц дүүрэн нээгдэж томруулж харна — постер нь жижиг бичигтэй */}
+      <button
+        type="button"
+        onClick={() => setViewerOpen(true)}
+        aria-label="Долоо хоногийн хуваарийг томруулж харах"
+        className="group relative block w-full cursor-zoom-in"
+      >
+        {/* Админ дурын хэмжээтэй постер байршуулдаг тул intrinsic харьцааг нь хадгална */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl}
+          alt="Долоо хоногийн хуваарь"
+          className="block w-full rounded-2xl"
+        />
+        <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-theme-xs font-medium text-white backdrop-blur-sm transition-colors group-hover:bg-black/70">
+          <ZoomIn className="h-3.5 w-3.5" strokeWidth={2} />
+          Томруулах
+        </span>
+      </button>
+
+      <ImageViewer src={viewerOpen ? imageUrl : null} onClose={() => setViewerOpen(false)} />
     </div>
   );
 }

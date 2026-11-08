@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getPublicOrigin } from "@/lib/config";
 import { accountEmail, ensureFolder, exchangeCode } from "@/lib/backup/drive";
 import {
   DRIVE_KEYS,
@@ -14,14 +15,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Нөөцлөлт хадгалах фолдерын нэр — Drive дээр ингэж харагдана */
-const FOLDER_NAME = "Бид туслая — нөөцлөлт";
+const FOLDER_NAME = "ББУЧ — нөөцлөлт";
 
 /** `state` хэдэн хугацаанд хүчинтэй вэ */
 const STATE_TTL_MS = 15 * 60_000;
 
 /** Хэрэглэгчийг нөөцлөлтийн хуудас руу үр дүнтэй нь буцаана */
 function back(request: NextRequest, params: Record<string, string>) {
-  const url = new URL("/backup", request.nextUrl.origin);
+  const url = new URL("/backup", getPublicOrigin(request));
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
 
     const redirectUri = new URL(
       "/api/backup/drive/callback",
-      request.nextUrl.origin
+      getPublicOrigin(request)
     ).toString();
 
     const { refreshToken, accessToken } = await exchangeCode(

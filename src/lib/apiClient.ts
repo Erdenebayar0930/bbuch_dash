@@ -75,8 +75,12 @@ export async function apiFetch<T = unknown>(
 
     // Эрх хаагдсан / бүртгэл устсан бол хүлээхгүйгээр сессийг тасална.
     // Ямар ч хуудсан дээр байсан дараагийн хүсэлт дээр шууд гарна.
+    //
+    // "no-profile"-ыг энд таслахгүй: AdminGuard мөргүй Firebase бүртгэлийн
+    // мөрийг нөхөж үүсгэдэг. FCM гэх мэт зэрэгцээ хүсэлт түрүүлж хариу
+    // авбал тэр нөхөлт амжихаас өмнө хэрэглэгчийг гаргачихдаг байв.
     const reason = reasonFromCode(code);
-    if (response.status === 403 && reason) {
+    if (response.status === 403 && reason && reason !== "no-profile") {
       await forceSignOut(reason);
     }
 

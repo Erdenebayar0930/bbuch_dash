@@ -61,7 +61,7 @@ async function main() {
    * урьдчилан хэрэгтэй (`Content-Length`). Санах ойд барих нь том сан дээр
    * процессыг унагаана.
    */
-  const workDir = await mkdtemp(join(tmpdir(), "bid-tuslay-backup-"));
+  const workDir = await mkdtemp(join(tmpdir(), "bbuch-backup-"));
   const localPath = join(workDir, name);
 
   try {
