@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Тахилт нь одоо зөвхөн бүлэг цэс — доод дэд цэс рүү шилжинэ. */
+/** Тахилт нь бүлэг цэс — доод дэд цэс (Халамж) рүү шилжинэ. */
 export default function PraiseTahiltPage() {
   redirect("/aimag/praise/tahilt/welfare");
 }

@@ -50,6 +50,21 @@ export type NavItem = {
 };
 
 /**
+ * Аймаг бүрийн "Тахилт" бүлэг цэс. Халамж нь бүх аймагт адилхан (нэг л сан),
+ * зөвхөн зам нь тухайн аймгийнх — аймгийн тусгай дэд цэсийг энд нэмнэ.
+ */
+function tahiltMenu(aimag: string): NavItem {
+  return {
+    name: "Тахилт",
+    path: `/aimag/${aimag}/tahilt`,
+    icon: HandCoins,
+    children: [
+      { name: "Халамж", path: `/aimag/${aimag}/tahilt/welfare`, icon: HandHeart },
+    ],
+  };
+}
+
+/**
  * Үндсэн цэс — хажуугийн самбар болон breadcrumb хоёулаа эндээс уншина.
  *
  * Аймгийн цэсүүд нь profileOptions.aimags-ийн дараалалтай нийцнэ: тэнд заасан
@@ -64,7 +79,7 @@ export const navItems: NavItem[] = [
     aimag: "guard",
     children: [
       { name: "Газрын зураг", path: "/aimag/guard/map", icon: MapPin },
-      { name: "Тахилт", path: "/aimag/guard/tahilt", icon: HandCoins },
+      tahiltMenu("guard"),
     ],
   },
   {
@@ -78,18 +93,7 @@ export const navItems: NavItem[] = [
         path: "/aimag/praise/assets",
         icon: Boxes,
       },
-      {
-        name: "Тахилт",
-        path: "/aimag/praise/tahilt",
-        icon: HandCoins,
-        children: [
-          {
-            name: "Халамж",
-            path: "/aimag/praise/tahilt/welfare",
-            icon: HandHeart,
-          },
-        ],
-      },
+      tahiltMenu("praise"),
     ],
   },
   {
@@ -99,7 +103,7 @@ export const navItems: NavItem[] = [
     aimag: "supply",
     children: [
       { name: "Төлөвлөгөө", path: "/aimag/supply/plan", icon: ClipboardList },
-      { name: "Тахилт", path: "/aimag/supply/tahilt", icon: HandCoins },
+      tahiltMenu("supply"),
     ],
   },
   {
@@ -118,7 +122,7 @@ export const navItems: NavItem[] = [
         path: "/aimag/commission/schedule",
         icon: CalendarClock,
       },
-      { name: "Тахилт", path: "/aimag/commission/tahilt", icon: HandCoins },
+      tahiltMenu("commission"),
     ],
   },
   {
@@ -133,7 +137,7 @@ export const navItems: NavItem[] = [
         path: "/aimag/service/donations",
         icon: Gift,
       },
-      { name: "Тахилт", path: "/aimag/service/tahilt", icon: HandCoins },
+      tahiltMenu("service"),
     ],
   },
   { name: "Мэдэгдэл илгээх", path: "/admin/notifications", icon: Bell, notifierOnly: true },
