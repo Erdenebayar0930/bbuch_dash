@@ -31,6 +31,10 @@ export const boxGlyph: PinGlyph = `
 export const homeGlyph: PinGlyph = `
   <path d="M13 6.4 7.4 11v5.6h3.4v-3.2h4.4v3.2h3.4V11z" fill="#ffffff" />`;
 
+/** Харуулын цэг — бамбай */
+export const shieldGlyph: PinGlyph = `
+  <path d="M13 5.6 8 7.6v3.6c0 3 2.1 5.4 5 6.4 2.9-1 5-3.4 5-6.4V7.6z" fill="#ffffff" />`;
+
 const pinIcon = (color: string, active: boolean, glyph: PinGlyph) =>
   L.divIcon({
     className: "",

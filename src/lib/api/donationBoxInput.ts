@@ -19,14 +19,16 @@ export type ParsedDonationBox =
 const invalid = (error: string): ParsedDonationBox => ({ ok: false, error });
 
 /**
- * Хандивын хайрцгийн өгөгдлийг шалгана.
+ * Хандивын хайрцаг ба харуулын цэгийн өгөгдлийг шалгана (талбар нь ижил).
  *
  * `partial: true` үед зөвхөн ирсэн талбарыг шалгана — үүсгэх (нэр ба координат
  * заавал) ба засах (хэсэгчилсэн) хоёрт хоёуланд нь ашиглагдана.
  */
 export function readDonationBox(
   body: unknown,
-  partial: boolean
+  partial: boolean,
+  /** Нэр хоосон үеийн алдаа — харуулын цэг ч энэ шалгалтыг ашиглана */
+  nameRequired = "Хайрцгийн нэрийг оруулна уу."
 ): ParsedDonationBox {
   if (typeof body !== "object" || body === null) {
     return invalid("Өгөгдөл буруу байна.");
@@ -37,7 +39,7 @@ export function readDonationBox(
 
   if (input.name !== undefined || !partial) {
     const name = typeof input.name === "string" ? input.name.trim() : "";
-    if (!name) return invalid("Хайрцгийн нэрийг оруулна уу.");
+    if (!name) return invalid(nameRequired);
     if (name.length > MAX_NAME) {
       return invalid(`Нэр ${MAX_NAME} тэмдэгтээс урт байж болохгүй.`);
     }

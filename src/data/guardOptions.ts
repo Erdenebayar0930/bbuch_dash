@@ -11,3 +11,9 @@ export const guardVisitStatusLabels: Record<GuardVisitStatus, string> = {
 export const isGuardVisitStatus = (value: unknown): value is GuardVisitStatus =>
   typeof value === "string" &&
   guardVisitStatuses.includes(value as GuardVisitStatus);
+
+/** Харуулын цэг нь Харуулын аймгийн хариуцлага — API ба хуудас хоёул ашиглана */
+export const GUARD_AIMAG = "guard";
+
+/** Эргэлтийн тэмдэглэлийн дээд урт */
+export const MAX_GUARD_VISIT_NOTE = 400;
