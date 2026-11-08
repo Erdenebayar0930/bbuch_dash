@@ -5,28 +5,25 @@ export type Option = { value: string; label: string };
 /**
  * MBTI — 16 төрөл. Шошгыг undesten.org/test/-ээс авав.
  *
- * Тэр сайт дээр ISTP ба ESFJ хоёул адилхан "Гүйцэтгэгч" гэж давхардсан
- * тул ISTP-д (сайт өөр нэр өгөөгүй тул) хуучин "Урлаач" нэрийг үлдээв.
- * INFJ-ийн шошго тэнд бүтэн өгүүлбэр ("Зөн совинтой, мэдрэмжтэй, шүүх
- * хандлагатай, дотоод ертөнцөд төвлөрсөн") тул сонголтын жагсаалтад
- * багтаах "Зөн совинч" гэсэн товч хэлбэрт оруулав.
+ * ISTJ, INTJ, ISFP, ESTP, ESFP, ISTP, INFJ, INFP, ENFP, ENFJ-ийн нэрийг байгууллагын
+ * хэрэглээнд тааруулж гараар тогтоосон.
  */
 export const mbtiTypes: Option[] = [
-  { value: "ISTJ", label: "ISTJ — Хариуцлагатай хэрэгжүүлэгч" },
+  { value: "ISTJ", label: "ISTJ — Байцаагч" },
   { value: "ISFJ", label: "ISFJ — Хамгаалагч" },
-  { value: "INFJ", label: "INFJ — Зөн совинч" },
-  { value: "INTJ", label: "INTJ — Архитектор" },
+  { value: "INFJ", label: "INFJ — Хөгжүүлэгч" },
+  { value: "INTJ", label: "INTJ — Стратегич" },
   { value: "ISTP", label: "ISTP — Урлаач" },
-  { value: "ISFP", label: "ISFP — Адал явдал эрэлхийлэгч" },
-  { value: "INFP", label: "INFP — Мөрөөдөгч" },
+  { value: "ISFP", label: "ISFP — Урлагийн хүн" },
+  { value: "INFP", label: "INFP — Романтик" },
   { value: "INTP", label: "INTP — Логикч" },
-  { value: "ESTP", label: "ESTP — Ятгагч" },
-  { value: "ESFP", label: "ESFP — Энтертайнэр" },
-  { value: "ENFP", label: "ENFP — Урам зориг өдөөгч" },
+  { value: "ESTP", label: "ESTP — Сурталчлагч" },
+  { value: "ESFP", label: "ESFP — Аялагч тоглогч" },
+  { value: "ENFP", label: "ENFP — Идэвхжүүлэгч" },
   { value: "ENTP", label: "ENTP — Мэтгэлцэгч" },
   { value: "ESTJ", label: "ESTJ — Хянагч" },
   { value: "ESFJ", label: "ESFJ — Гүйцэтгэгч" },
-  { value: "ENFJ", label: "ENFJ — Урам зориг өгөгч" },
+  { value: "ENFJ", label: "ENFJ — Ментор" },
   { value: "ENTJ", label: "ENTJ — Командлагч" },
 ];
 
