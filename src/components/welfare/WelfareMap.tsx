@@ -7,7 +7,7 @@ import { Crosshair, Loader2, MapPin, Plus, RefreshCw, X } from "lucide-react";
 import { useUser } from "@/app/(auth)/UserProvider";
 import ExportButton from "@/components/common/ExportButton";
 import { getCurrentCoords } from "@/lib/geolocation";
-import { isAdminRole, isSuperRole } from "@/lib/permissions";
+import { isAdminRole } from "@/lib/permissions";
 import {
   deleteHousehold,
   listHouseholds,
@@ -44,15 +44,12 @@ const LeafletMap = dynamic(() => import("./WelfareLeafletMap"), {
 export default function WelfareMap() {
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
-  const isSuper = isSuperRole(user?.role);
 
   /**
-   * Халамжийн түүхтэй өрхийг устгах нь зарцуулсан мөнгөний бүртгэлийг хамт
-   * арилгана (cascade) — тиймээс зөвхөн super. Түүхгүйг админ устгана.
-   * Сервер тал мөн үүнийг шалгадаг; энэ нь зөвхөн UI-н тусгал.
+   * Устгах эрх админ, супер админд. Түүхтэй өрхийг устгавал халамжийн
+   * бүртгэл хамт устах тул баталгаажуулах цонх үүнийг тоогоор нь хэлнэ.
    */
-  const canDelete = (household: WelfareHousehold) =>
-    isAdmin && (household.aidCount === 0 || isSuper);
+  const canDelete = () => isAdmin;
 
   const [households, setHouseholds] = useState<WelfareHousehold[]>([]);
   const [loading, setLoading] = useState(true);

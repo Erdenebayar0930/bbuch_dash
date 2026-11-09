@@ -22,7 +22,7 @@ type WelfareLeafletMapProps = {
   /** Халамжийн бүртгэл ба түүхийн цонхыг нээнэ */
   onAid: (household: WelfareHousehold) => void;
   canManage: boolean;
-  /** Устгах эрх нь өрх тус бүрээр өөр — түүхтэй нь зөвхөн super */
+  /** Устгах эрх — админ, супер админ */
   canDelete: (household: WelfareHousehold) => boolean;
 };
 
@@ -117,22 +117,15 @@ export default function WelfareLeafletMap({
               </button>
             )}
 
-            {/* Халамжийн түүхтэй өрхийг зөвхөн super устгана — эрхгүй бол
-                товч огт харагдахгүй, шалтгааныг нь тайлбарлана */}
-            {canManage &&
-              (canDelete(household) ? (
-                <button
-                  type="button"
-                  onClick={() => onDelete(household)}
-                  className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-error-600 hover:bg-error-50"
-                >
-                  Устгах
-                </button>
-              ) : (
-                <span className="self-center text-xs text-gray-400">
-                  Түүхтэй — устгахад super эрх
-                </span>
-              ))}
+            {canManage && canDelete(household) && (
+              <button
+                type="button"
+                onClick={() => onDelete(household)}
+                className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-error-600 hover:bg-error-50"
+              >
+                Устгах
+              </button>
+            )}
           </div>
         </div>
       )}

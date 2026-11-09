@@ -14,6 +14,8 @@ type MetaManagerModalProps = {
   categories: RefItem[];
   onClose: () => void;
   onChanged: () => void;
+  /** Устгах эрх — зөвхөн админ, супер админ */
+  canDelete: boolean;
 };
 
 const labels: Record<Kind, { title: string; placeholder: string }> = {
@@ -31,6 +33,7 @@ export default function MetaManagerModal({
   categories,
   onClose,
   onChanged,
+  canDelete,
 }: MetaManagerModalProps) {
   const [drafts, setDrafts] = useState<Record<Kind, string>>({
     warehouse: "",
@@ -85,6 +88,7 @@ export default function MetaManagerModal({
             <span className="min-w-0 flex-1 truncate text-theme-sm text-gray-700 dark:text-gray-300">
               {item.name}
             </span>
+            {canDelete && (
             <button
               type="button"
               disabled={busy}
@@ -94,6 +98,7 @@ export default function MetaManagerModal({
             >
               <Trash2 className="h-4 w-4" strokeWidth={1.8} />
             </button>
+            )}
           </div>
         ))}
       </div>

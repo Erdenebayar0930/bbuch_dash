@@ -2,7 +2,13 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { aimags, isValidOption } from "@/data/profileOptions";
-import { badRequest, forbidden, requireNotifier, serverError } from "@/lib/api/auth";
+import {
+  badRequest,
+  forbidden,
+  requireAdmin,
+  requireNotifier,
+  serverError,
+} from "@/lib/api/auth";
 import { db } from "@/lib/db";
 import { scheduledNotifications } from "@/lib/db/schema";
 import { isAdminRole } from "@/lib/permissions";
@@ -143,29 +149,28 @@ export async function PATCH(
   }
 }
 
-/** Тогтмол мэдэгдлийг устгана. */
+/**
+ * Тогтмол мэдэгдлийг устгана — зөвхөн админ, супер админ. Мэдэгдэл илгээх
+ * эрхтэй гишүүн өөрийнхөө тогтмол мэдэгдлийг идэвхгүй болгож болно.
+ */
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireNotifier(request);
+  const result = await requireAdmin(request);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;
 
   try {
     const [existing] = await db
-      .select({ id: scheduledNotifications.id, createdBy: scheduledNotifications.createdBy })
+      .select({ id: scheduledNotifications.id })
       .from(scheduledNotifications)
       .where(eq(scheduledNotifications.id, id))
       .limit(1);
 
     if (!existing) {
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
-    }
-
-    if (!isAdminRole(result.caller.user?.role) && existing.createdBy !== result.caller.uid) {
-      return forbidden("Энэ тогтмол мэдэгдлийг устгах эрхгүй байна.");
     }
 
     await db.delete(scheduledNotifications).where(eq(scheduledNotifications.id, id));

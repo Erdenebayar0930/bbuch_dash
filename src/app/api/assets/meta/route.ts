@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import {
   badRequest,
   requireActiveUser,
+  requireAdmin,
   requireAimag,
   serverError,
 } from "@/lib/api/auth";
@@ -105,11 +106,12 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Агуулах эсвэл төрлийг устгана (админ болон Магтаалын аймгийн гишүүд).
+ * Агуулах эсвэл төрлийг устгана (зөвхөн админ, супер админ — устгах эрх
+ * системийн хэмжээнд зөвхөн тэдэнд байна; нэмэхийг аймгийн гишүүд хийнэ).
  * Холбогдох эд хөрөнгийн мөр УСТАХГҮЙ — тухайн талбар нь хоосон болно.
  */
 export async function DELETE(request: NextRequest) {
-  const result = await requireAimag(request, "praise");
+  const result = await requireAdmin(request);
   if ("error" in result) return result.error;
 
   try {

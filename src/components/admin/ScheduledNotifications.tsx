@@ -399,15 +399,18 @@ export default function ScheduledNotifications() {
                 >
                   {schedule.active ? "Идэвхтэй" : "Идэвхгүй"}
                 </button>
-                <button
-                  type="button"
-                  disabled={busyId === schedule.id}
-                  onClick={() => remove(schedule)}
-                  aria-label={`«${schedule.title}» устгах`}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-error-500 transition-colors hover:bg-error-50 disabled:opacity-50 dark:hover:bg-error-500/10"
-                >
-                  <Trash2 className="h-4 w-4" strokeWidth={1.8} />
-                </button>
+                {/* Устгах эрх зөвхөн админ, супер админд — бусад нь идэвхгүй болгоно */}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    disabled={busyId === schedule.id}
+                    onClick={() => remove(schedule)}
+                    aria-label={`«${schedule.title}» устгах`}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-error-500 transition-colors hover:bg-error-50 disabled:opacity-50 dark:hover:bg-error-500/10"
+                  >
+                    <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+                  </button>
+                )}
               </div>
             </li>
           ))}

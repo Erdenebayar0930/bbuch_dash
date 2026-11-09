@@ -653,6 +653,7 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
         categories={categories}
         onClose={() => setMetaOpen(false)}
         onChanged={load}
+        canDelete={isAdmin}
       />
 
       <AssetCheckModal

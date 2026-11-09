@@ -1,16 +1,14 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
   badRequest,
-  forbidden,
-  isSuperRole,
   requireAdmin,
   serverError,
 } from "@/lib/api/auth";
 import { readWelfareHousehold } from "@/lib/api/welfareInput";
 import { db } from "@/lib/db";
-import { welfareAids, welfareHouseholds } from "@/lib/db/schema";
+import { welfareHouseholds } from "@/lib/db/schema";
 
 import type { NextRequest } from "next/server";
 
@@ -64,9 +62,8 @@ export async function PATCH(
  * Өрхийг устгана.
  *
  * Халамжийн түүх нь `cascade`-ээр дагаж устдаг тул ХАЛАМЖ ҮЗҮҮЛСЭН өрхийг
- * устгах нь зарцуулсан мөнгөний бүртгэлийг хамт арилгана — ийм устгалыг
- * зөвхөн super эрхтэй хүн хийнэ. Түүхгүй өрхийг админ устгаж болно
- * (алдаатай бүртгэлийг цэвэрлэх нь өдөр тутмын ажил).
+ * устгах нь зарцуулсан мөнгөний бүртгэлийг хамт арилгана. Устгах эрх админ,
+ * супер админд; UI-н баталгаажуулах цонх хэдэн бүртгэл устахыг тоогоор хэлнэ.
  */
 export async function DELETE(
   request: NextRequest,
@@ -78,17 +75,6 @@ export async function DELETE(
   const { id } = await context.params;
 
   try {
-    const [{ aidCount }] = await db
-      .select({ aidCount: sql<number>`(count(*))::int` })
-      .from(welfareAids)
-      .where(eq(welfareAids.householdId, id));
-
-    if (aidCount > 0 && !isSuperRole(result.caller.user?.role)) {
-      return forbidden(
-        `Энэ өрхөд ${aidCount} халамжийн бүртгэл байна. Түүхтэй өрхийг зөвхөн super эрхтэй хэрэглэгч устгана.`
-      );
-    }
-
     // MySQL нь DELETE ... RETURNING дэмждэггүй — эхлээд байгаа эсэхийг шалгана
     const [existing] = await db
       .select({ id: welfareHouseholds.id })
