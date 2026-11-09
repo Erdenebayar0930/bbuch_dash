@@ -175,8 +175,21 @@ const AppSidebar: React.FC = () => {
   // Админы цэс зөвхөн админд; аймгийн цэс зөвхөн тухайн аймгийн гишүүдэд
   const visibleNavItems = navItems.filter((item) => canSeeNavItem(item, viewer));
 
+  const matches = (path: string) =>
+    path === "/"
+      ? pathname === "/"
+      : pathname === path || pathname.startsWith(`${path}/`);
+
+  // Нэг цэсийн зам нөгөөгийнхөө угтвар байж болно (/users ба
+  // /users/directory) — тэр үед зөвхөн илүү нарийн нь идэвхтэй.
   const isActive = (path: string) =>
-    path === "/" ? pathname === "/" : pathname.startsWith(path);
+    matches(path) &&
+    !navItems.some(
+      (item) =>
+        item.path !== path &&
+        item.path.startsWith(`${path}/`) &&
+        matches(item.path)
+    );
 
   const handleLogout = async () => {
     closeMobileSidebar();

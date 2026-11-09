@@ -852,3 +852,19 @@ span.flatpickr-weekday,
 .dark .khoroo-swatch-border {
   border-left-color: var(--khoroo-color-dark);
 }
+
+/* Хэвлэх — тайлан зэрэг хуудсыг цэс, толгойгүй цэвэр цаасан дээр гаргана */
+@media print {
+  aside,
+  header {
+    display: none !important;
+  }
+  body,
+  .bg-gray-50 {
+    background: #fff !important;
+  }
+  /* Хажуугийн цэсний зай үлдэхгүй */
+  [class*="lg:ml-"] {
+    margin-left: 0 !important;
+  }
+}

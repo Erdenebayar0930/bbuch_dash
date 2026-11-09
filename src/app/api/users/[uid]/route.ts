@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
@@ -12,7 +12,16 @@ import { aimags, isValidOption } from "@/data/profileOptions";
 import { syncUserClaims } from "@/lib/api/claims";
 import { db } from "@/lib/db";
 import { adminAuth } from "@/lib/firebaseAdmin";
-import { users } from "@/lib/db/schema";
+import {
+  assetChecks,
+  children,
+  donationBoxVisits,
+  guardPointVisits,
+  scheduleShifts,
+  tasks,
+  users,
+  welfareAids,
+} from "@/lib/db/schema";
 import {
   asRole,
   canAssignGroups,
@@ -32,6 +41,100 @@ export const dynamic = "force-dynamic";
 
 const roles = new Set<UserRole>(["super", "admin", "user"]);
 const statuses = new Set<UserStatus>(["active", "pending", "blocked"]);
+
+/** Улаанбаатарын өнөөдөр, YYYY-MM-DD — ээлжийн `date` текстэй харьцуулна */
+const todayInUlaanbaatar = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ulaanbaatar" }).format(
+    new Date()
+  );
+
+/**
+ * Нэг хэрэглэгчийн дэлгэрэнгүй тайлан (зөвхөн админ): профайл, хүүхдүүд,
+ * хийсэн ажлын тоо. Тоонууд нь нэг удаагийн дүн шинжилгээнд зориулсан тул
+ * мөр бүрийг биш, нийлбэрийг л буцаана.
+ */
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ uid: string }> }
+) {
+  const result = await requireAdmin(request);
+  if ("error" in result) return result.error;
+
+  const { uid } = await context.params;
+  const today = todayInUlaanbaatar();
+
+  try {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.uid, uid))
+      .limit(1);
+
+    if (!user) {
+      return NextResponse.json({ error: "Хэрэглэгч олдсонгүй." }, { status: 404 });
+    }
+
+    const count = sql<number>`(count(*))::int`;
+
+    const [childRows, taskRows, [shiftStats], [guard], [donation], [asset], [aid]] =
+      await Promise.all([
+        db
+          .select({
+            name: children.name,
+            birthDate: children.birthDate,
+            gender: children.gender,
+          })
+          .from(children)
+          .where(eq(children.uid, uid))
+          .orderBy(asc(children.position)),
+        db
+          .select({ status: tasks.status, count })
+          .from(tasks)
+          .where(eq(tasks.assignedTo, uid))
+          .groupBy(tasks.status),
+        db
+          .select({
+            total: count,
+            done: sql<number>`(count(*) filter (where ${scheduleShifts.doneAt} is not null))::int`,
+            upcoming: sql<number>`(count(*) filter (where ${scheduleShifts.doneAt} is null and ${scheduleShifts.date} >= ${today}))::int`,
+            missed: sql<number>`(count(*) filter (where ${scheduleShifts.doneAt} is null and ${scheduleShifts.date} < ${today}))::int`,
+          })
+          .from(scheduleShifts)
+          .where(eq(scheduleShifts.assignedTo, uid)),
+        db
+          .select({ count, last: sql<string | null>`max(${guardPointVisits.visitedAt})` })
+          .from(guardPointVisits)
+          .where(eq(guardPointVisits.visitedBy, uid)),
+        db
+          .select({ count, last: sql<string | null>`max(${donationBoxVisits.visitedAt})` })
+          .from(donationBoxVisits)
+          .where(eq(donationBoxVisits.visitedBy, uid)),
+        db
+          .select({ count, last: sql<string | null>`max(${assetChecks.checkedAt})` })
+          .from(assetChecks)
+          .where(eq(assetChecks.checkedBy, uid)),
+        db
+          .select({ count, last: sql<string | null>`max(${welfareAids.providedAt})` })
+          .from(welfareAids)
+          .where(eq(welfareAids.providedBy, uid)),
+      ]);
+
+    return NextResponse.json({
+      user,
+      children: childRows,
+      activity: {
+        tasks: Object.fromEntries(taskRows.map((row) => [row.status, row.count])),
+        shifts: shiftStats ?? { total: 0, done: 0, upcoming: 0, missed: 0 },
+        guardVisits: guard,
+        donationVisits: donation,
+        assetChecks: asset,
+        welfareAids: aid,
+      },
+    });
+  } catch (error) {
+    return serverError(error, "Хэрэглэгчийн тайланг уншихад алдаа гарлаа");
+  }
+}
 
 /** Нэг хүнд оноож болох дуудлагын дээд тоо */
 const MAX_CALLINGS = 5;

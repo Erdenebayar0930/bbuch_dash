@@ -58,7 +58,7 @@ export type AppUser = {
 };
 
 /** Postgres-ээс ирэх мөр (camelCase) */
-type UserRow = {
+export type UserRow = {
   uid: string;
   email: string;
   firstName: string;
@@ -89,7 +89,7 @@ type UserRow = {
 };
 
 /** API-аас ирсэн мөрийг апп дотор хэрэглэдэг хэлбэрт буулгана */
-function toAppUser(row: UserRow): AppUser {
+export function toAppUser(row: UserRow): AppUser {
   return {
     uid: row.uid,
     email: row.email ?? "",

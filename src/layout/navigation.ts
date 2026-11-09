@@ -9,6 +9,7 @@ import {
   HandCoins,
   HandHeart,
   HeartHandshake,
+  IdCard,
   LayoutGrid,
   MapPin,
   Music2,
@@ -142,6 +143,12 @@ export const navItems: NavItem[] = [
   },
   { name: "Мэдэгдэл илгээх", path: "/admin/notifications", icon: Bell, notifierOnly: true },
   { name: "Хэрэглэгчид", path: "/users", icon: Users, adminOnly: true },
+  {
+    name: "Хэрэглэгчийн мэдээлэл",
+    path: "/users/directory",
+    icon: IdCard,
+    adminOnly: true,
+  },
   {
     name: "Нөөцлөлт",
     path: "/backup",
