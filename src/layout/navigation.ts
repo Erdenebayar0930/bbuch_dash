@@ -1,4 +1,5 @@
 import {
+  Baby,
   Bell,
   Boxes,
   CalendarClock,
@@ -149,6 +150,7 @@ export const navItems: NavItem[] = [
     icon: IdCard,
     adminOnly: true,
   },
+  { name: "Хүүхдийн бүртгэл", path: "/users/children", icon: Baby, adminOnly: true },
   {
     name: "Нөөцлөлт",
     path: "/backup",

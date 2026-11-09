@@ -16,6 +16,7 @@ import { db } from "@/lib/db";
 import {
   assetCategories,
   assets,
+  children,
   donationBoxVisits,
   donationBoxes,
   projects,
@@ -522,6 +523,63 @@ const userDataset: Dataset = {
   },
 };
 
+/** Хүүхдийн бүртгэл — эцэг эхийн холбоо барих мэдээлэлтэй, зөвхөн админ */
+const childrenDataset: Dataset = {
+  key: "children",
+  label: "Хүүхдийн бүртгэл",
+  adminOnly: true,
+  build: async () => {
+    const rows = await db
+      .select({
+        name: children.name,
+        birthDate: children.birthDate,
+        gender: children.gender,
+        parentFirst: users.firstName,
+        parentLast: users.lastName,
+        parentPhone: users.phone,
+        parentEmail: users.email,
+        spouseName: users.spouseName,
+        aimags: users.aimags,
+      })
+      .from(children)
+      .innerJoin(users, eq(users.uid, children.uid))
+      .orderBy(desc(children.birthDate), asc(children.name));
+
+    return [
+      {
+        name: "Хүүхдүүд",
+        rows,
+        columns: [
+          { header: "Нэр", value: (row) => row.name || "—", width: 22 },
+          {
+            header: "Хүйс",
+            value: (row) =>
+              row.gender === "male" ? "Хүү" : row.gender === "female" ? "Охин" : "—",
+            width: 10,
+          },
+          { header: "Төрсөн өдөр", value: (row) => row.birthDate || "—", width: 14 },
+          {
+            header: "Бүртгэсэн эцэг/эх",
+            value: (row) => nameOf(row.parentFirst, row.parentLast),
+            width: 24,
+          },
+          { header: "Эхнэр/Нөхөр", value: (row) => row.spouseName || "—", width: 20 },
+          { header: "Утас", value: (row) => row.parentPhone || "—", width: 14 },
+          { header: "И-мэйл", value: (row) => row.parentEmail, width: 28 },
+          {
+            header: "Аймаг",
+            value: (row) =>
+              (row.aimags ?? [])
+                .map((item: string) => labelOf(aimags, item))
+                .join(", ") || "—",
+            width: 30,
+          },
+        ],
+      },
+    ];
+  },
+};
+
 /** Татаж болох бүх багц — түлхүүрээр нь хайна */
 export const datasets: Dataset[] = [
   welfareDataset,
@@ -531,6 +589,7 @@ export const datasets: Dataset[] = [
   taskDataset,
   ...scheduleDatasets,
   userDataset,
+  childrenDataset,
 ];
 
 export const findDataset = (key: string) =>
