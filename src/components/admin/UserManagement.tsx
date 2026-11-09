@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Crown, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
+import { Crown, RefreshCw, ShieldCheck, Trash2, UserRound } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import ChurchInfoModal from "@/components/admin/ChurchInfoModal";
@@ -19,6 +19,7 @@ import {
   type Permission,
 } from "@/lib/permissions";
 import {
+  deleteUser,
   listUsers,
   roleLabels,
   setUserRole,
@@ -165,6 +166,32 @@ export default function UserManagement() {
   const changeStatus = (user: AppUser, status: UserStatus) =>
     apply(user.uid, { status }, () => setUserStatus(user.uid, status));
 
+  const removeUser = async (user: AppUser, name: string) => {
+    const confirmed = window.confirm(
+      `"${name}" (${user.email}) хэрэглэгчийг бүрмөсөн устгах уу?
+
+` +
+        "Профайл, хүүхдийн бүртгэл, нэвтрэх эрх нь устана. Буцаах боломжгүй. " +
+        "Түр хаах бол төлөвийг «Хаагдсан» болгоно уу."
+    );
+    if (!confirmed) return;
+
+    setSavingUid(user.uid);
+    setError("");
+
+    try {
+      await deleteUser(user.uid);
+      setUsers((prev) => prev.filter((item) => item.uid !== user.uid));
+    } catch (err) {
+      console.error("Хэрэглэгчийг устгаж чадсангүй:", err);
+      setError(
+        err instanceof Error ? err.message : "Хэрэглэгчийг устгахад алдаа гарлаа."
+      );
+    } finally {
+      setSavingUid(null);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-5">
       {/* Эрхийн тайлбар — хэн юу хийж чадахыг нэг харцаар */}
@@ -248,7 +275,7 @@ export default function UserManagement() {
 
       {/* Жагсаалт */}
       <div className="surface overflow-x-auto">
-        <table className="w-full min-w-[820px] text-left">
+        <table className="w-full min-w-[880px] text-left">
           <thead>
             <tr className="border-b border-gray-200 text-theme-xs uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
               <th className="px-5 py-3.5 font-medium">Хэрэглэгч</th>
@@ -257,13 +284,16 @@ export default function UserManagement() {
               <th className="px-5 py-3.5 font-medium">Төлөв</th>
               <th className="px-5 py-3.5 font-medium">Чуулган</th>
               <th className="px-5 py-3.5 font-medium">Бүртгүүлсэн</th>
+              <th className="px-5 py-3.5 font-medium">
+                <span className="sr-only">Үйлдэл</span>
+              </th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-gray-100 dark:divide-white/5">
             {loading && (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-theme-sm text-gray-500">
+                <td colSpan={7} className="px-5 py-10 text-center text-theme-sm text-gray-500">
                   Ачаалж байна...
                 </td>
               </tr>
@@ -271,7 +301,7 @@ export default function UserManagement() {
 
             {!loading && visible.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-theme-sm text-gray-500">
+                <td colSpan={7} className="px-5 py-10 text-center text-theme-sm text-gray-500">
                   Хэрэглэгч олдсонгүй.
                 </td>
               </tr>
@@ -444,6 +474,27 @@ export default function UserManagement() {
 
                     <td className="px-5 py-4 text-gray-600 dark:text-gray-400">
                       {user.createdAt ? dateFormatter.format(user.createdAt) : "—"}
+                    </td>
+
+                    <td className="px-5 py-4 text-right">
+                      {(() => {
+                        // Сервер ижил шалгалттай: төлөв солих эрх + сүүлчийн супер
+                        const deleteReason =
+                          statusReason ?? statusOptionReason("blocked");
+
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => removeUser(user, fullName)}
+                            disabled={!!deleteReason || isSaving}
+                            title={deleteReason ?? "Хэрэглэгчийг устгах"}
+                            aria-label={`${fullName} хэрэглэгчийг устгах`}
+                            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-error-50 hover:text-error-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:hover:bg-error-500/10"
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+                          </button>
+                        );
+                      })()}
                     </td>
                   </tr>
                 );

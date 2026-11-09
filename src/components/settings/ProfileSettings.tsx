@@ -118,18 +118,27 @@ export default function ProfileSettings() {
     aimags: string[];
   }>({ callings: [], aimags: [] });
 
+  // `user` объект бүхэлдээ биш, маягтад хэрэгтэй утгуудаас л хамаарна.
+  // Арын эрх шалгалт (AdminGuard) зураг, аймаг зэргийг шинэчлэх бүрт
+  // объект солигдох тул түүнээс хамааруулбал бичиж буй засварыг арчиж орхино.
+  const uid = user?.uid;
+  const cachedFirstName = user?.first_name ?? "";
+  const cachedLastName = user?.last_name ?? "";
+  const cachedEmail = user?.email ?? "";
+  const cachedRole = user?.role ?? "";
+
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       const base: ProfileForm = {
         ...emptyForm,
-        firstName: user?.first_name ?? "",
-        lastName: user?.last_name ?? "",
-        email: user?.email ?? "",
+        firstName: cachedFirstName,
+        lastName: cachedLastName,
+        email: cachedEmail,
       };
 
-      let loadedRole = user?.role ?? "";
+      let loadedRole = cachedRole;
 
       if (auth.currentUser) {
         try {
@@ -184,7 +193,7 @@ export default function ProfileSettings() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [uid, cachedFirstName, cachedLastName, cachedEmail, cachedRole]);
 
   const update = useCallback(
     <K extends keyof ProfileForm>(key: K, value: ProfileForm[K]) => {
@@ -204,26 +213,17 @@ export default function ProfileSettings() {
     setSaveState("saving");
     setSaveError(null);
 
+    // Зөвхөн өөрчилсөн талбаруудыг илгээнэ. Бүгдийг илгээвэл хөндөөгүй ч
+    // хуучин/буруу утгатай нэг талбар (жишээ нь өмнөх хувилбараас үлдсэн)
+    // бүх хадгалалтыг татгалзуулж, нэр зэрэг засвар огт хадгалагдахгүй.
+    const changed = Object.fromEntries(
+      (Object.keys(form) as (keyof ProfileForm)[])
+        .filter((key) => key !== "email" && form[key] !== saved[key])
+        .map((key) => [key, form[key]])
+    ) as Parameters<typeof updateCurrentUser>[0];
+
     try {
-      await updateCurrentUser({
-        firstName: form.firstName,
-        lastName: form.lastName,
-        phone: form.phone,
-        birthDate: form.birthDate,
-        gender: form.gender,
-        ethnicity: form.ethnicity,
-        birthplace: form.birthplace,
-        holySpiritBaptismDate: form.holySpiritBaptismDate,
-        waterBaptismDate: form.waterBaptismDate,
-        mbti: form.mbti,
-        loveLanguages: form.loveLanguages,
-        temperaments: form.temperaments,
-        occupation: form.occupation,
-        hasCar: form.hasCar,
-        carPlate: form.carPlate,
-        spouseName: form.spouseName,
-        spouseBirthDate: form.spouseBirthDate,
-      });
+      const updated = await updateCurrentUser(changed);
 
       setSaved(form);
       setSaveState("saved");
@@ -231,8 +231,8 @@ export default function ProfileSettings() {
       if (user) {
         setUser({
           ...user,
-          first_name: form.firstName,
-          last_name: form.lastName,
+          first_name: updated.first_name,
+          last_name: updated.last_name,
         });
       }
     } catch (error) {

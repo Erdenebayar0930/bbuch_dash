@@ -11,6 +11,7 @@ import {
 import { aimags, isValidOption } from "@/data/profileOptions";
 import { syncUserClaims } from "@/lib/api/claims";
 import { db } from "@/lib/db";
+import { adminAuth } from "@/lib/firebaseAdmin";
 import { users } from "@/lib/db/schema";
 import {
   asRole,
@@ -216,5 +217,63 @@ export async function PATCH(
     return NextResponse.json({ user: updated });
   } catch (error) {
     return serverError(error, "Хэрэглэгчийг шинэчлэхэд алдаа гарлаа");
+  }
+}
+
+/**
+ * Хэрэглэгчийг бүрмөсөн устгана — Postgres дэх мөр ба Firebase бүртгэл.
+ *
+ * Төлөв солихтой ижил шатлал: өөрийгөө биш, зөвхөн өөрөөсөө доогуур эрхтэйг
+ * (супер админ бол хэнийг ч), сүүлчийн идэвхтэй супер админыг хэзээ ч биш.
+ * Хүүхэд, төхөөрөмж, мэдэгдэл нь FK cascade-аар дагаж устна; даалгавар,
+ * ээлжийн хуваарь эзэнгүй болно; эргэлт, гүйлгээ зэрэг түүх хэвээр үлдэнэ.
+ */
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ uid: string }> }
+) {
+  const result = await requireAdmin(request);
+  if ("error" in result) return result.error;
+
+  const { uid } = await context.params;
+  const actor = toActor(result.caller);
+
+  try {
+    const [targetRow] = await db
+      .select()
+      .from(users)
+      .where(eq(users.uid, uid))
+      .limit(1);
+
+    if (!targetRow) {
+      return NextResponse.json({ error: "Хэрэглэгч олдсонгүй." }, { status: 404 });
+    }
+
+    const target: Target = { uid: targetRow.uid, role: asRole(targetRow.role) };
+    const activeSupers = await activeSuperCounter()();
+
+    const denied = [
+      canChangeStatus(actor, target),
+      keepsLastSuper(target, activeSupers, { nextStatus: "blocked" }),
+    ].find((check) => !check.allowed);
+    if (denied && !denied.allowed) return forbidden(denied.reason);
+
+    await db.delete(users).where(eq(users.uid, uid));
+
+    // Firebase бүртгэлийг ч устгана — эс бөгөөс тэр хүн дахин нэвтрэхэд
+    // "профайлгүй" гэж шинэ мөр (pending) үүснэ. Сан аль хэдийн цэвэрлэгдсэн
+    // тул энд алдаа гарсан ч устгалыг буцаахгүй.
+    const auth = adminAuth() as { deleteUser?: (uid: string) => Promise<void> };
+    if (typeof auth.deleteUser === "function") {
+      await auth.deleteUser(uid).catch((error: { code?: string }) => {
+        if (error?.code !== "auth/user-not-found") {
+          console.error("Firebase бүртгэлийг устгаж чадсангүй:", error);
+        }
+      });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return serverError(error, "Хэрэглэгчийг устгахад алдаа гарлаа");
   }
 }

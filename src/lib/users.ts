@@ -342,6 +342,14 @@ export async function setUserStatus(uid: string, status: UserStatus) {
   await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: { status } });
 }
 
+/**
+ * Хэрэглэгчийг бүрмөсөн устгана — профайл ба нэвтрэх бүртгэл (зөвхөн админ).
+ * Буцаах боломжгүй.
+ */
+export async function deleteUser(uid: string) {
+  await apiFetch(`/api/users/${uid}`, { method: "DELETE" });
+}
+
 /** Админ бус хэрэглэгчид мэдэгдэл илгээх эрх олгох/хасах (зөвхөн админ). */
 export async function setUserCanNotify(uid: string, canNotify: boolean) {
   await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: { canNotify } });

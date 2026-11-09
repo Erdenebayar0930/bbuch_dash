@@ -18,6 +18,7 @@ import {
 } from "@/data/profileOptions";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { adminAuth } from "@/lib/firebaseAdmin";
 
 import type { NextRequest } from "next/server";
 
@@ -222,6 +223,23 @@ export async function PATCH(request: NextRequest) {
       .from(users)
       .where(eq(users.uid, caller.uid))
       .limit(1);
+
+    // Firebase дээрх нэрийг ч тааруулна — профайлын мөр дахин үүсэх үед
+    // (ensureCurrentUserProfile) тэндээс уншдаг тул хуучин нэр буцаж ирнэ.
+    if (updated && (patch.firstName !== undefined || patch.lastName !== undefined)) {
+      const auth = adminAuth() as {
+        updateUser?: (uid: string, props: { displayName: string }) => Promise<unknown>;
+      };
+      const displayName = [updated.firstName, updated.lastName]
+        .filter(Boolean)
+        .join(" ");
+
+      if (typeof auth.updateUser === "function" && displayName) {
+        await auth.updateUser(caller.uid, { displayName }).catch((error) => {
+          console.warn("Firebase нэрийг шинэчилж чадсангүй:", error);
+        });
+      }
+    }
 
     return NextResponse.json({ user: updated });
   } catch (error) {
