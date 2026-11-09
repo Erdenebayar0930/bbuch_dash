@@ -31,13 +31,26 @@ const groupOf = (age: number | null): AgeGroupKey =>
     : (ageGroups.find((group) => age >= group.min && age <= group.max)?.key ??
       "unknown");
 
+/**
+ * Давхардлын төлөв:
+ * - `merged` — нэр, төрсөн огноо ижил тул нэг мөр болгосон (хоёр эцэг эх)
+ * - `possible` — нэр ижил ч огноо зөрүүтэй/хоосон, өөр хүн бүртгэсэн —
+ *   нэг хүүхэд байж магадгүй тул админ шалгана
+ */
+type DuplicateState = "merged" | "possible" | null;
+
 /** Нэг хүүхэд ба түүнийг бүртгэсэн эцэг эх (нэг эсвэл хоёр) */
 type ChildEntry = DirectoryChild & {
   key: string;
   age: number | null;
   group: AgeGroupKey;
   parents: DirectoryUser[];
+  duplicate: DuplicateState;
 };
+
+/** Нэрийг харьцуулахад — том жижиг үсэг, илүү зай хамаарахгүй */
+const normalizeName = (name: string) =>
+  name.trim().toLowerCase().replace(/\s+/g, " ");
 
 /**
  * Хэрэглэгч бүрийн хүүхдийг нэг жагсаалт болгоно.
@@ -52,12 +65,16 @@ function collectChildren(users: DirectoryUser[]): ChildEntry[] {
   for (const user of users) {
     user.children.forEach((child, index) => {
       const key = child.birthDate
-        ? `${child.name.trim().toLowerCase()}|${child.birthDate}`
+        ? `${normalizeName(child.name)}|${child.birthDate}`
         : `${user.uid}|${index}`;
 
       const existing = byKey.get(key);
       if (existing) {
-        existing.parents.push(user);
+        // Нэг хүн нэг хүүхдээ хоёр удаа оруулсан ч энд нийлнэ
+        if (!existing.parents.some((parent) => parent.uid === user.uid)) {
+          existing.parents.push(user);
+        }
+        existing.duplicate = "merged";
         if (!existing.gender && child.gender) existing.gender = child.gender;
         return;
       }
@@ -69,8 +86,31 @@ function collectChildren(users: DirectoryUser[]): ChildEntry[] {
         age,
         group: groupOf(age),
         parents: [user],
+        duplicate: null,
       });
     });
+  }
+
+  // Нэр ижил боловч нэгтгэгдээгүй мөрүүд — өөр өөр хүн бүртгэсэн бол
+  // нэг хүүхэд байж магадгүй (нэг нь огноогоо буруу/хоосон оруулсан г.м.)
+  const byName = new Map<string, ChildEntry[]>();
+  for (const entry of byKey.values()) {
+    const name = normalizeName(entry.name);
+    if (!name) continue;
+    const list = byName.get(name);
+    if (list) list.push(entry);
+    else byName.set(name, [entry]);
+  }
+
+  for (const list of byName.values()) {
+    if (list.length < 2) continue;
+    const registrants = new Set(list.flatMap((entry) => entry.parents.map((p) => p.uid)));
+    // Нэг хүн ижил нэртэй хоёр хүүхэд (огноо өөр) — ихэр биш л бол ховор,
+    // гэхдээ хэд хэдэн хүн бүртгэсэн үед л сэжиглэнэ
+    if (registrants.size < 2) continue;
+    for (const entry of list) {
+      if (entry.duplicate === null) entry.duplicate = "possible";
+    }
   }
 
   // Бага нь эхэндээ, огноогүй нь хамгийн сүүлд
@@ -129,6 +169,8 @@ export default function ChildrenRegistry() {
   const [group, setGroup] = useState<"" | AgeGroupKey>("");
   const [aimag, setAimag] = useState("");
   const [birthdays, setBirthdays] = useState(false);
+  /** Зөвхөн давхардсан / давхардсан байж болзошгүйг харуулах */
+  const [duplicatesOnly, setDuplicatesOnly] = useState(false);
 
   const month = new Date().getMonth() + 1;
 
@@ -177,9 +219,10 @@ export default function ChildrenRegistry() {
       base.filter(
         (child) =>
           (!group || child.group === group) &&
-          (!birthdays || bornThisMonth(child.birthDate, month))
+          (!birthdays || bornThisMonth(child.birthDate, month)) &&
+          (!duplicatesOnly || child.duplicate !== null)
       ),
-    [base, group, birthdays, month]
+    [base, group, birthdays, month, duplicatesOnly]
   );
 
   const counts = useMemo(() => {
@@ -194,6 +237,8 @@ export default function ChildrenRegistry() {
       girls: base.filter((c) => c.gender === "female").length,
       birthdays: base.filter((c) => bornThisMonth(c.birthDate, month)).length,
       families: new Set(base.map((c) => c.parents[0].uid)).size,
+      merged: base.filter((c) => c.duplicate === "merged").length,
+      possible: base.filter((c) => c.duplicate === "possible").length,
     };
   }, [base, month]);
 
@@ -203,10 +248,11 @@ export default function ChildrenRegistry() {
         <Stat
           label="Нийт хүүхэд"
           value={base.length}
-          active={!group && !birthdays}
+          active={!group && !birthdays && !duplicatesOnly}
           onClick={() => {
             setGroup("");
             setBirthdays(false);
+            setDuplicatesOnly(false);
           }}
         />
         <div className="rounded-xl border border-gray-200 bg-white p-3.5 dark:border-white/10 dark:bg-white/[0.03]">
@@ -228,6 +274,34 @@ export default function ChildrenRegistry() {
           onClick={() => setBirthdays((value) => !value)}
         />
       </div>
+
+      {/* Давхардлын шалгалт — эхнэр нөхөр хоёулаа бүртгэсэн эсэх */}
+      {(counts.merged > 0 || counts.possible > 0) && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 text-theme-sm text-warning-800 dark:border-warning-500/30 dark:bg-warning-500/10 dark:text-warning-300">
+          <p className="min-w-0 flex-1">
+            {counts.merged > 0 && (
+              <>
+                <strong>{counts.merged}</strong> хүүхдийг хоёр хүн давхар
+                бүртгэсэн — нэг мөр болгож нэгтгэсэн.{" "}
+              </>
+            )}
+            {counts.possible > 0 && (
+              <>
+                <strong>{counts.possible}</strong> мөр нэр ижил ч төрсөн огноо
+                зөрүүтэй эсвэл хоосон — нэг хүүхэд эсэхийг шалгана уу.
+              </>
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={() => setDuplicatesOnly((value) => !value)}
+            aria-pressed={duplicatesOnly}
+            className="rounded-lg border border-warning-300 bg-white px-3 py-1.5 font-medium text-warning-800 hover:bg-warning-100 dark:border-warning-500/40 dark:bg-transparent dark:text-warning-300 dark:hover:bg-warning-500/10"
+          >
+            {duplicatesOnly ? "Бүгдийг харах" : "Давхардлыг харах"}
+          </button>
+        </div>
+      )}
 
       {/* Насны бүлэг — дарж шүүнэ */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -356,6 +430,18 @@ export default function ChildrenRegistry() {
                     <p className="font-medium text-gray-900 dark:text-white">
                       {child.name || "Нэргүй"}
                     </p>
+                    {child.duplicate === "merged" && (
+                      <span className="mt-1 inline-block rounded-full bg-accent-50 px-2 py-0.5 text-theme-xs font-medium text-accent-700 dark:bg-accent-500/15 dark:text-accent-300">
+                        {child.parents.length > 1
+                          ? `${child.parents.length} хүн бүртгэсэн · нэгтгэсэн`
+                          : "Давхар оруулсан · нэгтгэсэн"}
+                      </span>
+                    )}
+                    {child.duplicate === "possible" && (
+                      <span className="mt-1 inline-block rounded-full bg-warning-50 px-2 py-0.5 text-theme-xs font-medium text-warning-700 dark:bg-warning-500/15 dark:text-warning-400">
+                        Давхардсан байж магадгүй
+                      </span>
+                    )}
                     {child.gender && (
                       <p className="text-theme-xs text-gray-500">
                         {child.gender === "male" ? "Хүү" : child.gender === "female" ? "Охин" : labelOf(genders, child.gender)}
