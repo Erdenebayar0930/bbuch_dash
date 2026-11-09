@@ -6,6 +6,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useSyncExternalStore,
 } from "react";
@@ -73,8 +74,30 @@ function writeCachedUser(u: UserType | null) {
   listeners.forEach((l) => l());
 }
 
+/**
+ * Хуучин "хурууны хээгээр нэвтрэх" нь нууц үгийг localStorage-д энгийн
+ * текстээр хадгалдаг байсан. Функц нь авагдсан — төхөөрөмж дээр үлдсэнийг
+ * апп нээгдэх бүрт цэвэрлэнэ (нэвтэрсэн хүн нэвтрэх хуудас руу ордоггүй
+ * тул энд, бүх хуудсанд ажилладаг газар байрлана).
+ */
+const LEGACY_KEYS = [
+  "fingerprintPassword",
+  "fingerprintEmail",
+  "fingerprintRegistered",
+  "localPasskey",
+  "localLoggedIn",
+];
+
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const user = useSyncExternalStore(subscribe, readCachedUser, () => null);
+
+  useEffect(() => {
+    try {
+      LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
+    } catch {
+      // Хувийн горимд storage хаалттай байж болно — алгасна
+    }
+  }, []);
 
   // 🔹 setUser дээр cache хийж хадгалах
   // useCallback заавал — AdminGuard эдгээрийг effect-ийн хамаарал болгон
