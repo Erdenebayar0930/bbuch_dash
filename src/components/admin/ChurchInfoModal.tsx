@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Bell, BellOff, Plus, X } from "lucide-react";
 
 import Checkbox from "@/components/form/input/Checkbox";
 import { Modal } from "@/components/ui/modal";
@@ -164,13 +164,57 @@ export default function ChurchInfoModal({
         </form>
       </div>
 
-      <div className="mt-5">
-        <Checkbox
-          id="can-notify"
-          label="Мэдэгдэл илгээх эрх (аймаг/тодорхой хүн рүү)"
-          checked={canNotify}
-          onChange={setCanNotify}
-        />
+      {/* Мэдэгдэл илгээх эрх — нээлттэй/хаалттайг үгээр нь ч харуулна */}
+      <div className="mt-5 flex items-center gap-3 rounded-lg border border-gray-200 p-3 dark:border-white/10">
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+            canNotify
+              ? "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"
+              : "bg-gray-100 text-gray-400 dark:bg-white/10 dark:text-gray-500"
+          }`}
+        >
+          {canNotify ? (
+            <Bell className="h-4 w-4" strokeWidth={1.8} />
+          ) : (
+            <BellOff className="h-4 w-4" strokeWidth={1.8} />
+          )}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-theme-sm font-medium text-gray-800 dark:text-white/90">
+            Мэдэгдэл илгээх эрх
+          </p>
+          <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+            Аймаг эсвэл тодорхой хүн рүү мэдэгдэл илгээх
+          </p>
+        </div>
+
+        <span
+          className={`text-theme-xs font-semibold ${
+            canNotify
+              ? "text-success-600 dark:text-success-400"
+              : "text-gray-400"
+          }`}
+        >
+          {canNotify ? "Нээлттэй" : "Хаалттай"}
+        </span>
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={canNotify}
+          aria-label={`Мэдэгдэл илгээх эрх: ${canNotify ? "нээлттэй" : "хаалттай"}`}
+          onClick={() => setCanNotify((prev) => !prev)}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-hidden focus-visible:ring-3 focus-visible:ring-accent-500/30 ${
+            canNotify ? "bg-success-500" : "bg-gray-300 dark:bg-white/20"
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              canNotify ? "translate-x-5" : "translate-x-0.5"
+            }`}
+          />
+        </button>
       </div>
 
       {error && (

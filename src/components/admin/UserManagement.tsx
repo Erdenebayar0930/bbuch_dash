@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Crown, RefreshCw, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  Crown,
+  RefreshCw,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import ChurchInfoModal from "@/components/admin/ChurchInfoModal";
@@ -12,6 +20,8 @@ import {
   canAssignGroups,
   canAssignRoles,
   canChangeStatus,
+  canSendNotifications,
+  isAdminRole,
   isSuperRole,
   keepsLastSuper,
   roleDescriptions,
@@ -468,6 +478,36 @@ export default function UserManagement() {
                           >
                             {summary} · Тохируулах
                           </button>
+                        );
+                      })()}
+
+                      {/* Мэдэгдэл илгээх эрх нээлттэй эсэх — админд үргэлж нээлттэй */}
+                      {(() => {
+                        const open = canSendNotifications(user.role, user.can_notify);
+                        const viaRole = isAdminRole(user.role);
+                        return (
+                          <span
+                            title={
+                              viaRole
+                                ? "Админ тул мэдэгдэл үргэлж илгээж чадна"
+                                : open
+                                  ? "Мэдэгдэл илгээх эрх нээлттэй"
+                                  : "Мэдэгдэл илгээх эрх хаалттай"
+                            }
+                            className={`mt-1 flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-theme-xs font-medium ${
+                              open
+                                ? "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400"
+                                : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
+                            }`}
+                          >
+                            {open ? (
+                              <Bell className="h-3 w-3" strokeWidth={2} />
+                            ) : (
+                              <BellOff className="h-3 w-3" strokeWidth={2} />
+                            )}
+                            Мэдэгдэл: {open ? "Нээлттэй" : "Хаалттай"}
+                            {viaRole && " (админ)"}
+                          </span>
                         );
                       })()}
                     </td>
