@@ -29,3 +29,26 @@ export const isTaskStatus = (value: unknown): value is TaskStatus =>
 
 export const isTaskPriority = (value: unknown): value is TaskPriority =>
   typeof value === "string" && taskPriorities.includes(value as TaskPriority);
+
+/**
+ * Төслийн хамгийн их гүн — үндсэн төсөл 1, түүний дэд төсөл 2 гэх мэт.
+ * Хэт гүн мод нь UI-д уншигдахаа болино.
+ */
+export const MAX_PROJECT_DEPTH = 5;
+
+/**
+ * Дэд төслийн харагдах аймгуудыг эхэд нь тааруулна.
+ *
+ * Эх нь бүх аймагт (хоосон) бол дэд нь дурын. Эх нь хязгаартай бол дэд нь
+ * зөвхөн эхийн аймгуудаас сонгоно; юу ч сонгоогүй бол эхийнхтэй адил.
+ * Эхэд байхгүй аймаг сонгосон бол `null` — эх нь харагдахгүй аймагт дэд нь
+ * харагдвал мод тасарна.
+ */
+export function fitChildAimags(
+  parentAimags: readonly string[],
+  requested: readonly string[]
+): string[] | null {
+  if (parentAimags.length === 0) return [...requested];
+  if (requested.some((aimag) => !parentAimags.includes(aimag))) return null;
+  return requested.length > 0 ? [...requested] : [...parentAimags];
+}

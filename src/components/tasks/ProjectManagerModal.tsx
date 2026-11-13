@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Check, CornerDownRight, Loader2, Plus, Trash2, X } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
 import { aimags } from "@/data/profileOptions";
+import { MAX_PROJECT_DEPTH } from "@/data/taskOptions";
+import { buildProjectTree } from "@/lib/projectTree";
 import {
   createProject,
   deleteProject,
@@ -28,22 +30,25 @@ type Draft = { name: string; aimags: string[] };
 const sameSet = (a: string[], b: string[]) =>
   a.length === b.length && a.every((value) => b.includes(value));
 
-/** Аймгийн олон сонголт — юу ч сонгоогүй бол "Бүх аймаг" */
+/**
+ * Аймгийн олон сонголт. `allowed` заасан бол (дэд төсөл) зөвхөн эх төслийн
+ * аймгуудаас сонгоно — юу ч сонгоогүй нь "Эхтэй адил".
+ */
 function AimagPicker({
   value,
   onChange,
+  allowed,
   disabled,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
+  allowed?: string[];
   disabled?: boolean;
 }) {
-  const toggle = (aimag: string) =>
-    onChange(
-      value.includes(aimag)
-        ? value.filter((item) => item !== aimag)
-        : [...value, aimag]
-    );
+  const restricted = !!allowed && allowed.length > 0;
+  const options = restricted
+    ? aimags.filter((option) => allowed.includes(option.value))
+    : aimags;
 
   const chip = (active: boolean) =>
     `rounded-full border px-2.5 py-1 text-theme-xs font-medium transition-colors disabled:opacity-60 ${
@@ -52,24 +57,38 @@ function AimagPicker({
         : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/5"
     }`;
 
+  // Дэд төсөлд "бүгдийг сонгосон" нь эхтэй адил тул тэр чипийг идэвхтэй харуулна
+  const allSelected =
+    value.length === 0 || (restricted && sameSet(value, allowed));
+
+  // "Бүгд" идэвхтэй үед аймаг дарвал зөвхөн тэрийг сонгоно
+  const toggle = (aimag: string) =>
+    onChange(
+      allSelected
+        ? [aimag]
+        : value.includes(aimag)
+          ? value.filter((item) => item !== aimag)
+          : [...value, aimag]
+    );
+
   return (
     <div className="flex flex-wrap gap-1.5">
       <button
         type="button"
         disabled={disabled}
         onClick={() => onChange([])}
-        className={chip(value.length === 0)}
+        className={chip(allSelected)}
       >
-        Бүх аймаг
+        {restricted ? "Эхтэй адил" : "Бүх аймаг"}
       </button>
-      {aimags.map((option) => (
+      {options.map((option) => (
         <button
           key={option.value}
           type="button"
           disabled={disabled}
           onClick={() => toggle(option.value)}
           aria-pressed={value.includes(option.value)}
-          className={chip(value.includes(option.value))}
+          className={chip(!allSelected && value.includes(option.value))}
         >
           {option.label}
         </button>
@@ -82,7 +101,8 @@ function AimagPicker({
  * Төслүүдийг удирдах цонх — Харуулын аймаг ба админ.
  *
  * Төсөл бүрт ямар аймгуудад харагдахыг сонгоно (сонгоогүй = бүх аймагт).
- * Тухайн аймгуудын гишүүд төсөл дотор өөрсдийн даалгаврыг үүсгэнэ.
+ * Төсөл дотор дэд төсөл, түүн дотор дахин дэд төсөл үүсгэж болно; дэд төсөл
+ * нь зөвхөн эхийнхээ аймгуудад харагдана.
  */
 export default function ProjectManagerModal({
   isOpen,
@@ -93,8 +113,14 @@ export default function ProjectManagerModal({
   const [name, setName] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  /** Дэд төсөл нэмэх маягт нээлттэй байгаа эх төсөл */
+  const [childOf, setChildOf] = useState<string | null>(null);
+  const [childName, setChildName] = useState("");
+  const [childAimags, setChildAimags] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const tree = useMemo(() => buildProjectTree(projects), [projects]);
 
   // Жагсаалт шинэчлэгдэх бүрд мөрийн утгуудыг эх өгөгдлөөр тэнцүүлнэ
   useEffect(() => {
@@ -135,6 +161,29 @@ export default function ProjectManagerModal({
     });
   };
 
+  const openChildForm = (parent: Project) => {
+    setChildOf(parent.id);
+    setChildName("");
+    setChildAimags([]);
+  };
+
+  const handleCreateChild = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!childOf || !childName.trim()) return;
+
+    await run(`child:${childOf}`, async () => {
+      await createProject({
+        name: childName.trim(),
+        aimags: childAimags,
+        parentId: childOf,
+        description: "",
+      });
+      setChildOf(null);
+      setChildName("");
+      setChildAimags([]);
+    });
+  };
+
   const handleSave = (project: Project) => {
     const draft = drafts[project.id];
     if (!draft) return;
@@ -148,10 +197,20 @@ export default function ProjectManagerModal({
   };
 
   const handleDelete = (project: Project) => {
-    const warning =
-      project.taskCount > 0
-        ? `"${project.name}" төслийг устгах уу? Доторх ${project.taskCount} даалгавар хамт устана.`
-        : `"${project.name}" төслийг устгах уу?`;
+    const ids = tree.subtreeIds(project.id);
+    const subCount = ids.size - 1;
+    const taskCount = projects
+      .filter((item) => ids.has(item.id))
+      .reduce((sum, item) => sum + item.taskCount, 0);
+
+    const parts = [
+      subCount > 0 ? `${subCount} дэд төсөл` : "",
+      taskCount > 0 ? `${taskCount} даалгавар` : "",
+    ].filter(Boolean);
+
+    const warning = parts.length
+      ? `"${project.name}" төслийг устгах уу? Доторх ${parts.join(", ")} хамт устана.`
+      : `"${project.name}" төслийг устгах уу?`;
 
     if (!window.confirm(warning)) return;
 
@@ -165,11 +224,11 @@ export default function ProjectManagerModal({
           Төслүүд
         </h3>
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          Төсөл үүсгээд ямар аймгуудад харагдахыг сонгоно. Сонгосон аймгуудын
-          гишүүд төсөл дотор өөрсдийн даалгаврыг үүсгэнэ.
+          Төсөл үүсгээд ямар аймгуудад харагдахыг сонгоно. Төсөл дотор дэд
+          төсөл, түүн дотор дахин дэд төсөл үүсгэж болно.
         </p>
 
-        {/* Шинэ төсөл */}
+        {/* Шинэ үндсэн төсөл */}
         <form
           onSubmit={handleCreate}
           className="mt-5 flex flex-col gap-2.5 rounded-lg border border-gray-200 p-3 dark:border-white/10"
@@ -178,7 +237,7 @@ export default function ProjectManagerModal({
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Төслийн нэр"
+              placeholder="Үндсэн төслийн нэр"
               maxLength={120}
               className={`${fieldClass} min-w-[180px] flex-1`}
             />
@@ -209,7 +268,7 @@ export default function ProjectManagerModal({
           </p>
         )}
 
-        {/* Одоо байгаа төслүүд */}
+        {/* Одоо байгаа төслүүд — модны дарааллаар */}
         <div className="mt-5 flex flex-col gap-2">
           {projects.length === 0 && (
             <p className="rounded-lg border border-dashed border-gray-200 px-4 py-6 text-center text-theme-sm text-gray-400 dark:border-white/10">
@@ -217,7 +276,7 @@ export default function ProjectManagerModal({
             </p>
           )}
 
-          {projects.map((project) => {
+          {tree.flat.map(({ project, depth }) => {
             const draft = drafts[project.id] ?? {
               name: project.name,
               aimags: project.aimags,
@@ -225,13 +284,27 @@ export default function ProjectManagerModal({
             const dirty =
               draft.name.trim() !== project.name ||
               !sameSet(draft.aimags, project.aimags);
+            const parent = project.parentId
+              ? projects.find((item) => item.id === project.parentId)
+              : undefined;
+            const canAddChild = depth + 1 < MAX_PROJECT_DEPTH;
 
             return (
               <div
                 key={project.id}
-                className="flex flex-col gap-2 rounded-lg border border-gray-200 p-2.5 dark:border-white/10"
+                style={{ marginLeft: `${Math.min(depth, 4) * 1.25}rem` }}
+                className={`flex flex-col gap-2 rounded-lg border p-2.5 ${
+                  depth > 0
+                    ? "border-dashed border-gray-200 dark:border-white/10"
+                    : "border-gray-200 dark:border-white/10"
+                }`}
               >
                 <div className="flex flex-wrap items-center gap-2">
+                  {depth > 0 && (
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-theme-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
+                      Дэд төсөл
+                    </span>
+                  )}
                   <input
                     value={draft.name}
                     onChange={(event) =>
@@ -242,12 +315,25 @@ export default function ProjectManagerModal({
                     }
                     aria-label="Төслийн нэр"
                     maxLength={120}
-                    className={`${fieldClass} min-w-[160px] flex-1`}
+                    className={`${fieldClass} min-w-[140px] flex-1`}
                   />
 
                   <span className="text-theme-xs text-gray-400">
                     {project.openCount}/{project.taskCount} ажил
                   </span>
+
+                  {canAddChild && (
+                    <button
+                      type="button"
+                      onClick={() => openChildForm(project)}
+                      disabled={busy !== null}
+                      title="Дэд төсөл нэмэх"
+                      className="flex h-10 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 text-theme-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/5"
+                    >
+                      <CornerDownRight className="h-3.5 w-3.5" strokeWidth={2} />
+                      Дэд төсөл
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -274,6 +360,7 @@ export default function ProjectManagerModal({
 
                 <AimagPicker
                   value={draft.aimags}
+                  allowed={parent?.aimags}
                   disabled={busy !== null}
                   onChange={(next) =>
                     setDrafts((prev) => ({
@@ -282,6 +369,49 @@ export default function ProjectManagerModal({
                     }))
                   }
                 />
+
+                {childOf === project.id && (
+                  <form
+                    onSubmit={handleCreateChild}
+                    className="mt-1 flex flex-col gap-2 rounded-lg bg-gray-50 p-2.5 dark:bg-white/[0.03]"
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      <input
+                        value={childName}
+                        onChange={(event) => setChildName(event.target.value)}
+                        placeholder={`"${project.name}" доторх дэд төслийн нэр`}
+                        maxLength={120}
+                        autoFocus
+                        className={`${fieldClass} min-w-[160px] flex-1`}
+                      />
+                      <button
+                        type="submit"
+                        disabled={busy !== null || !childName.trim()}
+                        className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {busy === `child:${project.id}` ? (
+                          <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+                        ) : (
+                          <Plus className="h-4 w-4" strokeWidth={2.2} />
+                        )}
+                        Нэмэх
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setChildOf(null)}
+                        aria-label="Цуцлах"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-white dark:border-white/10 dark:hover:bg-white/5"
+                      >
+                        <X className="h-4 w-4" strokeWidth={2} />
+                      </button>
+                    </div>
+                    <AimagPicker
+                      value={childAimags}
+                      onChange={setChildAimags}
+                      allowed={project.aimags}
+                    />
+                  </form>
+                )}
               </div>
             );
           })}

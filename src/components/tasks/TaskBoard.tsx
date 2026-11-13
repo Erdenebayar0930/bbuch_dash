@@ -34,6 +34,8 @@ import {
   type Task,
 } from "@/lib/tasks";
 
+import { buildProjectTree, pathLabel } from "@/lib/projectTree";
+
 import ProjectManagerModal from "./ProjectManagerModal";
 import TaskFormModal from "./TaskFormModal";
 import { useBoardDrag } from "./useBoardDrag";
@@ -163,18 +165,31 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
     [scopedProjects]
   );
 
+  /** Төсөл ба дэд төслийн мод — шүүлт, нэр, тоололд */
+  const tree = useMemo(() => buildProjectTree(scopedProjects), [scopedProjects]);
+
+  /** Сонгосон төсөл ба түүний бүх дэд төсөл — эх төслийг сонговол бүгд гарна */
+  const selectedIds = useMemo(
+    () => (projectFilter === ALL ? null : tree.subtreeIds(projectFilter)),
+    [tree, projectFilter]
+  );
+
+  /** Дэд төслүүдийг оруулсан дуусаагүй ажлын тоо */
+  const openInSubtree = (id: string) =>
+    scopedProjects
+      .filter((project) => tree.subtreeIds(id).has(project.id))
+      .reduce((sum, project) => sum + project.openCount, 0);
+
   const visible = useMemo(() => {
     return tasks.filter((task) => {
       if (aimagFilter && !scopedProjectIds.has(task.projectId)) return false;
       // Аймгийн самбарт бусад аймгийн даалгавар гарахгүй (ерөнхий нь гарна)
       if (aimagFilter && task.aimag && task.aimag !== aimagFilter) return false;
-      if (projectFilter !== ALL && task.projectId !== projectFilter) {
-        return false;
-      }
+      if (selectedIds && !selectedIds.has(task.projectId)) return false;
       if (onlyMine && task.assignedTo !== myUid) return false;
       return true;
     });
-  }, [tasks, projectFilter, onlyMine, myUid, aimagFilter, scopedProjectIds]);
+  }, [tasks, selectedIds, onlyMine, myUid, aimagFilter, scopedProjectIds]);
 
   const today = todayIso();
 
@@ -243,43 +258,74 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Төслүүд */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setProjectFilter(ALL)}
-          className={`rounded-lg border px-3.5 py-2 text-theme-sm font-medium transition-colors ${
-            projectFilter === ALL
-              ? "border-accent-500 bg-accent-50/60 text-accent-700 dark:border-accent-500 dark:bg-accent-500/10 dark:text-accent-400"
-              : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
-          }`}
-        >
-          Бүх төсөл
-        </button>
+      {/* Төслүүд — үндсэн мөр, сонгосон төслийн дэд төслүүд доор нь шатлан */}
+      {(() => {
+        const path = projectFilter === ALL ? [] : tree.pathOf(projectFilter);
+        // Мөр бүр: үндэс, дараа нь зам дээрх төсөл бүрийн хүүхдүүд
+        const levels = [
+          tree.roots,
+          ...path.map((node) => tree.childrenOf(node.id)),
+        ].filter((level) => level.length > 0);
 
-        {scopedProjects.map((project) => (
-          <button
-            key={project.id}
-            type="button"
-            onClick={() => setProjectFilter(project.id)}
-            title={
-              project.aimags.length > 0
-                ? project.aimags.map((a) => labelOf(aimags, a)).join(", ")
-                : "Бүх аймаг"
-            }
-            className={`rounded-lg border px-3.5 py-2 text-theme-sm font-medium transition-colors ${
-              projectFilter === project.id
-                ? "border-accent-500 bg-accent-50/60 text-accent-700 dark:border-accent-500 dark:bg-accent-500/10 dark:text-accent-400"
+        const chip = (active: boolean, sub: boolean) =>
+          `rounded-lg border px-3.5 py-2 text-theme-sm font-medium transition-colors ${
+            active
+              ? "border-accent-500 bg-accent-50/60 text-accent-700 dark:border-accent-500 dark:bg-accent-500/10 dark:text-accent-400"
+              : sub
+                ? "border-dashed border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/15 dark:bg-white/[0.03] dark:text-gray-300"
                 : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
-            }`}
-          >
-            {project.name}
-            <span className="ml-1.5 text-theme-xs text-gray-400">
-              {project.openCount}
-            </span>
-          </button>
-        ))}
-      </div>
+          }`;
+
+        return (
+          <div className="flex flex-col gap-2">
+            {levels.map((level, depth) => (
+              <div
+                key={depth}
+                className={`flex flex-wrap items-center gap-2 ${
+                  depth > 0 ? "border-l-2 border-gray-100 pl-3 dark:border-white/10" : ""
+                }`}
+              >
+                {depth === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setProjectFilter(ALL)}
+                    className={chip(projectFilter === ALL, false)}
+                  >
+                    Бүх төсөл
+                  </button>
+                ) : (
+                  <span className="text-theme-xs text-gray-400">Дэд төсөл:</span>
+                )}
+
+                {level.map((project) => {
+                  const onPath = path.some((node) => node.id === project.id);
+                  const hasChildren = tree.childrenOf(project.id).length > 0;
+
+                  return (
+                    <button
+                      key={project.id}
+                      type="button"
+                      onClick={() => setProjectFilter(project.id)}
+                      title={
+                        project.aimags.length > 0
+                          ? project.aimags.map((a) => labelOf(aimags, a)).join(", ")
+                          : "Бүх аймаг"
+                      }
+                      className={chip(onPath, depth > 0)}
+                    >
+                      {project.name}
+                      {hasChildren && <span className="ml-1 text-gray-400">›</span>}
+                      <span className="ml-1.5 text-theme-xs text-gray-400">
+                        {openInSubtree(project.id)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Үйлдэл */}
       <div className="flex flex-wrap items-center gap-2">
@@ -433,10 +479,13 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
                         </span>
                       </div>
 
-                      {(projectFilter === ALL || (!aimagFilter && task.aimag)) && (
+                      {(task.projectId !== projectFilter ||
+                        (!aimagFilter && task.aimag)) && (
                         <p className="mt-1 text-theme-xs text-gray-400">
                           {[
-                            projectFilter === ALL ? task.projectName : "",
+                            task.projectId !== projectFilter
+                              ? pathLabel(tree, task.projectId) || task.projectName
+                              : "",
                             !aimagFilter && task.aimag
                               ? labelOf(aimags, task.aimag)
                               : "",

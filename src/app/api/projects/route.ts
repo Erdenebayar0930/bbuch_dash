@@ -1,4 +1,4 @@
-import { asc, count, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
@@ -7,7 +7,12 @@ import {
   requireActiveUser,
   serverError,
 } from "@/lib/api/auth";
-import { projectVisibility } from "@/lib/api/planAccess";
+import {
+  depthOf,
+  loadProjectTree,
+  projectVisibility,
+} from "@/lib/api/planAccess";
+import { MAX_PROJECT_DEPTH, fitChildAimags } from "@/data/taskOptions";
 import { readProject } from "@/lib/api/taskInput";
 import { db } from "@/lib/db";
 import { projects, tasks } from "@/lib/db/schema";
@@ -23,6 +28,7 @@ const projectColumns = {
   id: projects.id,
   name: projects.name,
   aimags: projects.aimags,
+  parentId: projects.parentId,
   description: projects.description,
   position: projects.position,
   archived: projects.archived,
@@ -68,7 +74,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Шинэ төсөл үүсгэнэ — Харуулын аймаг эсвэл админ. */
+/**
+ * Шинэ төсөл эсвэл дэд төсөл (`parentId`) үүсгэнэ — Харуулын аймаг эсвэл
+ * админ. Дэд төслийн аймгууд эхийнхээс сонгогдоно (`fitChildAimags`).
+ */
 export async function POST(request: NextRequest) {
   const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
@@ -83,14 +92,41 @@ export async function POST(request: NextRequest) {
     if (!parsed.ok) return badRequest(parsed.error);
 
     const name = parsed.value.name as string;
+    const parentId = parsed.value.parentId ?? null;
+    let aimags = parsed.value.aimags ?? [];
 
+    if (parentId) {
+      const tree = await loadProjectTree();
+      const parent = tree.get(parentId);
+
+      if (!parent) return badRequest("Эх төсөл олдсонгүй.");
+      if (depthOf(parentId, tree) >= MAX_PROJECT_DEPTH) {
+        return badRequest(
+          `Дэд төсөл ${MAX_PROJECT_DEPTH} түвшнээс гүн байж болохгүй.`
+        );
+      }
+
+      const fitted = fitChildAimags(parent.aimags, aimags);
+      if (!fitted) {
+        return badRequest("Дэд төсөл зөвхөн эх төслийн аймгуудад харагдана.");
+      }
+      aimags = fitted;
+    }
+
+    // Нэр нь нэг эхийн дотор давхардахгүй — өөр төсөлд ижил нэртэй дэд
+    // төсөл (жишээ нь "Бэлтгэл") байж болно
     const [duplicate] = await db
       .select({ id: projects.id })
       .from(projects)
-      .where(eq(projects.name, name))
+      .where(
+        and(
+          eq(projects.name, name),
+          parentId ? eq(projects.parentId, parentId) : isNull(projects.parentId)
+        )
+      )
       .limit(1);
 
-    if (duplicate) return badRequest(`"${name}" төсөл аль хэдийн бүртгэгдсэн.`);
+    if (duplicate) return badRequest(`"${name}" нэртэй төсөл энд аль хэдийн байна.`);
 
     // Эрэмбийг сүүлд нь тавина — одоо байгаа дараалал өөрчлөгдөхгүй
     const [{ next }] = await db
@@ -102,7 +138,8 @@ export async function POST(request: NextRequest) {
     await db.insert(projects).values({
       id,
       name,
-      aimags: parsed.value.aimags ?? [],
+      aimags,
+      parentId,
       description: parsed.value.description ?? "",
       position: next,
       createdBy: result.caller.uid,

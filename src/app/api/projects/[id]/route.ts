@@ -7,7 +7,9 @@ import {
   requireActiveUser,
   serverError,
 } from "@/lib/api/auth";
+import { cascadeChildAimags, loadProjectTree } from "@/lib/api/planAccess";
 import { readProject } from "@/lib/api/taskInput";
+import { fitChildAimags } from "@/data/taskOptions";
 import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import { canManageProjects } from "@/lib/permissions";
@@ -49,19 +51,33 @@ export async function PATCH(
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
+    const tree = await loadProjectTree();
+    const current = tree.get(id);
+
+    if (!current) {
+      return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
+    }
+
+    const patch = { ...parsed.value };
+
+    // Дэд төслийн аймгууд эхийнхээ хүрээнд байх ёстой
+    if (patch.aimags !== undefined && current.parentId) {
+      const parent = tree.get(current.parentId);
+      const fitted = fitChildAimags(parent?.aimags ?? [], patch.aimags);
+      if (!fitted) {
+        return badRequest("Дэд төсөл зөвхөн эх төслийн аймгуудад харагдана.");
+      }
+      patch.aimags = fitted;
+    }
+
     await db
       .update(projects)
-      .set({ ...parsed.value, updatedAt: new Date() })
+      .set({ ...patch, updatedAt: new Date() })
       .where(eq(projects.id, id));
 
-    const [updated] = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(eq(projects.id, id))
-      .limit(1);
-
-    if (!updated) {
-      return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
+    // Аймаг өөрчлөгдвөл доорх дэд төслүүдийг шинэ хүрээнд нь багтаана
+    if (patch.aimags !== undefined) {
+      await cascadeChildAimags(id, patch.aimags, tree);
     }
 
     return NextResponse.json({ ok: true });
@@ -72,7 +88,8 @@ export async function PATCH(
 
 /**
  * Төслийг устгана — ЗӨВХӨН Харуулын аймаг (ба админ).
- * Доторх бүх даалгавар хамт устана (FK cascade) — UI дээр анхааруулна.
+ * Доторх бүх дэд төсөл, даалгавар хамт устана (FK cascade) — UI дээр
+ * анхааруулна.
  */
 export async function DELETE(
   request: NextRequest,

@@ -13,6 +13,8 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
+
 /**
  * Postgres-руу хөрвүүлсэн тэмдэглэл:
  *
@@ -381,6 +383,14 @@ export const projects = pgTable(
      * Төслийг Харуулын аймаг (эсвэл админ) үүсгэж, аймгуудаа сонгоно.
      */
     aimags: jsonCol<string[]>("aimags").notNull().default([]),
+    /**
+     * Эх төсөл — хоосон бол үндсэн төсөл, байвал "дэд төсөл". Дэд төсөл
+     * дотор дахин дэд төсөл үүсгэж болно (MAX_PROJECT_DEPTH хүртэл).
+     * Эх устахад дэд төслүүд нь (даалгавартайгаа) хамт устна.
+     */
+    parentId: uuid("parent_id").references((): AnyPgColumn => projects.id, {
+      onDelete: "cascade",
+    }),
     description: bodyText("description"),
     /** Жагсаалт дахь эрэмбэ */
     position: integer("position").notNull().default(0),
@@ -390,7 +400,10 @@ export const projects = pgTable(
     createdAt: utcTimestamp("created_at").notNull().defaultNow(),
     updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
-  (table) => [index("projects_aimag_idx").on(table.aimag)]
+  (table) => [
+    index("projects_aimag_idx").on(table.aimag),
+    index("projects_parent_idx").on(table.parentId),
+  ]
 );
 
 /**

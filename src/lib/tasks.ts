@@ -12,6 +12,8 @@ export type Project = {
   name: string;
   /** Харагдах аймгуудын түлхүүр — хоосон бол бүх аймагт */
   aimags: string[];
+  /** Эх төсөл — null бол үндсэн төсөл, байвал дэд төсөл */
+  parentId: string | null;
   description: string;
   archived: boolean;
   /** Нийт даалгавар */
@@ -26,6 +28,7 @@ type ProjectRow = Omit<Project, "createdAt"> & { createdAt: string };
 const toProject = (row: ProjectRow): Project => ({
   ...row,
   aimags: row.aimags ?? [],
+  parentId: row.parentId ?? null,
   description: row.description ?? "",
   archived: row.archived ?? false,
   taskCount: row.taskCount ?? 0,
@@ -113,6 +116,8 @@ export type ProjectInput = {
   /** Харагдах аймгууд — хоосон бол бүх аймагт */
   aimags: string[];
   description: string;
+  /** Эх төсөл — дэд төсөл үүсгэхэд л (дараа нь солигдохгүй) */
+  parentId?: string | null;
 };
 
 /** Шинэ төсөл үүсгэнэ (Харуулын аймаг, админ). */
@@ -127,7 +132,7 @@ export async function createProject(input: ProjectInput): Promise<Project> {
 /** Төслийг засна (Харуулын аймаг, админ). */
 export async function updateProject(
   id: string,
-  patch: Partial<ProjectInput & { archived: boolean }>
+  patch: Partial<Omit<ProjectInput, "parentId"> & { archived: boolean }>
 ): Promise<void> {
   await apiFetch(`/api/projects/${id}`, { method: "PATCH", body: patch });
 }

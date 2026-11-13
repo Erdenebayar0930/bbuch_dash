@@ -120,3 +120,76 @@ export async function checkTaskTarget(
 
   return null;
 }
+
+type TreeNode = { id: string; parentId: string | null; aimags: string[] };
+
+/** Бүх төслийн мод — хүснэгт жижиг тул санах ойд ачаалж шалгана */
+export async function loadProjectTree(): Promise<Map<string, TreeNode>> {
+  const rows = await db
+    .select({ id: projects.id, parentId: projects.parentId, aimags: projects.aimags })
+    .from(projects);
+
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      { id: row.id, parentId: row.parentId, aimags: row.aimags ?? [] },
+    ])
+  );
+}
+
+/** Төслийн гүн: үндсэн = 1. Эвдэрсэн (давталттай) мод бол Infinity. */
+export function depthOf(id: string, tree: Map<string, TreeNode>): number {
+  let depth = 0;
+  let current: string | null = id;
+  const seen = new Set<string>();
+
+  while (current) {
+    if (seen.has(current)) return Infinity;
+    seen.add(current);
+    depth += 1;
+    current = tree.get(current)?.parentId ?? null;
+  }
+  return depth;
+}
+
+/**
+ * Эх төслийн аймаг өөрчлөгдсөний дараа доорх бүх дэд төслийг шинэ хүрээнд
+ * нь багтаана — эх харагдахгүй аймагт дэд нь үлдэхгүй.
+ */
+export async function cascadeChildAimags(
+  rootId: string,
+  rootAimags: string[],
+  tree: Map<string, TreeNode>
+): Promise<void> {
+  const queue: { id: string; aimags: string[] }[] = [
+    { id: rootId, aimags: rootAimags },
+  ];
+
+  while (queue.length > 0) {
+    const parent = queue.shift()!;
+
+    for (const child of tree.values()) {
+      if (child.parentId !== parent.id) continue;
+
+      const kept =
+        parent.aimags.length === 0
+          ? child.aimags
+          : child.aimags.filter((aimag) => parent.aimags.includes(aimag));
+      const next =
+        parent.aimags.length > 0 && kept.length === 0 ? parent.aimags : kept;
+
+      const changed =
+        next.length !== child.aimags.length ||
+        next.some((aimag) => !child.aimags.includes(aimag));
+
+      if (changed) {
+        await db
+          .update(projects)
+          .set({ aimags: next, updatedAt: new Date() })
+          .where(eq(projects.id, child.id));
+      }
+
+      queue.push({ id: child.id, aimags: next });
+    }
+  }
+}

@@ -20,6 +20,7 @@ import {
   type TaskInput,
 } from "@/lib/tasks";
 import { projectVisibleToAimag } from "@/lib/permissions";
+import { buildProjectTree, pathLabel } from "@/lib/projectTree";
 
 type TaskFormModalProps = {
   isOpen: boolean;
@@ -62,11 +63,11 @@ const emptyInput = (projectId: string, aimag: string): TaskInput => ({
   dueDate: "",
 });
 
-/** Төслийн нэрийг харагдах аймгуудын хамт — ижил нэртэй төсөл ялгагдана */
-const projectLabel = (project: Project) =>
+/** Аймгуудын товч тайлбар — ижил нэртэй төсөл ялгагдана */
+const aimagsLabel = (project: Project) =>
   project.aimags.length > 0
-    ? `${project.name} · ${project.aimags.map((a) => labelOf(aimags, a)).join(", ")}`
-    : `${project.name} · Бүх аймаг`;
+    ? project.aimags.map((a) => labelOf(aimags, a)).join(", ")
+    : "Бүх аймаг";
 
 /**
  * Ажлын даалгавар үүсгэх / засах цонх.
@@ -113,6 +114,7 @@ export default function TaskFormModal({
     setError(null);
   }, [task, defaultProjectId, lockedAimag, isOpen]);
 
+  const tree = buildProjectTree(projects);
   const selectedProject = projects.find((p) => p.id === form.projectId);
 
   // Нэгдсэн самбарт: сонгосон төсөл харагдах аймгууд л сонголтод орно
@@ -194,6 +196,12 @@ export default function TaskFormModal({
             : "Ажлын даалгавар үүсгэх"}
         </h3>
 
+        {selectedProject?.parentId && (
+          <p className="mt-1 text-theme-xs text-gray-400">
+            {pathLabel(tree, selectedProject.id)}
+          </p>
+        )}
+
         <div className="mt-5 grid gap-4">
           <div>
             <label htmlFor="task-project" className={labelClass}>
@@ -207,9 +215,10 @@ export default function TaskFormModal({
               className={fieldClass}
             >
               <option value="">Сонгоно уу</option>
-              {projects.map((project) => (
+              {/* Модны дарааллаар — дэд төсөл эхийнхээ доор догол мөртэй */}
+              {tree.flat.map(({ project, depth }) => (
                 <option key={project.id} value={project.id}>
-                  {projectLabel(project)}
+                  {`${"\u00a0\u00a0".repeat(depth)}${depth > 0 ? "└ " : ""}${project.name} · ${aimagsLabel(project)}`}
                 </option>
               ))}
             </select>

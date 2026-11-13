@@ -24,6 +24,8 @@ export type ProjectPatch = {
   name?: string;
   /** Харагдах аймгууд — хоосон = бүх аймагт */
   aimags?: string[];
+  /** Эх төсөл — зөвхөн үүсгэхэд; дараа нь солихгүй (давталт үүсэхээс сэргийлнэ) */
+  parentId?: string | null;
   description?: string;
   archived?: boolean;
 };
@@ -72,6 +74,14 @@ export function readProject(body: unknown, partial: boolean): Parsed<ProjectPatc
       return invalid(`Тайлбар ${MAX_TEXT} тэмдэгтээс урт байж болохгүй.`);
     }
     patch.description = input.description.trim();
+  }
+
+  if (input.parentId !== undefined) {
+    if (partial) return invalid("Эх төслийг дараа нь солих боломжгүй.");
+    if (input.parentId !== null && typeof input.parentId !== "string") {
+      return invalid("Эх төсөл буруу байна.");
+    }
+    patch.parentId = input.parentId || null;
   }
 
   if (input.archived !== undefined) {
