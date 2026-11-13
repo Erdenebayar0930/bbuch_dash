@@ -60,6 +60,18 @@ export const canWorkInAimag = (
   canManageProjects(role, userAimags) ||
   (!!aimag && (userAimags ?? []).includes(aimag));
 
+/**
+ * Олон аймагтай даалгаврыг үүсгэх/засах — тэдгээрийн аль нэгийн гишүүн,
+ * эсвэл Харуул/админ. Аймаггүй (ерөнхий) нь зөвхөн Харуул/админ.
+ */
+export const canWorkInAnyAimag = (
+  role: string | null | undefined,
+  userAimags: readonly string[] | null | undefined,
+  aimags: readonly string[]
+): boolean =>
+  canManageProjects(role, userAimags) ||
+  aimags.some((aimag) => (userAimags ?? []).includes(aimag));
+
 /** Төсөл тухайн аймагт харагдах эсэх — хоосон жагсаалт = бүх аймагт */
 export const projectVisibleToAimag = (
   projectAimags: readonly string[],

@@ -1,11 +1,11 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { forbidden, requireActiveUser, serverError } from "@/lib/api/auth";
-import { aimags, isValidOption } from "@/data/profileOptions";
+import { aimags as aimagOptions, isValidOption } from "@/data/profileOptions";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { canManageProjects, canWorkInAimag } from "@/lib/permissions";
+import { canManageProjects, canWorkInAnyAimag } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
@@ -13,27 +13,32 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Даалгаварт гүйцэтгэгч сонгох жагсаалт — зөвхөн нэр, аймаг (утас, имэйл
- * зэрэг хувийн мэдээлэл ӨГӨХГҮЙ).
+ * Даалгаварт хариуцагч/хамтрагч сонгох жагсаалт — зөвхөн нэр, аймаг (утас,
+ * имэйл зэрэг хувийн мэдээлэл ӨГӨХГҮЙ).
  *
- * `?aimag=` — тухайн аймгийн идэвхтэй гишүүд; зөвхөн тэр аймгийн гишүүн
- * эсвэл Харуул/админ уншина. Аймаггүй бол бүх идэвхтэй хэрэглэгч — зөвхөн
- * Харуул/админ.
+ * `?aimags=a,b` — тэдгээр аймгийн аль нэгийн идэвхтэй гишүүд; дуудагч нь
+ * тэдгээрийн аль нэгийн гишүүн эсвэл Харуул/админ байна. Аймаггүй бол бүх
+ * идэвхтэй хэрэглэгч — зөвхөн Харуул/админ.
  */
 export async function GET(request: NextRequest) {
   const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
 
   const user = result.caller.user;
-  const aimag = new URL(request.url).searchParams.get("aimag") ?? "";
+  const raw = new URL(request.url).searchParams.get("aimags") ?? "";
+  const picked = [
+    ...new Set(
+      raw
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => value && isValidOption(aimagOptions, value))
+    ),
+  ];
 
-  if (aimag && !isValidOption(aimags, aimag)) {
-    return NextResponse.json({ people: [] });
-  }
-
-  const allowed = aimag
-    ? canWorkInAimag(user?.role, user?.aimags, aimag)
-    : canManageProjects(user?.role, user?.aimags);
+  const allowed =
+    picked.length > 0
+      ? canWorkInAnyAimag(user?.role, user?.aimags, picked)
+      : canManageProjects(user?.role, user?.aimags);
 
   if (!allowed) return forbidden("Энэ жагсаалтыг үзэх эрхгүй.");
 
@@ -49,8 +54,13 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(users.status, "active"),
-          aimag
-            ? sql`${users.aimags} @> ${JSON.stringify([aimag])}::jsonb`
+          picked.length > 0
+            ? or(
+                ...picked.map(
+                  (aimag) =>
+                    sql`${users.aimags} @> ${JSON.stringify([aimag])}::jsonb`
+                )
+              )
             : undefined
         )
       )

@@ -11,6 +11,7 @@ import type { TaskPriority, TaskStatus } from "@/data/taskOptions";
 
 const MAX_NAME = 120;
 const MAX_TEXT = 2000;
+const MAX_COLLABORATORS = 30;
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -96,8 +97,10 @@ export function readProject(body: unknown, partial: boolean): Parsed<ProjectPatc
 
 export type TaskPatch = {
   projectId?: string;
-  /** Эзэмших аймаг, эсвэл "" — ерөнхий */
-  aimag?: string;
+  /** Оролцох аймгууд — хоосон бол ерөнхий */
+  aimags?: string[];
+  /** Хамтрагчид (uid) */
+  collaborators?: string[];
   title?: string;
   description?: string;
   status?: TaskStatus;
@@ -154,10 +157,32 @@ export async function readTask(
     patch.priority = input.priority;
   }
 
-  if (input.aimag !== undefined) {
-    const aimag = typeof input.aimag === "string" ? input.aimag.trim() : "";
-    if (!isValidOption(aimags, aimag)) return invalid("Аймаг буруу байна.");
-    patch.aimag = aimag;
+  if (input.aimags !== undefined) {
+    if (!Array.isArray(input.aimags)) return invalid("Аймгууд буруу байна.");
+    const picked = [...new Set(input.aimags)];
+    if (
+      picked.some(
+        (value) =>
+          typeof value !== "string" || !value || !isValidOption(aimags, value)
+      )
+    ) {
+      return invalid("Аймаг буруу байна.");
+    }
+    patch.aimags = picked as string[];
+  }
+
+  if (input.collaborators !== undefined) {
+    if (!Array.isArray(input.collaborators)) {
+      return invalid("Хамтрагчид буруу байна.");
+    }
+    const picked = [...new Set(input.collaborators)];
+    if (picked.some((value) => typeof value !== "string" || !value)) {
+      return invalid("Хамтрагчид буруу байна.");
+    }
+    if (picked.length > MAX_COLLABORATORS) {
+      return invalid(`Хамтрагч ${MAX_COLLABORATORS}-аас олон байж болохгүй.`);
+    }
+    patch.collaborators = picked as string[];
   }
 
   if (input.dueDate !== undefined) {

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { UserPlus, X } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
 import { labelOf, aimags } from "@/data/profileOptions";
@@ -10,33 +11,31 @@ import {
   taskStatusLabels,
   taskStatuses,
 } from "@/data/taskOptions";
+import { projectVisibleToAimag } from "@/lib/permissions";
+import { buildProjectTree, pathLabel } from "@/lib/projectTree";
 import {
   createTask,
   deleteTask,
+  listPlanPeople,
   updateTask,
   type PlanPerson,
   type Project,
   type Task,
   type TaskInput,
 } from "@/lib/tasks";
-import { projectVisibleToAimag } from "@/lib/permissions";
-import { buildProjectTree, pathLabel } from "@/lib/projectTree";
 
 type TaskFormModalProps = {
   isOpen: boolean;
   /** null бол шинээр үүсгэнэ */
   task: Task | null;
   projects: Project[];
-  /** Гүйцэтгэгч болох хүмүүс — аймгаар нь маягт дотор шүүнэ */
-  people: PlanPerson[];
-  /**
-   * Аймгийн хуудсанд даалгавар тэр аймагт бэхлэгдэнэ. Заагаагүй бол
-   * (Харуулын нэгдсэн самбар) аймгаа маягтаас сонгоно.
-   */
-  lockedAimag?: string;
+  /** Шинэ даалгаварт урьдчилж сонгогдох аймгууд (аймгийн хуудсанд тэр аймаг) */
+  defaultAimags: string[];
+  /** Харуул/админ эсэх — "Ерөнхий" (аймаггүй) даалгавар үүсгэж чадна */
+  canManage: boolean;
   /** Бүх талбарыг засах эрхтэй эсэх */
   canEdit: boolean;
-  /** Зөвхөн төлөвөө сольж чадах эсэх (өөрт оногдсон даалгавар) */
+  /** Зөвхөн төлөвөө сольж чадах эсэх (хариуцагч, хамтрагч) */
   canMove: boolean;
   /** Устгах эрхтэй эсэх — үүсгэсэн хүн эсвэл Харуул/админ */
   canDelete: boolean;
@@ -52,14 +51,22 @@ const fieldClass =
 const labelClass =
   "mb-1.5 block text-theme-sm font-medium text-gray-700 dark:text-gray-300";
 
-const emptyInput = (projectId: string, aimag: string): TaskInput => ({
+const chipClass = (active: boolean) =>
+  `rounded-full border px-2.5 py-1 text-theme-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+    active
+      ? "border-accent-500 bg-accent-50 text-accent-700 dark:bg-accent-500/15 dark:text-accent-400"
+      : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/5"
+  }`;
+
+const emptyInput = (projectId: string, aimagList: string[]): TaskInput => ({
   projectId,
-  aimag,
+  aimags: aimagList,
   title: "",
   description: "",
   status: "todo",
   priority: "normal",
   assignedTo: null,
+  collaborators: [],
   dueDate: "",
 });
 
@@ -72,15 +79,17 @@ const aimagsLabel = (project: Project) =>
 /**
  * Ажлын даалгавар үүсгэх / засах цонх.
  *
- * Эрхээс хамаарч гурван горимд ажиллана: аймгийн гишүүн (ба Харуул/админ)
- * бүхнийг засна, гүйцэтгэгч зөвхөн төлөвөө сольно, бусад нь зөвхөн харна.
+ * Даалгаварт олон аймаг оролцож болно. Ерөнхий хариуцагч нэг, хамтрагч
+ * олон. Эрхээс хамаарч гурван горимд ажиллана: оролцох аймгийн гишүүн (ба
+ * Харуул/админ) бүхнийг засна, хариуцагч/хамтрагч зөвхөн төлөвөө сольно,
+ * бусад нь зөвхөн харна.
  */
 export default function TaskFormModal({
   isOpen,
   task,
   projects,
-  people,
-  lockedAimag,
+  defaultAimags,
+  canManage,
   canEdit,
   canMove,
   canDelete,
@@ -89,11 +98,14 @@ export default function TaskFormModal({
   onSaved,
 }: TaskFormModalProps) {
   const [form, setForm] = useState<TaskInput>(
-    emptyInput(defaultProjectId, lockedAimag ?? "")
+    emptyInput(defaultProjectId, defaultAimags)
   );
+  const [people, setPeople] = useState<PlanPerson[]>([]);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const defaultAimagsKey = defaultAimags.join(",");
 
   // Цонх нээгдэх бүрд засаж буй даалгаврын утгаар дүүргэнэ
   useEffect(() => {
@@ -101,36 +113,85 @@ export default function TaskFormModal({
       task
         ? {
             projectId: task.projectId,
-            aimag: task.aimag,
+            aimags: task.aimags,
             title: task.title,
             description: task.description,
             status: task.status,
             priority: task.priority,
             assignedTo: task.assignedTo,
+            collaborators: task.collaborators,
             dueDate: task.dueDate,
           }
-        : emptyInput(defaultProjectId, lockedAimag ?? "")
+        : emptyInput(
+            defaultProjectId,
+            defaultAimagsKey ? defaultAimagsKey.split(",") : []
+          )
     );
     setError(null);
-  }, [task, defaultProjectId, lockedAimag, isOpen]);
+  }, [task, defaultProjectId, defaultAimagsKey, isOpen]);
 
-  const tree = buildProjectTree(projects);
+  // Хариуцагч/хамтрагч болох хүмүүс — сонгосон аймгуудын гишүүд
+  const aimagsKey = form.aimags.join(",");
+  useEffect(() => {
+    if (!isOpen || !canEdit) return;
+    // Аймаггүй бол бүх хүн — зөвхөн Харуул/админд нээлттэй
+    if (!aimagsKey && !canManage) return;
+
+    let cancelled = false;
+    listPlanPeople(aimagsKey ? aimagsKey.split(",") : [])
+      .then((rows) => {
+        if (!cancelled) setPeople(rows);
+      })
+      .catch((err) => console.error("Хүмүүсийг уншихад алдаа гарлаа:", err));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, canEdit, canManage, aimagsKey]);
+
+  const update = <K extends keyof TaskInput>(key: K, value: TaskInput[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const tree = useMemo(() => buildProjectTree(projects), [projects]);
   const selectedProject = projects.find((p) => p.id === form.projectId);
 
-  // Нэгдсэн самбарт: сонгосон төсөл харагдах аймгууд л сонголтод орно
+  // Сонгосон төсөл харагдах аймгууд л сонголтод орно
   const aimagChoices = aimags.filter(
     (option) =>
       !selectedProject ||
       projectVisibleToAimag(selectedProject.aimags, option.value)
   );
 
-  // Аймагтай даалгаварт зөвхөн тэр аймгийн гишүүдийг санал болгоно
-  const assignees = form.aimag
-    ? people.filter((person) => person.aimags.includes(form.aimag))
-    : people;
+  const toggleAimag = (aimag: string) =>
+    update(
+      "aimags",
+      form.aimags.includes(aimag)
+        ? form.aimags.filter((item) => item !== aimag)
+        : [...form.aimags, aimag]
+    );
 
-  const update = <K extends keyof TaskInput>(key: K, value: TaskInput[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  /** uid → нэр: жагсаалтад байхгүй (хуучин) хүмүүсийг даалгавраас нь авна */
+  const nameOf = (uid: string) => {
+    const person = people.find((item) => item.uid === uid);
+    if (person) return person.name;
+    if (task?.assignedTo === uid) return task.assigneeName || "Нэргүй";
+    const index = task?.collaborators.indexOf(uid) ?? -1;
+    return index >= 0 ? task?.collaboratorNames[index] ?? "Нэргүй" : "Нэргүй";
+  };
+
+  const partnerChoices = people.filter(
+    (person) =>
+      person.uid !== form.assignedTo && !form.collaborators.includes(person.uid)
+  );
+
+  const setLead = (uid: string | null) => {
+    setForm((prev) => ({
+      ...prev,
+      assignedTo: uid,
+      // Хариуцагч нь хамтрагчдын жагсаалтад давхардахгүй
+      collaborators: prev.collaborators.filter((item) => item !== uid),
+    }));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -138,6 +199,10 @@ export default function TaskFormModal({
 
     if (!form.projectId) {
       setError("Төслийг сонгоно уу.");
+      return;
+    }
+    if (!task && !canManage && form.aimags.length === 0) {
+      setError("Аймгаа сонгоно уу.");
       return;
     }
 
@@ -150,7 +215,7 @@ export default function TaskFormModal({
       } else if (canEdit) {
         await updateTask(task.id, form);
       } else {
-        // Гүйцэтгэгчийн эрхээр зөвхөн төлөв явуулна — бусдыг сервер няцаана
+        // Хариуцагч/хамтрагчийн эрхээр зөвхөн төлөв явуулна
         await updateTask(task.id, { status: form.status });
       }
 
@@ -218,40 +283,59 @@ export default function TaskFormModal({
               {/* Модны дарааллаар — дэд төсөл эхийнхээ доор догол мөртэй */}
               {tree.flat.map(({ project, depth }) => (
                 <option key={project.id} value={project.id}>
-                  {`${"\u00a0\u00a0".repeat(depth)}${depth > 0 ? "└ " : ""}${project.name} · ${aimagsLabel(project)}`}
+                  {`${"  ".repeat(depth)}${depth > 0 ? "└ " : ""}${project.name} · ${aimagsLabel(project)}`}
                 </option>
               ))}
             </select>
           </div>
 
-          {!lockedAimag && (
-            <div>
-              <label htmlFor="task-aimag" className={labelClass}>
-                Аймаг
-              </label>
-              <select
-                id="task-aimag"
-                value={form.aimag}
-                onChange={(event) => update("aimag", event.target.value)}
-                disabled={readOnly}
-                className={fieldClass}
-              >
-                <option value="">Ерөнхий (бүх аймагт)</option>
-                {aimagChoices.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
+          <div>
+            <span className={labelClass}>
+              Аймгууд
+              {!canManage && <span className="text-error-500"> *</span>}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {canManage && (
+                <button
+                  type="button"
+                  disabled={readOnly}
+                  onClick={() => update("aimags", [])}
+                  className={chipClass(form.aimags.length === 0)}
+                >
+                  Ерөнхий (бүх аймагт)
+                </button>
+              )}
+              {aimagChoices.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  disabled={readOnly}
+                  onClick={() => toggleAimag(option.value)}
+                  aria-pressed={form.aimags.includes(option.value)}
+                  className={chipClass(form.aimags.includes(option.value))}
+                >
+                  {option.label}
+                </button>
+              ))}
+              {/* Төсөл солигдсоноор сонголтоос гарсан аймаг харагдсаар байна */}
+              {form.aimags
+                .filter(
+                  (aimag) => !aimagChoices.some((option) => option.value === aimag)
+                )
+                .map((aimag) => (
+                  <button
+                    key={aimag}
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => toggleAimag(aimag)}
+                    className={`${chipClass(true)} line-through`}
+                    title="Энэ төсөлд харагдахгүй аймаг — дарж хасна"
+                  >
+                    {labelOf(aimags, aimag)}
+                  </button>
                 ))}
-                {/* Хуучин утга сонголтоос гарсан ч харагдсаар байна */}
-                {form.aimag &&
-                  !aimagChoices.some((option) => option.value === form.aimag) && (
-                    <option value={form.aimag}>
-                      {labelOf(aimags, form.aimag)}
-                    </option>
-                  )}
-              </select>
             </div>
-          )}
+          </div>
 
           <div>
             <label htmlFor="task-title" className={labelClass}>
@@ -286,30 +370,94 @@ export default function TaskFormModal({
 
           <div>
             <label htmlFor="task-assignee" className={labelClass}>
-              Гүйцэтгэгч
+              Ерөнхий хариуцагч
             </label>
             <select
               id="task-assignee"
               value={form.assignedTo ?? ""}
-              onChange={(event) =>
-                update("assignedTo", event.target.value || null)
-              }
+              onChange={(event) => setLead(event.target.value || null)}
               disabled={readOnly}
               className={fieldClass}
             >
               <option value="">Хуваарилаагүй</option>
-              {/* Засах эрхгүй үед жагсаалт хоосон ирдэг тул одоогийн
-                  гүйцэтгэгчийг нэрээр нь харуулна */}
-              {task?.assignedTo &&
-                !assignees.some((person) => person.uid === task.assignedTo) && (
-                  <option value={task.assignedTo}>{task.assigneeName}</option>
+              {form.assignedTo &&
+                !people.some((person) => person.uid === form.assignedTo) && (
+                  <option value={form.assignedTo}>{nameOf(form.assignedTo)}</option>
                 )}
-              {assignees.map((person) => (
+              {people.map((person) => (
                 <option key={person.uid} value={person.uid}>
                   {person.name}
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <span className={labelClass}>Хамтрах</span>
+
+            {form.collaborators.length > 0 ? (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {form.collaborators.map((uid) => (
+                  <span
+                    key={uid}
+                    className="flex items-center gap-1 rounded-full bg-gray-100 py-1 pl-2.5 pr-1 text-theme-xs text-gray-700 dark:bg-white/10 dark:text-gray-300"
+                  >
+                    {nameOf(uid)}
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        aria-label={`${nameOf(uid)} хасах`}
+                        onClick={() =>
+                          update(
+                            "collaborators",
+                            form.collaborators.filter((item) => item !== uid)
+                          )
+                        }
+                        className="flex h-4 w-4 items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-white/15"
+                      >
+                        <X className="h-3 w-3" strokeWidth={2.5} />
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              readOnly && (
+                <p className="text-theme-sm text-gray-400">Хамтрагчгүй</p>
+              )
+            )}
+
+            {!readOnly && (
+              <div className="relative">
+                <UserPlus
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                  strokeWidth={1.8}
+                />
+                <select
+                  value=""
+                  onChange={(event) => {
+                    const uid = event.target.value;
+                    if (uid) update("collaborators", [...form.collaborators, uid]);
+                  }}
+                  disabled={partnerChoices.length === 0}
+                  aria-label="Хамтрагч нэмэх"
+                  className={`${fieldClass} pl-10`}
+                >
+                  <option value="">
+                    {partnerChoices.length === 0
+                      ? form.aimags.length === 0 && !canManage
+                        ? "Эхлээд аймгаа сонгоно уу"
+                        : "Нэмэх хүн алга"
+                      : "Хамтрагч нэмэх..."}
+                  </option>
+                  {partnerChoices.map((person) => (
+                    <option key={person.uid} value={person.uid}>
+                      {person.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

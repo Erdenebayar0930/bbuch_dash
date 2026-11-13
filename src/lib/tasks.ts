@@ -42,19 +42,22 @@ export type Task = {
   projectName: string;
   /** Төсөл харагдах аймгууд — хоосон бол бүх аймагт */
   projectAimags: string[];
-  /** Даалгаврыг эзэмших аймаг, эсвэл "" — төслийн ерөнхий даалгавар */
-  aimag: string;
+  /** Оролцох аймгууд — хоосон бол төслийн ерөнхий даалгавар */
+  aimags: string[];
   /** Үүсгэсэн хүний uid — өөрийн даалгавраа устгаж чадна */
   createdBy: string | null;
   title: string;
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  /** null бол хараахан хуваарилаагүй */
+  /** Ерөнхий хариуцагч — null бол хараахан хуваарилаагүй */
   assignedTo: string | null;
-  /** Гүйцэтгэгчийн харагдах нэр — хуваарилаагүй бол хоосон */
+  /** Ерөнхий хариуцагчийн нэр — хуваарилаагүй бол хоосон */
   assigneeName: string;
   assigneePhotoUrl: string;
+  /** Хамтрагчид (uid) ба нэр — ижил дараалалтай */
+  collaborators: string[];
+  collaboratorNames: string[];
   /** YYYY-MM-DD, эсвэл хоосон */
   dueDate: string;
   position: number;
@@ -67,7 +70,9 @@ type TaskRow = {
   projectId: string;
   projectName: string;
   projectAimags: string[] | null;
-  aimag: string | null;
+  aimags: string[] | null;
+  collaborators: string[] | null;
+  collaboratorNames: string[] | null;
   createdBy: string | null;
   title: string;
   description: string | null;
@@ -88,7 +93,9 @@ const toTask = (row: TaskRow): Task => ({
   projectId: row.projectId,
   projectName: row.projectName,
   projectAimags: row.projectAimags ?? [],
-  aimag: row.aimag ?? "",
+  aimags: row.aimags ?? [],
+  collaborators: row.collaborators ?? [],
+  collaboratorNames: row.collaboratorNames ?? [],
   createdBy: row.createdBy ?? null,
   title: row.title,
   description: row.description ?? "",
@@ -160,19 +167,21 @@ export async function listTasks(
 
 export type TaskInput = {
   projectId: string;
-  /** Эзэмших аймаг, эсвэл "" — ерөнхий (Харуул/админ л) */
-  aimag: string;
+  /** Оролцох аймгууд — хоосон бол ерөнхий (Харуул/админ л) */
+  aimags: string[];
   title: string;
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  /** null бол хуваарилаагүй */
+  /** Ерөнхий хариуцагч — null бол хуваарилаагүй */
   assignedTo: string | null;
+  /** Хамтрагчид (uid) */
+  collaborators: string[];
   /** YYYY-MM-DD, эсвэл хоосон */
   dueDate: string;
 };
 
-/** Шинэ даалгавар үүсгэнэ — тухайн аймгийн гишүүн эсвэл Харуул/админ. */
+/** Шинэ даалгавар үүсгэнэ — сонгосон аймгийн гишүүн эсвэл Харуул/админ. */
 export async function createTask(input: TaskInput): Promise<Task> {
   const data = await apiFetch<{ task: TaskRow }>("/api/tasks", {
     method: "POST",
@@ -209,10 +218,10 @@ export type PlanPerson = {
 };
 
 /**
- * Гүйцэтгэгч болох хүмүүс — `aimag` заавал тэр аймгийн гишүүд, заагаагүй
- * бол бүх идэвхтэй хэрэглэгч (зөвхөн Харуул/админ).
+ * Хариуцагч/хамтрагч болох хүмүүс — `aimags` заавал тэдгээрийн аль нэгийн
+ * гишүүд, хоосон бол бүх идэвхтэй хэрэглэгч (зөвхөн Харуул/админ).
  */
-export async function listPlanPeople(aimag?: string): Promise<PlanPerson[]> {
+export async function listPlanPeople(aimags: string[]): Promise<PlanPerson[]> {
   const data = await apiFetch<{
     people: {
       uid: string;
@@ -220,7 +229,11 @@ export async function listPlanPeople(aimag?: string): Promise<PlanPerson[]> {
       lastName: string | null;
       aimags: string[] | null;
     }[];
-  }>(aimag ? `/api/plan-people?aimag=${encodeURIComponent(aimag)}` : "/api/plan-people");
+  }>(
+    aimags.length > 0
+      ? `/api/plan-people?aimags=${encodeURIComponent(aimags.join(","))}`
+      : "/api/plan-people"
+  );
 
   return (data.people ?? []).map((person) => ({
     uid: person.uid,

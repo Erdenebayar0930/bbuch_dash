@@ -22,14 +22,13 @@ import {
 import {
   canManageProjects,
   canWorkInAimag,
+  canWorkInAnyAimag,
   projectVisibleToAimag,
 } from "@/lib/permissions";
 import {
-  listPlanPeople,
   listProjects,
   listTasks,
   updateTask,
-  type PlanPerson,
   type Project,
   type Task,
 } from "@/lib/tasks";
@@ -107,7 +106,6 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [people, setPeople] = useState<PlanPerson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -140,15 +138,6 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
   useEffect(() => {
     load();
   }, [load]);
-
-  // Гүйцэтгэгч сонгох жагсаалт — даалгавар үүсгэх эрхтэй хүнд л хэрэгтэй
-  useEffect(() => {
-    if (!canCreate) return;
-
-    listPlanPeople(aimagFilter)
-      .then(setPeople)
-      .catch((err) => console.error("Хэрэглэгчид уншихад алдаа гарлаа:", err));
-  }, [canCreate, aimagFilter]);
 
   /** Энэ аймагт харагдах төслүүд — `aimagFilter`-гүй бол бүгд */
   const scopedProjects = useMemo(
@@ -184,9 +173,21 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
     return tasks.filter((task) => {
       if (aimagFilter && !scopedProjectIds.has(task.projectId)) return false;
       // Аймгийн самбарт бусад аймгийн даалгавар гарахгүй (ерөнхий нь гарна)
-      if (aimagFilter && task.aimag && task.aimag !== aimagFilter) return false;
+      if (
+        aimagFilter &&
+        task.aimags.length > 0 &&
+        !task.aimags.includes(aimagFilter)
+      ) {
+        return false;
+      }
       if (selectedIds && !selectedIds.has(task.projectId)) return false;
-      if (onlyMine && task.assignedTo !== myUid) return false;
+      if (
+        onlyMine &&
+        task.assignedTo !== myUid &&
+        !task.collaborators.includes(myUid)
+      ) {
+        return false;
+      }
       return true;
     });
   }, [tasks, selectedIds, onlyMine, myUid, aimagFilter, scopedProjectIds]);
@@ -195,13 +196,16 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
 
   /** Бүх талбарыг засах — даалгаврын аймгийн гишүүн, эсвэл Харуул/админ */
   const canEditTask = useCallback(
-    (task: Task) => canWorkInAimag(role, myAimags, task.aimag),
+    (task: Task) => canWorkInAnyAimag(role, myAimags, task.aimags),
     [role, myAimags]
   );
 
   /** Тухайн даалгаврыг энэ хэрэглэгч хөдөлгөж чадах эсэх */
   const canMove = useCallback(
-    (task: Task) => canEditTask(task) || task.assignedTo === myUid,
+    (task: Task) =>
+      canEditTask(task) ||
+      task.assignedTo === myUid ||
+      task.collaborators.includes(myUid),
     [canEditTask, myUid]
   );
 
@@ -339,7 +343,7 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
           }`}
         >
           <UserIcon className="h-4 w-4" strokeWidth={1.8} />
-          Надад оногдсон
+          Надад хамаатай
         </button>
 
         <button
@@ -479,15 +483,23 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
                         </span>
                       </div>
 
-                      {(task.projectId !== projectFilter ||
-                        (!aimagFilter && task.aimag)) && (
+                      {(() => {
+                        // Нэгдсэн самбарт аймгууд, аймгийн самбарт хамтарсан бол л
+                        const showAimags =
+                          task.aimags.length > 0 &&
+                          (!aimagFilter || task.aimags.length > 1);
+                        return (
+                          task.projectId !== projectFilter || showAimags
+                        );
+                      })() && (
                         <p className="mt-1 text-theme-xs text-gray-400">
                           {[
                             task.projectId !== projectFilter
                               ? pathLabel(tree, task.projectId) || task.projectName
                               : "",
-                            !aimagFilter && task.aimag
-                              ? labelOf(aimags, task.aimag)
+                            task.aimags.length > 0 &&
+                            (!aimagFilter || task.aimags.length > 1)
+                              ? task.aimags.map((a) => labelOf(aimags, a)).join(", ")
                               : "",
                           ]
                             .filter(Boolean)
@@ -502,6 +514,14 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
                               {initialsOf(task.assigneeName)}
                             </span>
                             {task.assigneeName}
+                            {task.collaborators.length > 0 && (
+                              <span
+                                className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-white/10 dark:text-gray-300"
+                                title={`Хамтрах: ${task.collaboratorNames.join(", ")}`}
+                              >
+                                +{task.collaborators.length}
+                              </span>
+                            )}
                           </span>
                         ) : (
                           <span className="text-theme-xs text-gray-400">
@@ -548,8 +568,8 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
         isOpen={isFormOpen}
         task={editing}
         projects={scopedProjects}
-        people={people}
-        lockedAimag={aimagFilter}
+        defaultAimags={aimagFilter ? [aimagFilter] : []}
+        canManage={canManage}
         canEdit={editing ? canEditTask(editing) : canCreate}
         canMove={editing ? canMove(editing) : false}
         canDelete={editing ? canDeleteTask(editing) : false}

@@ -420,11 +420,15 @@ export const tasks = pgTable(
     projectId: uuidRef("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    /**
-     * Даалгаврыг эзэмших аймаг — тухайн аймгийн гишүүд үүсгэж, засна.
-     * "" = төслийн ерөнхий даалгавар (Харуул/админ үүсгэсэн), бүх аймагт.
-     */
+    /** ⚠ Хуучин — ганц аймагтай үеийнх. Одоо `aimags`-ийг уншина. */
     aimag: varchar("aimag", { length: 64 }).notNull().default(""),
+    /**
+     * Даалгаварт оролцох аймгууд — тэдгээрийн гишүүд үүсгэж, засна.
+     * Хоосон = төслийн ерөнхий даалгавар (Харуул/админ), бүх аймагт.
+     */
+    aimags: jsonCol<string[]>("aimags").notNull().default([]),
+    /** Хамтрагчид (uid) — ерөнхий хариуцагч нь `assignedTo` */
+    collaborators: jsonCol<string[]>("collaborators").notNull().default([]),
     title: varchar("title", { length: 255 }).notNull(),
     description: bodyText("description"),
     /** todo | in_progress | done */

@@ -4,7 +4,11 @@ import { NextResponse } from "next/server";
 import { badRequest, requireActiveUser, serverError } from "@/lib/api/auth";
 import { notifyUsers } from "@/lib/api/notify";
 import {
+  attachCollaborators,
   checkTaskTarget,
+  involvesUser,
+  planUrl,
+  readTaskRow,
   taskColumns,
   taskVisibility,
 } from "@/lib/api/planAccess";
@@ -20,9 +24,9 @@ export const dynamic = "force-dynamic";
 /**
  * Ажлын даалгаврууд.
  *
- * `?projectId=` — нэг төслийн, `?mine=1` — зөвхөн өөрт оногдсон.
+ * `?projectId=` — нэг төслийн, `?mine=1` — өөрөө хариуцагч эсвэл хамтрагч.
  * Харагдах дүрэм нь `taskVisibility`: Харуул/админ бүгдийг, бусад нь өөрийн
- * аймагт харагдах төслийн өөрийн аймгийн болон ерөнхий даалгаврыг.
+ * аймагт харагдах төслийн өөрийн аймаг оролцсон болон ерөнхий даалгаврыг.
  */
 export async function GET(request: NextRequest) {
   const result = await requireActiveUser(request);
@@ -35,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     const filters = [
       projectId ? eq(tasks.projectId, projectId) : undefined,
-      mine ? eq(tasks.assignedTo, result.caller.uid) : undefined,
+      mine ? involvesUser(result.caller.uid) : undefined,
       taskVisibility(result.caller.user),
     ].filter(Boolean);
 
@@ -47,15 +51,15 @@ export async function GET(request: NextRequest) {
       .where(filters.length > 0 ? and(...filters) : undefined)
       .orderBy(asc(tasks.position), desc(tasks.createdAt));
 
-    return NextResponse.json({ tasks: rows });
+    return NextResponse.json({ tasks: await attachCollaborators(rows) });
   } catch (error) {
     return serverError(error, "Даалгавар уншихад алдаа гарлаа");
   }
 }
 
 /**
- * Шинэ даалгавар — тухайн аймгийн гишүүн өөрийн аймагт харагдах төсөл
- * дотор үүсгэнэ. Харуулын аймаг ба админ ямар ч аймагт (эсвэл ерөнхий).
+ * Шинэ даалгавар — сонгосон аймгуудын аль нэгийн гишүүн, тэдгээрт харагдах
+ * төсөл дотор үүсгэнэ. Харуулын аймаг ба админ ямар ч аймагт (эсвэл ерөнхий).
  */
 export async function POST(request: NextRequest) {
   const result = await requireActiveUser(request);
@@ -66,13 +70,19 @@ export async function POST(request: NextRequest) {
     if (!parsed.ok) return badRequest(parsed.error);
 
     const projectId = parsed.value.projectId as string;
-    const aimag = parsed.value.aimag ?? "";
+    const aimags = parsed.value.aimags ?? [];
+    const assignedTo = parsed.value.assignedTo ?? null;
+    // Ерөнхий хариуцагч хамтрагчдын жагсаалтад давхардахгүй
+    const collaborators = (parsed.value.collaborators ?? []).filter(
+      (uid) => uid !== assignedTo
+    );
     const status = parsed.value.status ?? "todo";
 
     const denied = await checkTaskTarget(result.caller.user, {
       projectId,
-      aimag,
-      assignedTo: parsed.value.assignedTo ?? null,
+      aimags,
+      assignedTo,
+      collaborators,
     });
     if (denied) return badRequest(denied);
 
@@ -88,7 +98,9 @@ export async function POST(request: NextRequest) {
       ...parsed.value,
       id,
       projectId,
-      aimag,
+      aimags,
+      assignedTo,
+      collaborators,
       title: parsed.value.title as string,
       status,
       position: next,
@@ -96,23 +108,25 @@ export async function POST(request: NextRequest) {
       createdBy: result.caller.uid,
     });
 
-    const [row] = await db
-      .select(taskColumns)
-      .from(tasks)
-      .innerJoin(projects, eq(tasks.projectId, projects.id))
-      .leftJoin(users, eq(tasks.assignedTo, users.uid))
-      .where(eq(tasks.id, id))
-      .limit(1);
+    const row = await readTaskRow(id);
+    if (!row) throw new Error("Үүсгэсэн даалгавар олдсонгүй");
 
-    // Оноогдсон хүнд шууд мэдэгдэнэ — өөрөө өөртөө оновол мэдэгдэх шаардлагагүй
+    // Хариуцагч, хамтрагчдад мэдэгдэнэ — өөрөө өөртөө мэдэгдэхгүй
+    const url = planUrl(row.aimags);
+    const body = `${row.projectName}: ${row.title}`;
+
     if (row.assignedTo && row.assignedTo !== result.caller.uid) {
       await notifyUsers(
         [row.assignedTo],
-        {
-          title: "Шинэ ажлын даалгавар",
-          body: `${row.projectName}: ${row.title}`,
-          url: row.aimag ? `/aimag/${row.aimag}/plan` : "/aimag/guard/plan",
-        },
+        { title: "Та даалгаврын ерөнхий хариуцагч боллоо", body, url },
+        result.caller.uid
+      );
+    }
+    const partners = collaborators.filter((uid) => uid !== result.caller.uid);
+    if (partners.length > 0) {
+      await notifyUsers(
+        partners,
+        { title: "Таныг даалгаварт хамтрагчаар нэмлээ", body, url },
         result.caller.uid
       );
     }

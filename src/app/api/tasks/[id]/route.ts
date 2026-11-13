@@ -8,23 +8,22 @@ import {
   serverError,
 } from "@/lib/api/auth";
 import { notifyUsers } from "@/lib/api/notify";
-import { checkTaskTarget, taskColumns } from "@/lib/api/planAccess";
+import { checkTaskTarget, planUrl, readTaskRow } from "@/lib/api/planAccess";
 import { readTask } from "@/lib/api/taskInput";
 import { db } from "@/lib/db";
-import { projects, tasks, users } from "@/lib/db/schema";
-import { canManageProjects, canWorkInAimag } from "@/lib/permissions";
+import { tasks } from "@/lib/db/schema";
+import { canManageProjects, canWorkInAnyAimag } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-
 /**
  * Даалгаврыг засна.
  *
- * Харуулын аймаг, админ болон даалгаврын аймгийн гишүүд бүх талбарыг
- * өөрчилнө. Гүйцэтгэгч нь өөрт оногдсон даалгаврынхаа ЗӨВХӨН төлөвийг
+ * Харуулын аймаг, админ болон даалгаварт оролцох аймгуудын гишүүд бүх
+ * талбарыг өөрчилнө. Ерөнхий хариуцагч ба хамтрагчид ЗӨВХӨН төлөвийг
  * (канбан багана) сольж чадна — ажлаа хөдөлгөх эрх нь агуулгыг өөрчлөх эрх биш.
  */
 export async function PATCH(
@@ -47,12 +46,19 @@ export async function PATCH(
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
     }
 
+    const me = result.caller.uid;
     const user = result.caller.user;
-    const canEdit = canWorkInAimag(user?.role, user?.aimags, current.aimag);
-    const isAssignee = current.assignedTo === result.caller.uid;
+    const currentAimags = current.aimags ?? [];
+    const currentPartners = current.collaborators ?? [];
 
-    if (!canEdit && !isAssignee) {
-      return forbidden("Зөвхөн тухайн аймгийн гишүүн эсвэл гүйцэтгэгч өөрчилнө.");
+    const canEdit = canWorkInAnyAimag(user?.role, user?.aimags, currentAimags);
+    const isInvolved =
+      current.assignedTo === me || currentPartners.includes(me);
+
+    if (!canEdit && !isInvolved) {
+      return forbidden(
+        "Зөвхөн тухайн аймгийн гишүүн, хариуцагч эсвэл хамтрагч өөрчилнө."
+      );
     }
 
     const parsed = await readTask(await request.json().catch(() => ({})), true);
@@ -66,21 +72,30 @@ export async function PATCH(
     }
 
     if (!canEdit && keys.some((key) => key !== "status")) {
-      return forbidden("Гүйцэтгэгч зөвхөн төлөвийг өөрчилж чадна.");
+      return forbidden("Хариуцагч, хамтрагч зөвхөн төлөвийг өөрчилж чадна.");
     }
 
-    // Төсөл, аймаг, гүйцэтгэгч солигдвол шинэ байрлалыг бүхэлд нь шалгана —
+    const nextAssignee =
+      patch.assignedTo !== undefined ? patch.assignedTo : current.assignedTo;
+    if (patch.collaborators !== undefined || patch.assignedTo !== undefined) {
+      patch.collaborators = (patch.collaborators ?? currentPartners).filter(
+        (uid) => uid !== nextAssignee
+      );
+    }
+
+    // Төсөл, аймаг, хүмүүс солигдвол шинэ байрлалыг бүхэлд нь шалгана —
     // өөр аймгийн нэр барих, харагдахгүй төсөл рүү зөөхөөс сэргийлнэ
     if (
       patch.projectId !== undefined ||
-      patch.aimag !== undefined ||
-      patch.assignedTo !== undefined
+      patch.aimags !== undefined ||
+      patch.assignedTo !== undefined ||
+      patch.collaborators !== undefined
     ) {
       const denied = await checkTaskTarget(user, {
         projectId: patch.projectId ?? current.projectId,
-        aimag: patch.aimag ?? current.aimag,
-        assignedTo:
-          patch.assignedTo !== undefined ? patch.assignedTo : current.assignedTo,
+        aimags: patch.aimags ?? currentAimags,
+        assignedTo: nextAssignee,
+        collaborators: patch.collaborators ?? currentPartners,
       });
       if (denied) return badRequest(denied);
     }
@@ -116,29 +131,34 @@ export async function PATCH(
       })
       .where(eq(tasks.id, id));
 
-    const [row] = await db
-      .select(taskColumns)
-      .from(tasks)
-      .innerJoin(projects, eq(tasks.projectId, projects.id))
-      .leftJoin(users, eq(tasks.assignedTo, users.uid))
-      .where(eq(tasks.id, id))
-      .limit(1);
+    const row = await readTaskRow(id);
+    if (!row) throw new Error("Засварласан даалгавар олдсонгүй");
 
-    // Шинэ гүйцэтгэгч томилогдсон бол мэдэгдэнэ
+    const url = planUrl(row.aimags);
+    const body = `${row.projectName}: ${row.title}`;
+
+    // Шинэ хариуцагч / шинээр нэмэгдсэн хамтрагчдад мэдэгдэнэ
     if (
       patch.assignedTo !== undefined &&
       row.assignedTo &&
       row.assignedTo !== current.assignedTo &&
-      row.assignedTo !== result.caller.uid
+      row.assignedTo !== me
     ) {
       await notifyUsers(
         [row.assignedTo],
-        {
-          title: "Танд ажлын даалгавар оногдлоо",
-          body: `${row.projectName}: ${row.title}`,
-          url: row.aimag ? `/aimag/${row.aimag}/plan` : "/aimag/guard/plan",
-        },
-        result.caller.uid
+        { title: "Та даалгаврын ерөнхий хариуцагч боллоо", body, url },
+        me
+      );
+    }
+
+    const added = (row.collaborators ?? []).filter(
+      (uid) => !currentPartners.includes(uid) && uid !== me
+    );
+    if (added.length > 0) {
+      await notifyUsers(
+        added,
+        { title: "Таныг даалгаварт хамтрагчаар нэмлээ", body, url },
+        me
       );
     }
 
@@ -150,7 +170,7 @@ export async function PATCH(
 
 /**
  * Даалгаврыг устгана — Харуулын аймаг, админ, эсвэл үүсгэсэн хүн өөрөө
- * (тухайн аймагт харьяалагдсан хэвээр бол).
+ * (оролцох аймгуудын аль нэгд харьяалагдсан хэвээр бол).
  */
 export async function DELETE(
   request: NextRequest,
@@ -163,7 +183,7 @@ export async function DELETE(
 
   try {
     const [existing] = await db
-      .select({ aimag: tasks.aimag, createdBy: tasks.createdBy })
+      .select({ aimags: tasks.aimags, createdBy: tasks.createdBy })
       .from(tasks)
       .where(eq(tasks.id, id))
       .limit(1);
@@ -176,7 +196,7 @@ export async function DELETE(
     const allowed =
       canManageProjects(user?.role, user?.aimags) ||
       (existing.createdBy === result.caller.uid &&
-        canWorkInAimag(user?.role, user?.aimags, existing.aimag));
+        canWorkInAnyAimag(user?.role, user?.aimags, existing.aimags ?? []));
 
     if (!allowed) {
       return forbidden("Даалгаврыг үүсгэсэн хүн эсвэл Харуулын аймаг устгана.");

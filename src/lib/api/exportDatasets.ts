@@ -341,7 +341,7 @@ const taskDataset: Dataset = {
     const taskRows = await db
       .select({
         projectName: projects.name,
-        aimag: tasks.aimag,
+        aimags: tasks.aimags,
         title: tasks.title,
         description: tasks.description,
         status: tasks.status,
@@ -388,7 +388,9 @@ const taskDataset: Dataset = {
           {
             header: "Аймаг",
             value: (row) =>
-              row.aimag ? labelOf(aimags, row.aimag) : "Ерөнхий",
+              (row.aimags ?? []).length > 0
+                ? (row.aimags ?? []).map((a: string) => labelOf(aimags, a)).join(", ")
+                : "Ерөнхий",
             width: 22,
           },
           { header: "Даалгавар", value: (row) => row.title, width: 32 },
@@ -405,7 +407,7 @@ const taskDataset: Dataset = {
             width: 14,
           },
           {
-            header: "Гүйцэтгэгч",
+            header: "Ерөнхий хариуцагч",
             value: (row) => nameOf(row.firstName, row.lastName),
             width: 20,
           },

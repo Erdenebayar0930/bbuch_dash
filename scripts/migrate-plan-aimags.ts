@@ -3,6 +3,7 @@
  *
  *   • projects.aimag (ганц) → projects.aimags (жагсаалт)
  *   • tasks.aimag ← даалгаврын төслийн хуучин аймаг
+ *   • tasks.aimag (ганц) → tasks.aimags (жагсаалт)
  *
  * Дахин ажиллуулахад аюулгүй: зөвхөн хоосон хэвээр байгаа мөрийг бөглөнө.
  * `npm run db:push`-ийн ДАРАА ажиллуулна:
@@ -37,10 +38,20 @@ async function main() {
         WHERE t.project_id = p.id AND t.aimag = '' AND p.aimag <> ''`
     );
 
+    // Даалгавар олон аймагтай болсон — ганц аймгийг жагсаалт руу
+    const taskAimagsResult = await client.query(
+      `UPDATE tasks
+          SET aimags = jsonb_build_array(aimag)
+        WHERE aimag <> '' AND aimags = '[]'::jsonb`
+    );
+
     await client.query("COMMIT");
 
     console.log(`✓ Төсөл: ${projectsResult.rowCount} мөр aimags руу шилжлээ`);
     console.log(`✓ Даалгавар: ${tasksResult.rowCount} мөрөнд аймаг онооллоо`);
+    console.log(
+      `✓ Даалгавар: ${taskAimagsResult.rowCount} мөр aimags руу шилжлээ`
+    );
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

@@ -7,10 +7,11 @@ import { projects, tasks, users } from "@/lib/db/schema";
 import {
   canManageProjects,
   canSeeAllPlans,
-  canWorkInAimag,
+  canWorkInAnyAimag,
   projectVisibleToAimag,
 } from "@/lib/permissions";
 
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { UserRow } from "@/lib/db/schema";
 
 /**
@@ -18,20 +19,23 @@ import type { UserRow } from "@/lib/db/schema";
  *
  * • Харуулын аймаг ба админ: бүгдийг.
  * • Бусад: өөрийн аймагт харагдах төсөл (`aimags` хоосон = бүх аймагт), тэр
- *   дотроос өөрийн аймгийн болон ерөнхий ("") даалгавар.
+ *   дотроос өөрийн аймаг оролцсон болон ерөнхий (аймаггүй) даалгавар.
  */
+
+/** jsonb массив хоосон эсвэл өгөгдсөн аймгуудын аль нэгийг агуулах эсэх */
+function emptyOrContainsAny(column: AnyPgColumn, list: string[]) {
+  return or(
+    sql`jsonb_array_length(${column}) = 0`,
+    ...list.map((aimag) => sql`${column} @> ${JSON.stringify([aimag])}::jsonb`)
+  );
+}
 
 /** Төслийн шүүлт. `undefined` = хязгааргүй. */
 export function projectVisibility(user: UserRow | null) {
   const myAimags = user?.aimags ?? [];
   if (canSeeAllPlans(user?.role, myAimags)) return undefined;
 
-  return or(
-    sql`jsonb_array_length(${projects.aimags}) = 0`,
-    ...myAimags.map(
-      (aimag) => sql`${projects.aimags} @> ${JSON.stringify([aimag])}::jsonb`
-    )
-  );
+  return emptyOrContainsAny(projects.aimags, myAimags);
 }
 
 /** Даалгаврын шүүлт (projects-тэй join хийсэн query-д). */
@@ -41,11 +45,16 @@ export function taskVisibility(user: UserRow | null) {
 
   return and(
     projectVisibility(user),
-    myAimags.length > 0
-      ? or(eq(tasks.aimag, ""), inArray(tasks.aimag, myAimags))
-      : eq(tasks.aimag, "")
+    emptyOrContainsAny(tasks.aimags, myAimags)
   );
 }
+
+/** "Надад хамаатай" — ерөнхий хариуцагч эсвэл хамтрагч */
+export const involvesUser = (uid: string) =>
+  or(
+    eq(tasks.assignedTo, uid),
+    sql`${tasks.collaborators} @> ${JSON.stringify([uid])}::jsonb`
+  );
 
 /** Даалгаврын жагсаалтын багана — tasks GET/POST/PATCH бүгд ашиглана */
 export const taskColumns = {
@@ -53,7 +62,7 @@ export const taskColumns = {
   projectId: tasks.projectId,
   projectName: projects.name,
   projectAimags: projects.aimags,
-  aimag: tasks.aimag,
+  aimags: tasks.aimags,
   title: tasks.title,
   description: tasks.description,
   status: tasks.status,
@@ -62,6 +71,7 @@ export const taskColumns = {
   assigneeFirstName: users.firstName,
   assigneeLastName: users.lastName,
   assigneePhotoUrl: users.photoUrl,
+  collaborators: tasks.collaborators,
   dueDate: tasks.dueDate,
   position: tasks.position,
   createdBy: tasks.createdBy,
@@ -69,25 +79,84 @@ export const taskColumns = {
   createdAt: tasks.createdAt,
 } as const;
 
+/** Хамтрагчдын нэрийг мөр бүрд хавсаргана — нэг нэмэлт query-гээр. */
+export async function attachCollaborators<
+  T extends { collaborators: string[] | null },
+>(rows: T[]): Promise<(T & { collaboratorNames: string[] })[]> {
+  const uids = [...new Set(rows.flatMap((row) => row.collaborators ?? []))];
+
+  const people =
+    uids.length > 0
+      ? await db
+          .select({
+            uid: users.uid,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          })
+          .from(users)
+          .where(inArray(users.uid, uids))
+      : [];
+
+  const names = new Map(
+    people.map((person) => [
+      person.uid,
+      [person.firstName, person.lastName].filter(Boolean).join(" ") || "Нэргүй",
+    ])
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    collaboratorNames: (row.collaborators ?? []).map(
+      (uid) => names.get(uid) ?? "Нэргүй"
+    ),
+  }));
+}
+
+/** Нэг даалгаврыг жагсаалтын хэлбэрээр (хамтрагчдын нэртэй) уншина. */
+export async function readTaskRow(id: string) {
+  const rows = await db
+    .select(taskColumns)
+    .from(tasks)
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .leftJoin(users, eq(tasks.assignedTo, users.uid))
+    .where(eq(tasks.id, id))
+    .limit(1);
+
+  const [row] = await attachCollaborators(rows);
+  return row ?? null;
+}
+
+/** Мэдэгдлээс очих хуудас — нэг аймгийнх бол тэр аймгийн, үгүй бол Харуулын */
+export const planUrl = (aimags: string[] | null) =>
+  aimags && aimags.length === 1
+    ? `/aimag/${aimags[0]}/plan`
+    : "/aimag/guard/plan";
+
 /**
- * Даалгаврыг (төсөл, аймаг, гүйцэтгэгч) энэ хэрэглэгч ингэж тавьж болох
- * эсэх. Алдааны мессеж буцаана, болох бол `null`.
+ * Даалгаврыг (төсөл, аймгууд, хариуцагч, хамтрагчид) энэ хэрэглэгч ингэж
+ * тавьж болох эсэх. Алдааны мессеж буцаана, болох бол `null`.
  *
- * • Аймгийн нэрийн өмнөөс зөвхөн тэр аймгийн гишүүн (эсвэл Харуул/админ).
- *   Ерөнхий ("") даалгаврыг зөвхөн Харуул/админ.
- * • Төсөл тэр аймагт харагддаг байх ёстой.
- * • Энгийн гишүүн зөвхөн өөрийн аймгийн идэвхтэй хүнд оноож чадна.
+ * • Энгийн гишүүн өөрийн аймгийн аль нэгийг заавал оруулна; ерөнхий
+ *   (аймаггүй) даалгаврыг зөвхөн Харуул/админ.
+ * • Сонгосон аймаг бүрт төсөл харагддаг байх ёстой.
+ * • Энгийн гишүүн зөвхөн сонгосон аймгуудын идэвхтэй хүмүүсийг хариуцагч,
+ *   хамтрагч болгоно.
  */
 export async function checkTaskTarget(
   user: UserRow | null,
-  target: { projectId: string; aimag: string; assignedTo: string | null }
+  target: {
+    projectId: string;
+    aimags: string[];
+    assignedTo: string | null;
+    collaborators: string[];
+  }
 ): Promise<string | null> {
   const myAimags = user?.aimags ?? [];
   const manager = canManageProjects(user?.role, myAimags);
 
-  if (!canWorkInAimag(user?.role, myAimags, target.aimag)) {
-    return target.aimag
-      ? "Та энэ аймагт харьяалагдахгүй тул даалгавар үүсгэж чадахгүй."
+  if (!canWorkInAnyAimag(user?.role, myAimags, target.aimags)) {
+    return target.aimags.length > 0
+      ? "Сонгосон аймгуудын дунд таны аймаг байх ёстой."
       : "Ерөнхий даалгаврыг Харуулын аймаг үүсгэнэ — аймгаа сонгоно уу.";
   }
 
@@ -98,24 +167,34 @@ export async function checkTaskTarget(
     .limit(1);
 
   if (!project) return "Төсөл олдсонгүй.";
-  if (target.aimag && !projectVisibleToAimag(project.aimags ?? [], target.aimag)) {
-    return "Энэ төсөл сонгосон аймагт харагдахгүй байна.";
-  }
+  const hidden = target.aimags.find(
+    (aimag) => !projectVisibleToAimag(project.aimags ?? [], aimag)
+  );
+  if (hidden) return "Төсөл сонгосон аймгуудын заримд харагдахгүй байна.";
 
-  if (target.assignedTo && !manager) {
-    const [assignee] = await db
-      .select({ aimags: users.aimags, status: users.status })
-      .from(users)
-      .where(eq(users.uid, target.assignedTo))
-      .limit(1);
+  const people = [
+    ...new Set([
+      ...(target.assignedTo ? [target.assignedTo] : []),
+      ...target.collaborators,
+    ]),
+  ];
+  if (people.length === 0) return null;
 
-    if (
-      !assignee ||
-      assignee.status !== "active" ||
-      !(assignee.aimags ?? []).includes(target.aimag)
-    ) {
-      return "Гүйцэтгэгч нь тухайн аймгийн идэвхтэй гишүүн байх ёстой.";
-    }
+  const rows = await db
+    .select({ uid: users.uid, aimags: users.aimags, status: users.status })
+    .from(users)
+    .where(inArray(users.uid, people));
+
+  if (rows.length !== people.length) return "Сонгосон хүн олдсонгүй.";
+  if (manager) return null;
+
+  const outsider = rows.find(
+    (row) =>
+      row.status !== "active" ||
+      !(row.aimags ?? []).some((aimag) => target.aimags.includes(aimag))
+  );
+  if (outsider) {
+    return "Хариуцагч, хамтрагчид нь сонгосон аймгуудын идэвхтэй гишүүд байх ёстой.";
   }
 
   return null;
