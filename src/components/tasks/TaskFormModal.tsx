@@ -14,23 +14,31 @@ import {
   createTask,
   deleteTask,
   updateTask,
+  type PlanPerson,
   type Project,
   type Task,
   type TaskInput,
 } from "@/lib/tasks";
-import type { AppUser } from "@/lib/users";
+import { projectVisibleToAimag } from "@/lib/permissions";
 
 type TaskFormModalProps = {
   isOpen: boolean;
   /** null бол шинээр үүсгэнэ */
   task: Task | null;
   projects: Project[];
-  /** Гүйцэтгэгч сонгоход — зөвхөн админд дүүрэн ирнэ */
-  people: AppUser[];
+  /** Гүйцэтгэгч болох хүмүүс — аймгаар нь маягт дотор шүүнэ */
+  people: PlanPerson[];
+  /**
+   * Аймгийн хуудсанд даалгавар тэр аймагт бэхлэгдэнэ. Заагаагүй бол
+   * (Харуулын нэгдсэн самбар) аймгаа маягтаас сонгоно.
+   */
+  lockedAimag?: string;
   /** Бүх талбарыг засах эрхтэй эсэх */
   canEdit: boolean;
   /** Зөвхөн төлөвөө сольж чадах эсэх (өөрт оногдсон даалгавар) */
   canMove: boolean;
+  /** Устгах эрхтэй эсэх — үүсгэсэн хүн эсвэл Харуул/админ */
+  canDelete: boolean;
   /** Шинээр үүсгэхэд урьдчилж сонгогдох төсөл */
   defaultProjectId: string;
   onClose: () => void;
@@ -43,8 +51,9 @@ const fieldClass =
 const labelClass =
   "mb-1.5 block text-theme-sm font-medium text-gray-700 dark:text-gray-300";
 
-const emptyInput = (projectId: string): TaskInput => ({
+const emptyInput = (projectId: string, aimag: string): TaskInput => ({
   projectId,
+  aimag,
   title: "",
   description: "",
   status: "todo",
@@ -53,34 +62,34 @@ const emptyInput = (projectId: string): TaskInput => ({
   dueDate: "",
 });
 
-const personName = (person: AppUser) =>
-  [person.first_name, person.last_name].filter(Boolean).join(" ") ||
-  person.email;
-
-/** Төслийн нэрийг аймгийнх нь хамт — ижил нэртэй төсөл ялгагдана */
+/** Төслийн нэрийг харагдах аймгуудын хамт — ижил нэртэй төсөл ялгагдана */
 const projectLabel = (project: Project) =>
-  project.aimag
-    ? `${project.name} · ${labelOf(aimags, project.aimag)}`
-    : project.name;
+  project.aimags.length > 0
+    ? `${project.name} · ${project.aimags.map((a) => labelOf(aimags, a)).join(", ")}`
+    : `${project.name} · Бүх аймаг`;
 
 /**
  * Ажлын даалгавар үүсгэх / засах цонх.
  *
- * Эрхээс хамаарч гурван горимд ажиллана: админ бүхнийг засна, гүйцэтгэгч
- * зөвхөн төлөвөө сольно, бусад нь зөвхөн харна.
+ * Эрхээс хамаарч гурван горимд ажиллана: аймгийн гишүүн (ба Харуул/админ)
+ * бүхнийг засна, гүйцэтгэгч зөвхөн төлөвөө сольно, бусад нь зөвхөн харна.
  */
 export default function TaskFormModal({
   isOpen,
   task,
   projects,
   people,
+  lockedAimag,
   canEdit,
   canMove,
+  canDelete,
   defaultProjectId,
   onClose,
   onSaved,
 }: TaskFormModalProps) {
-  const [form, setForm] = useState<TaskInput>(emptyInput(defaultProjectId));
+  const [form, setForm] = useState<TaskInput>(
+    emptyInput(defaultProjectId, lockedAimag ?? "")
+  );
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +100,7 @@ export default function TaskFormModal({
       task
         ? {
             projectId: task.projectId,
+            aimag: task.aimag,
             title: task.title,
             description: task.description,
             status: task.status,
@@ -98,10 +108,24 @@ export default function TaskFormModal({
             assignedTo: task.assignedTo,
             dueDate: task.dueDate,
           }
-        : emptyInput(defaultProjectId)
+        : emptyInput(defaultProjectId, lockedAimag ?? "")
     );
     setError(null);
-  }, [task, defaultProjectId, isOpen]);
+  }, [task, defaultProjectId, lockedAimag, isOpen]);
+
+  const selectedProject = projects.find((p) => p.id === form.projectId);
+
+  // Нэгдсэн самбарт: сонгосон төсөл харагдах аймгууд л сонголтод орно
+  const aimagChoices = aimags.filter(
+    (option) =>
+      !selectedProject ||
+      projectVisibleToAimag(selectedProject.aimags, option.value)
+  );
+
+  // Аймагтай даалгаварт зөвхөн тэр аймгийн гишүүдийг санал болгоно
+  const assignees = form.aimag
+    ? people.filter((person) => person.aimags.includes(form.aimag))
+    : people;
 
   const update = <K extends keyof TaskInput>(key: K, value: TaskInput[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -191,6 +215,35 @@ export default function TaskFormModal({
             </select>
           </div>
 
+          {!lockedAimag && (
+            <div>
+              <label htmlFor="task-aimag" className={labelClass}>
+                Аймаг
+              </label>
+              <select
+                id="task-aimag"
+                value={form.aimag}
+                onChange={(event) => update("aimag", event.target.value)}
+                disabled={readOnly}
+                className={fieldClass}
+              >
+                <option value="">Ерөнхий (бүх аймагт)</option>
+                {aimagChoices.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+                {/* Хуучин утга сонголтоос гарсан ч харагдсаар байна */}
+                {form.aimag &&
+                  !aimagChoices.some((option) => option.value === form.aimag) && (
+                    <option value={form.aimag}>
+                      {labelOf(aimags, form.aimag)}
+                    </option>
+                  )}
+              </select>
+            </div>
+          )}
+
           <div>
             <label htmlFor="task-title" className={labelClass}>
               Даалгаврын нэр <span className="text-error-500">*</span>
@@ -238,12 +291,13 @@ export default function TaskFormModal({
               <option value="">Хуваарилаагүй</option>
               {/* Засах эрхгүй үед жагсаалт хоосон ирдэг тул одоогийн
                   гүйцэтгэгчийг нэрээр нь харуулна */}
-              {readOnly && task?.assignedTo && (
-                <option value={task.assignedTo}>{task.assigneeName}</option>
-              )}
-              {people.map((person) => (
+              {task?.assignedTo &&
+                !assignees.some((person) => person.uid === task.assignedTo) && (
+                  <option value={task.assignedTo}>{task.assigneeName}</option>
+                )}
+              {assignees.map((person) => (
                 <option key={person.uid} value={person.uid}>
-                  {personName(person)}
+                  {person.name}
                 </option>
               ))}
             </select>
@@ -315,7 +369,7 @@ export default function TaskFormModal({
         )}
 
         <div className="mt-6 flex flex-wrap justify-end gap-3">
-          {task && canEdit && (
+          {task && canDelete && (
             <button
               type="button"
               onClick={handleDelete}

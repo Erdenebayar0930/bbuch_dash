@@ -1,22 +1,42 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
+import {
+  badRequest,
+  forbidden,
+  requireActiveUser,
+  serverError,
+} from "@/lib/api/auth";
 import { readProject } from "@/lib/api/taskInput";
 import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
+import { canManageProjects } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Төслийг засна (зөвхөн админ). */
+/** Харуулын аймаг эсвэл админ эсэхийг шалгана. */
+async function requireProjectManager(request: NextRequest) {
+  const result = await requireActiveUser(request);
+  if ("error" in result) return result;
+
+  const user = result.caller.user;
+  if (!canManageProjects(user?.role, user?.aimags)) {
+    return {
+      error: forbidden("Төслийг зөвхөн Харуулын аймаг удирдана."),
+    } as const;
+  }
+  return result;
+}
+
+/** Төслийг засна (нэр, харагдах аймгууд) — Харуулын аймаг эсвэл админ. */
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(request);
+  const result = await requireProjectManager(request);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;
@@ -29,14 +49,13 @@ export async function PATCH(
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
-    // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина
     await db
       .update(projects)
       .set({ ...parsed.value, updatedAt: new Date() })
       .where(eq(projects.id, id));
 
     const [updated] = await db
-      .select()
+      .select({ id: projects.id })
       .from(projects)
       .where(eq(projects.id, id))
       .limit(1);
@@ -45,27 +64,26 @@ export async function PATCH(
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
     }
 
-    return NextResponse.json({ project: updated });
+    return NextResponse.json({ ok: true });
   } catch (error) {
     return serverError(error, "Төсөл засахад алдаа гарлаа");
   }
 }
 
 /**
- * Төслийг устгана (зөвхөн админ).
+ * Төслийг устгана — ЗӨВХӨН Харуулын аймаг (ба админ).
  * Доторх бүх даалгавар хамт устана (FK cascade) — UI дээр анхааруулна.
  */
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(request);
+  const result = await requireProjectManager(request);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;
 
   try {
-    // MySQL нь DELETE ... RETURNING дэмждэггүй — эхлээд байгаа эсэхийг шалгана
     const [existing] = await db
       .select({ id: projects.id })
       .from(projects)

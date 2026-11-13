@@ -1,49 +1,28 @@
-import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import {
-  badRequest,
-  requireActiveUser,
-  requireAdmin,
-  serverError,
-} from "@/lib/api/auth";
+import { badRequest, requireActiveUser, serverError } from "@/lib/api/auth";
 import { notifyUsers } from "@/lib/api/notify";
+import {
+  checkTaskTarget,
+  taskColumns,
+  taskVisibility,
+} from "@/lib/api/planAccess";
 import { readTask } from "@/lib/api/taskInput";
 import { db } from "@/lib/db";
 import { projects, tasks, users } from "@/lib/db/schema";
-import { canSeeAllPlans } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Жагсаалтад хэрэгтэй багануудыг нэг дор — GET ба POST хоёул ашиглана */
-const taskColumns = {
-  id: tasks.id,
-  projectId: tasks.projectId,
-  projectName: projects.name,
-  projectAimag: projects.aimag,
-  title: tasks.title,
-  description: tasks.description,
-  status: tasks.status,
-  priority: tasks.priority,
-  assignedTo: tasks.assignedTo,
-  assigneeFirstName: users.firstName,
-  assigneeLastName: users.lastName,
-  assigneePhotoUrl: users.photoUrl,
-  dueDate: tasks.dueDate,
-  position: tasks.position,
-  completedAt: tasks.completedAt,
-  createdAt: tasks.createdAt,
-} as const;
-
 /**
  * Ажлын даалгаврууд.
  *
  * `?projectId=` — нэг төслийн, `?mine=1` — зөвхөн өөрт оногдсон.
- * Уншихыг бүх идэвхтэй хэрэглэгчид зөвшөөрнө: даалгавар нь нийтийн ажлын
- * хуваарь тул хэн юу хийж байгааг бүгд харах ёстой.
+ * Харагдах дүрэм нь `taskVisibility`: Харуул/админ бүгдийг, бусад нь өөрийн
+ * аймагт харагдах төслийн өөрийн аймгийн болон ерөнхий даалгаврыг.
  */
 export async function GET(request: NextRequest) {
   const result = await requireActiveUser(request);
@@ -54,20 +33,10 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get("projectId");
     const mine = searchParams.get("mine") === "1";
 
-    // Аймагтай төслийн даалгавар зөвхөн тухайн аймгийн гишүүдэд харагдана —
-    // /api/projects-тэй ижил дүрэм. Аймаггүй ("") төсөл нийтийнх. Харуулын
-    // аймгийн гишүүд админтай адил бүгдийг харна.
-    const myAimags = result.caller.user?.aimags ?? [];
-    const aimagVisibility = canSeeAllPlans(result.caller.user?.role, myAimags)
-      ? undefined
-      : myAimags.length > 0
-        ? or(eq(projects.aimag, ""), inArray(projects.aimag, myAimags))
-        : eq(projects.aimag, "");
-
     const filters = [
       projectId ? eq(tasks.projectId, projectId) : undefined,
       mine ? eq(tasks.assignedTo, result.caller.uid) : undefined,
-      aimagVisibility,
+      taskVisibility(result.caller.user),
     ].filter(Boolean);
 
     const rows = await db
@@ -84,9 +53,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Шинэ даалгавар үүсгэж хэрэглэгчид ононо (зөвхөн админ). */
+/**
+ * Шинэ даалгавар — тухайн аймгийн гишүүн өөрийн аймагт харагдах төсөл
+ * дотор үүсгэнэ. Харуулын аймаг ба админ ямар ч аймагт (эсвэл ерөнхий).
+ */
 export async function POST(request: NextRequest) {
-  const result = await requireAdmin(request);
+  const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
 
   try {
@@ -94,7 +66,15 @@ export async function POST(request: NextRequest) {
     if (!parsed.ok) return badRequest(parsed.error);
 
     const projectId = parsed.value.projectId as string;
+    const aimag = parsed.value.aimag ?? "";
     const status = parsed.value.status ?? "todo";
+
+    const denied = await checkTaskTarget(result.caller.user, {
+      projectId,
+      aimag,
+      assignedTo: parsed.value.assignedTo ?? null,
+    });
+    if (denied) return badRequest(denied);
 
     // Шинэ карт баганынхаа сүүлд орно
     const [{ next }] = await db
@@ -102,13 +82,13 @@ export async function POST(request: NextRequest) {
       .from(tasks)
       .where(and(eq(tasks.projectId, projectId), eq(tasks.status, status)));
 
-    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
     const id = crypto.randomUUID();
 
     await db.insert(tasks).values({
       ...parsed.value,
       id,
       projectId,
+      aimag,
       title: parsed.value.title as string,
       status,
       position: next,
@@ -131,7 +111,7 @@ export async function POST(request: NextRequest) {
         {
           title: "Шинэ ажлын даалгавар",
           body: `${row.projectName}: ${row.title}`,
-          url: "/tasks",
+          url: row.aimag ? `/aimag/${row.aimag}/plan` : "/aimag/guard/plan",
         },
         result.caller.uid
       );

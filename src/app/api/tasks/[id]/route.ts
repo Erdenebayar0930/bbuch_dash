@@ -4,46 +4,28 @@ import { NextResponse } from "next/server";
 import {
   badRequest,
   forbidden,
-  isAdminRole,
   requireActiveUser,
-  requireAdmin,
   serverError,
 } from "@/lib/api/auth";
 import { notifyUsers } from "@/lib/api/notify";
+import { checkTaskTarget, taskColumns } from "@/lib/api/planAccess";
 import { readTask } from "@/lib/api/taskInput";
 import { db } from "@/lib/db";
 import { projects, tasks, users } from "@/lib/db/schema";
+import { canManageProjects, canWorkInAimag } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const taskColumns = {
-  id: tasks.id,
-  projectId: tasks.projectId,
-  projectName: projects.name,
-  projectAimag: projects.aimag,
-  title: tasks.title,
-  description: tasks.description,
-  status: tasks.status,
-  priority: tasks.priority,
-  assignedTo: tasks.assignedTo,
-  assigneeFirstName: users.firstName,
-  assigneeLastName: users.lastName,
-  assigneePhotoUrl: users.photoUrl,
-  dueDate: tasks.dueDate,
-  position: tasks.position,
-  completedAt: tasks.completedAt,
-  createdAt: tasks.createdAt,
-} as const;
 
 /**
  * Даалгаврыг засна.
  *
- * Админ бүх талбарыг өөрчилнө. Гүйцэтгэгч нь өөрт оногдсон даалгаврынхаа
- * ЗӨВХӨН төлөвийг (канбан багана) сольж чадна — ажлаа хөдөлгөх эрх нь
- * даалгаврын агуулгыг өөрчлөх эрх биш.
+ * Харуулын аймаг, админ болон даалгаврын аймгийн гишүүд бүх талбарыг
+ * өөрчилнө. Гүйцэтгэгч нь өөрт оногдсон даалгаврынхаа ЗӨВХӨН төлөвийг
+ * (канбан багана) сольж чадна — ажлаа хөдөлгөх эрх нь агуулгыг өөрчлөх эрх биш.
  */
 export async function PATCH(
   request: NextRequest,
@@ -65,11 +47,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
     }
 
-    const isAdmin = isAdminRole(result.caller.user?.role);
+    const user = result.caller.user;
+    const canEdit = canWorkInAimag(user?.role, user?.aimags, current.aimag);
     const isAssignee = current.assignedTo === result.caller.uid;
 
-    if (!isAdmin && !isAssignee) {
-      return forbidden("Зөвхөн админ эсвэл гүйцэтгэгч өөрчилнө.");
+    if (!canEdit && !isAssignee) {
+      return forbidden("Зөвхөн тухайн аймгийн гишүүн эсвэл гүйцэтгэгч өөрчилнө.");
     }
 
     const parsed = await readTask(await request.json().catch(() => ({})), true);
@@ -82,8 +65,24 @@ export async function PATCH(
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
-    if (!isAdmin && keys.some((key) => key !== "status")) {
+    if (!canEdit && keys.some((key) => key !== "status")) {
       return forbidden("Гүйцэтгэгч зөвхөн төлөвийг өөрчилж чадна.");
+    }
+
+    // Төсөл, аймаг, гүйцэтгэгч солигдвол шинэ байрлалыг бүхэлд нь шалгана —
+    // өөр аймгийн нэр барих, харагдахгүй төсөл рүү зөөхөөс сэргийлнэ
+    if (
+      patch.projectId !== undefined ||
+      patch.aimag !== undefined ||
+      patch.assignedTo !== undefined
+    ) {
+      const denied = await checkTaskTarget(user, {
+        projectId: patch.projectId ?? current.projectId,
+        aimag: patch.aimag ?? current.aimag,
+        assignedTo:
+          patch.assignedTo !== undefined ? patch.assignedTo : current.assignedTo,
+      });
+      if (denied) return badRequest(denied);
     }
 
     const nextStatus = patch.status ?? current.status;
@@ -137,7 +136,7 @@ export async function PATCH(
         {
           title: "Танд ажлын даалгавар оногдлоо",
           body: `${row.projectName}: ${row.title}`,
-          url: "/tasks",
+          url: row.aimag ? `/aimag/${row.aimag}/plan` : "/aimag/guard/plan",
         },
         result.caller.uid
       );
@@ -149,26 +148,38 @@ export async function PATCH(
   }
 }
 
-/** Даалгаврыг устгана (зөвхөн админ). */
+/**
+ * Даалгаврыг устгана — Харуулын аймаг, админ, эсвэл үүсгэсэн хүн өөрөө
+ * (тухайн аймагт харьяалагдсан хэвээр бол).
+ */
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(request);
+  const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;
 
   try {
-    // MySQL нь DELETE ... RETURNING дэмждэггүй — эхлээд байгаа эсэхийг шалгана
     const [existing] = await db
-      .select({ id: tasks.id })
+      .select({ aimag: tasks.aimag, createdBy: tasks.createdBy })
       .from(tasks)
       .where(eq(tasks.id, id))
       .limit(1);
 
     if (!existing) {
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
+    }
+
+    const user = result.caller.user;
+    const allowed =
+      canManageProjects(user?.role, user?.aimags) ||
+      (existing.createdBy === result.caller.uid &&
+        canWorkInAimag(user?.role, user?.aimags, existing.aimag));
+
+    if (!allowed) {
+      return forbidden("Даалгаврыг үүсгэсэн хүн эсвэл Харуулын аймаг устгана.");
     }
 
     await db.delete(tasks).where(eq(tasks.id, id));

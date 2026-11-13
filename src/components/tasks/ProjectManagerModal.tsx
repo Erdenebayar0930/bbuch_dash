@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Check, Loader2, Plus, Trash2, Wand2 } from "lucide-react";
+import { Check, Loader2, Plus, Trash2 } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
 import { aimags } from "@/data/profileOptions";
@@ -15,11 +15,6 @@ import {
 type ProjectManagerModalProps = {
   isOpen: boolean;
   projects: Project[];
-  /**
-   * profileOptions.aimags доторх түлхүүр. Заасан бол шинэ болон одоо байгаа
-   * төслийн аймаг үүгээр бэхлэгдэж, сонголт харагдахгүй.
-   */
-  lockedAimag?: string;
   onClose: () => void;
   /** Аль нэг өөрчлөлт хийгдсэн — жагсаалтыг дахин татна */
   onChanged: () => void;
@@ -28,23 +23,75 @@ type ProjectManagerModalProps = {
 const fieldClass =
   "h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-theme-sm text-gray-800 transition-colors placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90";
 
-type Draft = { name: string; aimag: string };
+type Draft = { name: string; aimags: string[] };
+
+const sameSet = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((value) => b.includes(value));
+
+/** Аймгийн олон сонголт — юу ч сонгоогүй бол "Бүх аймаг" */
+function AimagPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+  disabled?: boolean;
+}) {
+  const toggle = (aimag: string) =>
+    onChange(
+      value.includes(aimag)
+        ? value.filter((item) => item !== aimag)
+        : [...value, aimag]
+    );
+
+  const chip = (active: boolean) =>
+    `rounded-full border px-2.5 py-1 text-theme-xs font-medium transition-colors disabled:opacity-60 ${
+      active
+        ? "border-accent-500 bg-accent-50 text-accent-700 dark:bg-accent-500/15 dark:text-accent-400"
+        : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/5"
+    }`;
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange([])}
+        className={chip(value.length === 0)}
+      >
+        Бүх аймаг
+      </button>
+      {aimags.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          disabled={disabled}
+          onClick={() => toggle(option.value)}
+          aria-pressed={value.includes(option.value)}
+          className={chip(value.includes(option.value))}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /**
- * Төслүүдийг удирдах цонх — зөвхөн админ.
+ * Төслүүдийг удирдах цонх — Харуулын аймаг ба админ.
  *
- * Аймаг тус бүрт нэг төсөл байх нь түгээмэл тул дутуу байгаа аймгуудын
- * төслийг нэг товчоор үүсгэх боломжтой.
+ * Төсөл бүрт ямар аймгуудад харагдахыг сонгоно (сонгоогүй = бүх аймагт).
+ * Тухайн аймгуудын гишүүд төсөл дотор өөрсдийн даалгаврыг үүсгэнэ.
  */
 export default function ProjectManagerModal({
   isOpen,
   projects,
-  lockedAimag,
   onClose,
   onChanged,
 }: ProjectManagerModalProps) {
   const [name, setName] = useState("");
-  const [aimag, setAimag] = useState(lockedAimag ?? "");
+  const [picked, setPicked] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,16 +102,12 @@ export default function ProjectManagerModal({
       Object.fromEntries(
         projects.map((project) => [
           project.id,
-          { name: project.name, aimag: project.aimag },
+          { name: project.name, aimags: project.aimags },
         ])
       )
     );
     setError(null);
   }, [projects]);
-
-  const missingAimags = aimags.filter(
-    (option) => !projects.some((project) => project.aimag === option.value)
-  );
 
   const run = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
@@ -86,27 +129,11 @@ export default function ProjectManagerModal({
     if (!name.trim()) return;
 
     await run("create", async () => {
-      await createProject({
-        name: name.trim(),
-        aimag: lockedAimag ?? aimag,
-        description: "",
-      });
+      await createProject({ name: name.trim(), aimags: picked, description: "" });
       setName("");
-      setAimag(lockedAimag ?? "");
+      setPicked([]);
     });
   };
-
-  /** Дутуу аймгуудын төслийг нэг дор үүсгэнэ */
-  const handleSeed = () =>
-    run("seed", async () => {
-      for (const option of missingAimags) {
-        await createProject({
-          name: option.label,
-          aimag: option.value,
-          description: "",
-        });
-      }
-    });
 
   const handleSave = (project: Project) => {
     const draft = drafts[project.id];
@@ -115,7 +142,7 @@ export default function ProjectManagerModal({
     return run(project.id, () =>
       updateProject(project.id, {
         name: draft.name.trim(),
-        aimag: draft.aimag,
+        aimags: draft.aimags,
       })
     );
   };
@@ -138,58 +165,43 @@ export default function ProjectManagerModal({
           Төслүүд
         </h3>
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          Аймгийн болон бусад төсөл үүсгэж, даалгавраа бүлэглэнэ.
+          Төсөл үүсгээд ямар аймгуудад харагдахыг сонгоно. Сонгосон аймгуудын
+          гишүүд төсөл дотор өөрсдийн даалгаврыг үүсгэнэ.
         </p>
 
         {/* Шинэ төсөл */}
-        <form onSubmit={handleCreate} className="mt-5 flex flex-wrap gap-2">
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Төслийн нэр"
-            maxLength={120}
-            className={`${fieldClass} min-w-[180px] flex-1`}
-          />
-          {!lockedAimag && (
-            <select
-              value={aimag}
-              onChange={(event) => setAimag(event.target.value)}
-              aria-label="Аймаг"
-              className={`${fieldClass} w-auto`}
+        <form
+          onSubmit={handleCreate}
+          className="mt-5 flex flex-col gap-2.5 rounded-lg border border-gray-200 p-3 dark:border-white/10"
+        >
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Төслийн нэр"
+              maxLength={120}
+              className={`${fieldClass} min-w-[180px] flex-1`}
+            />
+            <button
+              type="submit"
+              disabled={busy !== null || !name.trim()}
+              className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <option value="">Бусад төсөл</option>
-              {aimags.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          )}
-          <button
-            type="submit"
-            disabled={busy !== null || !name.trim()}
-            className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.2} />
-            Нэмэх
-          </button>
+              {busy === "create" ? (
+                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+              ) : (
+                <Plus className="h-4 w-4" strokeWidth={2.2} />
+              )}
+              Нэмэх
+            </button>
+          </div>
+          <div>
+            <p className="mb-1.5 text-theme-xs text-gray-500 dark:text-gray-400">
+              Харагдах аймгууд
+            </p>
+            <AimagPicker value={picked} onChange={setPicked} />
+          </div>
         </form>
-
-        {!lockedAimag && missingAimags.length > 0 && (
-          <button
-            type="button"
-            onClick={handleSeed}
-            disabled={busy !== null}
-            className="mt-2 flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3.5 py-2 text-theme-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-white/20 dark:text-gray-300 dark:hover:bg-white/5"
-          >
-            {busy === "seed" ? (
-              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.8} />
-            ) : (
-              <Wand2 className="h-4 w-4" strokeWidth={1.8} />
-            )}
-            Дутуу {missingAimags.length} аймгийн төслийг үүсгэх
-          </button>
-        )}
 
         {error && (
           <p className="mt-4 rounded-lg bg-error-50 px-4 py-3 text-theme-sm text-error-600 dark:bg-error-500/10 dark:text-error-400">
@@ -208,76 +220,68 @@ export default function ProjectManagerModal({
           {projects.map((project) => {
             const draft = drafts[project.id] ?? {
               name: project.name,
-              aimag: project.aimag,
+              aimags: project.aimags,
             };
             const dirty =
               draft.name.trim() !== project.name ||
-              draft.aimag !== project.aimag;
+              !sameSet(draft.aimags, project.aimags);
 
             return (
               <div
                 key={project.id}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 p-2 dark:border-white/10"
+                className="flex flex-col gap-2 rounded-lg border border-gray-200 p-2.5 dark:border-white/10"
               >
-                <input
-                  value={draft.name}
-                  onChange={(event) =>
-                    setDrafts((prev) => ({
-                      ...prev,
-                      [project.id]: { ...draft, name: event.target.value },
-                    }))
-                  }
-                  aria-label="Төслийн нэр"
-                  maxLength={120}
-                  className={`${fieldClass} min-w-[160px] flex-1`}
-                />
-
-                {!lockedAimag && (
-                  <select
-                    value={draft.aimag}
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    value={draft.name}
                     onChange={(event) =>
                       setDrafts((prev) => ({
                         ...prev,
-                        [project.id]: { ...draft, aimag: event.target.value },
+                        [project.id]: { ...draft, name: event.target.value },
                       }))
                     }
-                    aria-label="Аймаг"
-                    className={`${fieldClass} w-auto`}
+                    aria-label="Төслийн нэр"
+                    maxLength={120}
+                    className={`${fieldClass} min-w-[160px] flex-1`}
+                  />
+
+                  <span className="text-theme-xs text-gray-400">
+                    {project.openCount}/{project.taskCount} ажил
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSave(project)}
+                    disabled={!dirty || busy !== null}
+                    aria-label="Хадгалах"
+                    title="Хадгалах"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-success-600 transition-colors hover:bg-success-50 disabled:opacity-40 dark:border-white/10 dark:hover:bg-success-500/10"
                   >
-                    <option value="">Бусад төсөл</option>
-                    {aimags.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                    <Check className="h-4 w-4" strokeWidth={2} />
+                  </button>
 
-                <span className="text-theme-xs text-gray-400">
-                  {project.openCount}/{project.taskCount} ажил
-                </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(project)}
+                    disabled={busy !== null}
+                    aria-label="Устгах"
+                    title="Устгах"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-error-500 transition-colors hover:bg-error-50 disabled:opacity-40 dark:border-white/10 dark:hover:bg-error-500/10"
+                  >
+                    <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+                  </button>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleSave(project)}
-                  disabled={!dirty || busy !== null}
-                  aria-label="Хадгалах"
-                  title="Хадгалах"
-                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-success-600 transition-colors hover:bg-success-50 disabled:opacity-40 dark:border-white/10 dark:hover:bg-success-500/10"
-                >
-                  <Check className="h-4 w-4" strokeWidth={2} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleDelete(project)}
+                <AimagPicker
+                  value={draft.aimags}
                   disabled={busy !== null}
-                  aria-label="Устгах"
-                  title="Устгах"
-                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-error-500 transition-colors hover:bg-error-50 disabled:opacity-40 dark:border-white/10 dark:hover:bg-error-500/10"
-                >
-                  <Trash2 className="h-4 w-4" strokeWidth={1.8} />
-                </button>
+                  onChange={(next) =>
+                    setDrafts((prev) => ({
+                      ...prev,
+                      [project.id]: { ...draft, aimags: next },
+                    }))
+                  }
+                />
               </div>
             );
           })}

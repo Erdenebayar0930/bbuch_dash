@@ -371,8 +371,16 @@ export const projects = pgTable(
   {
     id: uuidPk(),
     name: varchar("name", { length: 255 }).notNull(),
-    /** Аймгийн түлхүүр, эсвэл "" — бусад төсөл */
+    /**
+     * ⚠ Хуучин — ганц аймагтай байсан үеийнх. Одоо `aimags`-ийг уншина;
+     * өгөгдөл нь `aimags` руу шилжсэн тул энэ баганыг ашиглахгүй.
+     */
     aimag: varchar("aimag", { length: 64 }).notNull().default(""),
+    /**
+     * Төсөл харагдах аймгуудын түлхүүр. Хоосон жагсаалт = бүх аймагт.
+     * Төслийг Харуулын аймаг (эсвэл админ) үүсгэж, аймгуудаа сонгоно.
+     */
+    aimags: jsonCol<string[]>("aimags").notNull().default([]),
     description: bodyText("description"),
     /** Жагсаалт дахь эрэмбэ */
     position: integer("position").notNull().default(0),
@@ -399,6 +407,11 @@ export const tasks = pgTable(
     projectId: uuidRef("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    /**
+     * Даалгаврыг эзэмших аймаг — тухайн аймгийн гишүүд үүсгэж, засна.
+     * "" = төслийн ерөнхий даалгавар (Харуул/админ үүсгэсэн), бүх аймагт.
+     */
+    aimag: varchar("aimag", { length: 64 }).notNull().default(""),
     title: varchar("title", { length: 255 }).notNull(),
     description: bodyText("description"),
     /** todo | in_progress | done */

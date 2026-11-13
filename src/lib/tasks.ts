@@ -10,8 +10,8 @@ export type { TaskPriority, TaskStatus };
 export type Project = {
   id: string;
   name: string;
-  /** Аймгийн түлхүүр, эсвэл "" — бусад төсөл */
-  aimag: string;
+  /** Харагдах аймгуудын түлхүүр — хоосон бол бүх аймагт */
+  aimags: string[];
   description: string;
   archived: boolean;
   /** Нийт даалгавар */
@@ -25,7 +25,7 @@ type ProjectRow = Omit<Project, "createdAt"> & { createdAt: string };
 
 const toProject = (row: ProjectRow): Project => ({
   ...row,
-  aimag: row.aimag ?? "",
+  aimags: row.aimags ?? [],
   description: row.description ?? "",
   archived: row.archived ?? false,
   taskCount: row.taskCount ?? 0,
@@ -37,7 +37,12 @@ export type Task = {
   id: string;
   projectId: string;
   projectName: string;
-  projectAimag: string;
+  /** Төсөл харагдах аймгууд — хоосон бол бүх аймагт */
+  projectAimags: string[];
+  /** Даалгаврыг эзэмших аймаг, эсвэл "" — төслийн ерөнхий даалгавар */
+  aimag: string;
+  /** Үүсгэсэн хүний uid — өөрийн даалгавраа устгаж чадна */
+  createdBy: string | null;
   title: string;
   description: string;
   status: TaskStatus;
@@ -58,7 +63,9 @@ type TaskRow = {
   id: string;
   projectId: string;
   projectName: string;
-  projectAimag: string | null;
+  projectAimags: string[] | null;
+  aimag: string | null;
+  createdBy: string | null;
   title: string;
   description: string | null;
   status: string;
@@ -77,7 +84,9 @@ const toTask = (row: TaskRow): Task => ({
   id: row.id,
   projectId: row.projectId,
   projectName: row.projectName,
-  projectAimag: row.projectAimag ?? "",
+  projectAimags: row.projectAimags ?? [],
+  aimag: row.aimag ?? "",
+  createdBy: row.createdBy ?? null,
   title: row.title,
   description: row.description ?? "",
   status: row.status as TaskStatus,
@@ -101,12 +110,12 @@ export async function listProjects(): Promise<Project[]> {
 
 export type ProjectInput = {
   name: string;
-  /** Аймгийн түлхүүр, эсвэл "" */
-  aimag: string;
+  /** Харагдах аймгууд — хоосон бол бүх аймагт */
+  aimags: string[];
   description: string;
 };
 
-/** Шинэ төсөл үүсгэнэ (зөвхөн админ). */
+/** Шинэ төсөл үүсгэнэ (Харуулын аймаг, админ). */
 export async function createProject(input: ProjectInput): Promise<Project> {
   const data = await apiFetch<{ project: ProjectRow }>("/api/projects", {
     method: "POST",
@@ -115,7 +124,7 @@ export async function createProject(input: ProjectInput): Promise<Project> {
   return toProject(data.project);
 }
 
-/** Төслийг засна (зөвхөн админ). */
+/** Төслийг засна (Харуулын аймаг, админ). */
 export async function updateProject(
   id: string,
   patch: Partial<ProjectInput & { archived: boolean }>
@@ -123,7 +132,7 @@ export async function updateProject(
   await apiFetch(`/api/projects/${id}`, { method: "PATCH", body: patch });
 }
 
-/** Төслийг доторх даалгаврын хамт устгана (зөвхөн админ). */
+/** Төслийг доторх даалгаврын хамт устгана (Харуулын аймаг, админ). */
 export async function deleteProject(id: string): Promise<void> {
   await apiFetch(`/api/projects/${id}`, { method: "DELETE" });
 }
@@ -146,6 +155,8 @@ export async function listTasks(
 
 export type TaskInput = {
   projectId: string;
+  /** Эзэмших аймаг, эсвэл "" — ерөнхий (Харуул/админ л) */
+  aimag: string;
   title: string;
   description: string;
   status: TaskStatus;
@@ -156,7 +167,7 @@ export type TaskInput = {
   dueDate: string;
 };
 
-/** Шинэ даалгавар үүсгэнэ (зөвхөн админ). */
+/** Шинэ даалгавар үүсгэнэ — тухайн аймгийн гишүүн эсвэл Харуул/админ. */
 export async function createTask(input: TaskInput): Promise<Task> {
   const data = await apiFetch<{ task: TaskRow }>("/api/tasks", {
     method: "POST",
@@ -180,7 +191,36 @@ export async function updateTask(
   return toTask(data.task);
 }
 
-/** Даалгаврыг устгана (зөвхөн админ). */
+/** Даалгаврыг устгана — үүсгэсэн хүн эсвэл Харуул/админ. */
 export async function deleteTask(id: string): Promise<void> {
   await apiFetch(`/api/tasks/${id}`, { method: "DELETE" });
+}
+
+/** Гүйцэтгэгч сонгох жагсаалтын нэг хүн */
+export type PlanPerson = {
+  uid: string;
+  name: string;
+  aimags: string[];
+};
+
+/**
+ * Гүйцэтгэгч болох хүмүүс — `aimag` заавал тэр аймгийн гишүүд, заагаагүй
+ * бол бүх идэвхтэй хэрэглэгч (зөвхөн Харуул/админ).
+ */
+export async function listPlanPeople(aimag?: string): Promise<PlanPerson[]> {
+  const data = await apiFetch<{
+    people: {
+      uid: string;
+      firstName: string | null;
+      lastName: string | null;
+      aimags: string[] | null;
+    }[];
+  }>(aimag ? `/api/plan-people?aimag=${encodeURIComponent(aimag)}` : "/api/plan-people");
+
+  return (data.people ?? []).map((person) => ({
+    uid: person.uid,
+    name:
+      [person.firstName, person.lastName].filter(Boolean).join(" ") || "Нэргүй",
+    aimags: person.aimags ?? [],
+  }));
 }

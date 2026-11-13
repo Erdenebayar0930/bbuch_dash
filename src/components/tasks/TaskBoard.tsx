@@ -19,15 +19,20 @@ import {
   taskStatuses,
   type TaskStatus,
 } from "@/data/taskOptions";
-import { isAdminRole } from "@/lib/permissions";
 import {
+  canManageProjects,
+  canWorkInAimag,
+  projectVisibleToAimag,
+} from "@/lib/permissions";
+import {
+  listPlanPeople,
   listProjects,
   listTasks,
   updateTask,
+  type PlanPerson,
   type Project,
   type Task,
 } from "@/lib/tasks";
-import { listUsers, type AppUser } from "@/lib/users";
 
 import ProjectManagerModal from "./ProjectManagerModal";
 import TaskFormModal from "./TaskFormModal";
@@ -72,8 +77,9 @@ const ALL = "__all__";
 
 type TaskBoardProps = {
   /**
-   * profileOptions.aimags доторх түлхүүр. Заасан бол зөвхөн тухайн аймгийн
-   * төсөл/даалгавар харагдана, шинэ төсөл ч тэр аймагт бэхлэгдэнэ.
+   * profileOptions.aimags доторх түлхүүр. Заасан бол зөвхөн тухайн аймагт
+   * харагдах төсөл, тэр аймгийн (болон ерөнхий) даалгавар гарна; шинэ
+   * даалгавар тэр аймагт бэхлэгдэнэ. Заагаагүй = Харуулын нэгдсэн самбар.
    */
   aimagFilter?: string;
 };
@@ -81,17 +87,25 @@ type TaskBoardProps = {
 /**
  * Ажлын даалгаврын канбан самбар.
  *
- * Уншихыг бүх хэрэглэгчид нээлттэй; даалгавар үүсгэх, оноох нь админы эрх.
+ * Төслийг Харуулын аймаг (ба админ) үүсгэж, харагдах аймгуудыг сонгоно.
+ * Аймгийн гишүүд өөрийн аймагт харагдах төсөлд даалгавар үүсгэж, засна.
  * Гүйцэтгэгч өөрт оногдсон картаа багана хооронд чирж төлөвөө шинэчилнэ.
  */
 export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
   const { user } = useUser();
-  const isAdmin = isAdminRole(user?.role);
   const myUid = user?.uid ?? "";
+  const role = user?.role;
+  const myAimags = user?.aimags;
+  /** Төсөл үүсгэх/засах/устгах — Харуул ба админ */
+  const canManage = canManageProjects(role, myAimags);
+  /** Энэ самбарт даалгавар үүсгэх эрх */
+  const canCreate = aimagFilter
+    ? canWorkInAimag(role, myAimags, aimagFilter)
+    : canManage;
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [people, setPeople] = useState<AppUser[]>([]);
+  const [people, setPeople] = useState<PlanPerson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -125,20 +139,22 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
     load();
   }, [load]);
 
-  // Гүйцэтгэгч сонгох жагсаалтыг зөвхөн админ уншиж чадна
+  // Гүйцэтгэгч сонгох жагсаалт — даалгавар үүсгэх эрхтэй хүнд л хэрэгтэй
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canCreate) return;
 
-    listUsers()
-      .then((rows) => setPeople(rows.filter((row) => row.status === "active")))
+    listPlanPeople(aimagFilter)
+      .then(setPeople)
       .catch((err) => console.error("Хэрэглэгчид уншихад алдаа гарлаа:", err));
-  }, [isAdmin]);
+  }, [canCreate, aimagFilter]);
 
-  /** Аймгаар хумигдсан төслийн жагсаалт — `aimagFilter`-гүй бол бүгд */
+  /** Энэ аймагт харагдах төслүүд — `aimagFilter`-гүй бол бүгд */
   const scopedProjects = useMemo(
     () =>
       aimagFilter
-        ? projects.filter((project) => project.aimag === aimagFilter)
+        ? projects.filter((project) =>
+            projectVisibleToAimag(project.aimags, aimagFilter)
+          )
         : projects,
     [projects, aimagFilter]
   );
@@ -150,6 +166,8 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
   const visible = useMemo(() => {
     return tasks.filter((task) => {
       if (aimagFilter && !scopedProjectIds.has(task.projectId)) return false;
+      // Аймгийн самбарт бусад аймгийн даалгавар гарахгүй (ерөнхий нь гарна)
+      if (aimagFilter && task.aimag && task.aimag !== aimagFilter) return false;
       if (projectFilter !== ALL && task.projectId !== projectFilter) {
         return false;
       }
@@ -160,11 +178,21 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
 
   const today = todayIso();
 
+  /** Бүх талбарыг засах — даалгаврын аймгийн гишүүн, эсвэл Харуул/админ */
+  const canEditTask = useCallback(
+    (task: Task) => canWorkInAimag(role, myAimags, task.aimag),
+    [role, myAimags]
+  );
+
   /** Тухайн даалгаврыг энэ хэрэглэгч хөдөлгөж чадах эсэх */
   const canMove = useCallback(
-    (task: Task) => isAdmin || task.assignedTo === myUid,
-    [isAdmin, myUid]
+    (task: Task) => canEditTask(task) || task.assignedTo === myUid,
+    [canEditTask, myUid]
   );
+
+  /** Устгах — Харуул/админ, эсвэл үүсгэсэн хүн өөрөө */
+  const canDeleteTask = (task: Task) =>
+    canManage || (task.createdBy === myUid && canEditTask(task));
 
   const moveTask = useCallback(
     async (task: Task, status: TaskStatus) => {
@@ -235,7 +263,9 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
             type="button"
             onClick={() => setProjectFilter(project.id)}
             title={
-              project.aimag ? labelOf(aimags, project.aimag) : "Бусад төсөл"
+              project.aimags.length > 0
+                ? project.aimags.map((a) => labelOf(aimags, a)).join(", ")
+                : "Бүх аймаг"
             }
             className={`rounded-lg border px-3.5 py-2 text-theme-sm font-medium transition-colors ${
               projectFilter === project.id
@@ -281,17 +311,18 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
 
         <ExportButton dataset="tasks" />
 
-        {isAdmin && (
-          <>
-            <button
-              type="button"
-              onClick={() => setProjectsOpen(true)}
-              className={buttonClass}
-            >
-              <FolderKanban className="h-4 w-4" strokeWidth={1.8} />
-              Төслүүд
-            </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => setProjectsOpen(true)}
+            className={buttonClass}
+          >
+            <FolderKanban className="h-4 w-4" strokeWidth={1.8} />
+            Төслүүд
+          </button>
+        )}
 
+        {canCreate && (
             <button
               type="button"
               onClick={openNew}
@@ -306,7 +337,6 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
               <Plus className="h-4 w-4" strokeWidth={2.2} />
               Даалгавар үүсгэх
             </button>
-          </>
         )}
       </div>
 
@@ -326,9 +356,9 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
             Төсөл байхгүй байна
           </p>
           <p className="max-w-sm text-theme-sm text-gray-500 dark:text-gray-400">
-            {isAdmin
-              ? "«Төслүүд» цэснээс аймгийн болон бусад төслөө үүсгээд ажлын даалгавар оноож эхлээрэй."
-              : "Админ төсөл үүсгэсний дараа ажлын даалгавар энд харагдана."}
+            {canManage
+              ? "«Төслүүд» цэснээс төсөл үүсгээд харагдах аймгуудыг сонгоорой."
+              : "Харуулын аймаг төсөл үүсгэж энэ аймагт нээсний дараа энд харагдана."}
           </p>
         </div>
       )}
@@ -403,9 +433,16 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
                         </span>
                       </div>
 
-                      {projectFilter === ALL && (
+                      {(projectFilter === ALL || (!aimagFilter && task.aimag)) && (
                         <p className="mt-1 text-theme-xs text-gray-400">
-                          {task.projectName}
+                          {[
+                            projectFilter === ALL ? task.projectName : "",
+                            !aimagFilter && task.aimag
+                              ? labelOf(aimags, task.aimag)
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </p>
                       )}
 
@@ -463,8 +500,10 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
         task={editing}
         projects={scopedProjects}
         people={people}
-        canEdit={isAdmin}
+        lockedAimag={aimagFilter}
+        canEdit={editing ? canEditTask(editing) : canCreate}
         canMove={editing ? canMove(editing) : false}
+        canDelete={editing ? canDeleteTask(editing) : false}
         defaultProjectId={projectFilter === ALL ? "" : projectFilter}
         onClose={() => setFormOpen(false)}
         onSaved={load}
@@ -472,8 +511,7 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
 
       <ProjectManagerModal
         isOpen={isProjectsOpen}
-        projects={scopedProjects}
-        lockedAimag={aimagFilter}
+        projects={projects}
         onClose={() => setProjectsOpen(false)}
         onChanged={load}
       />

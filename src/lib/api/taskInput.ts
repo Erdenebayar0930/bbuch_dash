@@ -22,7 +22,8 @@ const isDate = (value: string) =>
 
 export type ProjectPatch = {
   name?: string;
-  aimag?: string;
+  /** Харагдах аймгууд — хоосон = бүх аймагт */
+  aimags?: string[];
   description?: string;
   archived?: boolean;
 };
@@ -48,11 +49,19 @@ export function readProject(body: unknown, partial: boolean): Parsed<ProjectPatc
     patch.name = name;
   }
 
-  if (input.aimag !== undefined) {
-    const aimag = typeof input.aimag === "string" ? input.aimag.trim() : "";
-    // Аймаг нь тогтсон жагсаалттай; хоосон нь "бусад төсөл" гэсэн үг
-    if (!isValidOption(aimags, aimag)) return invalid("Аймаг буруу байна.");
-    patch.aimag = aimag;
+  if (input.aimags !== undefined) {
+    if (!Array.isArray(input.aimags)) return invalid("Аймгууд буруу байна.");
+
+    const picked = [...new Set(input.aimags)];
+    if (
+      picked.some(
+        (value) =>
+          typeof value !== "string" || !value || !isValidOption(aimags, value)
+      )
+    ) {
+      return invalid("Аймаг буруу байна.");
+    }
+    patch.aimags = picked as string[];
   }
 
   if (input.description !== undefined) {
@@ -77,6 +86,8 @@ export function readProject(body: unknown, partial: boolean): Parsed<ProjectPatc
 
 export type TaskPatch = {
   projectId?: string;
+  /** Эзэмших аймаг, эсвэл "" — ерөнхий */
+  aimag?: string;
   title?: string;
   description?: string;
   status?: TaskStatus;
@@ -131,6 +142,12 @@ export async function readTask(
       return invalid("Ач холбогдол буруу байна.");
     }
     patch.priority = input.priority;
+  }
+
+  if (input.aimag !== undefined) {
+    const aimag = typeof input.aimag === "string" ? input.aimag.trim() : "";
+    if (!isValidOption(aimags, aimag)) return invalid("Аймаг буруу байна.");
+    patch.aimag = aimag;
   }
 
   if (input.dueDate !== undefined) {

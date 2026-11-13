@@ -42,6 +42,30 @@ export const canSeeAllPlans = (
   aimags?: readonly string[] | null
 ): boolean => isAdminRole(role) || (aimags ?? []).includes("guard");
 
+/**
+ * Төсөл үүсгэх, засах, УСТГАХ эрх — Харуулын аймаг (ба админ). Үндсэн
+ * төслийг Харуул бүртгэж, ямар аймгуудад харагдахыг сонгоно.
+ */
+export const canManageProjects = canSeeAllPlans;
+
+/**
+ * Тухайн аймгийн нэрийн өмнөөс даалгавар үүсгэх/засах эрх — тэр аймгийн
+ * гишүүн, эсвэл төсөл удирдагч (Харуул, админ).
+ */
+export const canWorkInAimag = (
+  role: string | null | undefined,
+  userAimags: readonly string[] | null | undefined,
+  aimag: string
+): boolean =>
+  canManageProjects(role, userAimags) ||
+  (!!aimag && (userAimags ?? []).includes(aimag));
+
+/** Төсөл тухайн аймагт харагдах эсэх — хоосон жагсаалт = бүх аймагт */
+export const projectVisibleToAimag = (
+  projectAimags: readonly string[],
+  aimag: string
+): boolean => projectAimags.length === 0 || projectAimags.includes(aimag);
+
 export const asRole = (role?: string | null): UserRole =>
   role === "super" || role === "admin" ? role : "user";
 
