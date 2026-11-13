@@ -124,6 +124,21 @@ service firebase.storage {
       allow delete: if activeAdmin();
     }
 
+    // ------------------------------------------------------------------
+    // Санал хүсэлтийн зураг — идэвхтэй хэрэглэгч бүр ӨӨРИЙН хавтас руу
+    // бичнэ, нэвтэрсэн хүн бүр уншина (жагсаалт нийтэд нээлттэй).
+    // Устгах: эзэн нь (илгээж чадаагүй үед цэвэрлэх) эсвэл админ.
+    // ------------------------------------------------------------------
+    match /feedback/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.auth.uid == uid
+                   && claim('status') == 'active'
+                   && request.resource.size < 10 * 1024 * 1024
+                   && isImage();
+      allow delete: if signedIn() && (request.auth.uid == uid || activeAdmin());
+    }
+
     // Бусад бүх зам хаалттай.
     match /{allPaths=**} {
       allow read, write: if false;

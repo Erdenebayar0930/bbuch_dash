@@ -824,6 +824,50 @@ export const handbookDocuments = pgTable(
 );
 
 /**
+ * Санал хүсэлт — хэрэглэгч бүр бичнэ, бүх идэвхтэй хэрэглэгч жагсаалтаар
+ * харна. Явцыг (`status`) зөвхөн админ сольдог.
+ *
+ * `adminNote` — админы хариу: "Нэмэлт тайлбар" төлөвт асуух зүйл, "Татгалзсан"
+ * төлөвт татгалзсан шалтгаан (заавал). "Нэмэлт тайлбар" төлөвт бичсэн хүн
+ * `replies`-д хариу бичнэ — тэгэхэд төлөв "Хүлээгдэж байгаа" руу буцна. Зураг нь Firebase Storage дээр
+ * (`feedback/{uid}/...`), энд URL ба устгахад хэрэгтэй `path` хадгалагдана.
+ */
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: uuidPk(),
+    /** Бичсэн хэрэглэгч — устсан ч санал нь үлдэнэ */
+    authorUid: uidCol("author_uid").references(() => users.uid, {
+      onDelete: "set null",
+    }),
+    title: varchar("title", { length: 255 }).notNull(),
+    body: bodyText("body"),
+    images: jsonCol<{ url: string; path: string }[]>("images")
+      .notNull()
+      .$defaultFn(() => []),
+    /** pending | needs_info | accepted | in_system | fixed | rejected */
+    status: varchar("status", { length: 32 }).notNull().default("pending"),
+    adminNote: bodyText("admin_note"),
+    /**
+     * "Нэмэлт тайлбар" асуухад бичсэн хүний өгсөн хариунууд — дарааллаар.
+     * Хариу бүрд админы тухайн үеийн асуултыг (`question`) хамт хадгална:
+     * дараагийн удаа adminNote дарагдсан ч яриа бүтнээрээ үлдэнэ.
+     */
+    replies: jsonCol<{ question: string; text: string; at: string }[]>("replies")
+      .notNull()
+      .$defaultFn(() => []),
+    statusUpdatedBy: uidCol("status_updated_by"),
+    statusUpdatedAt: utcTimestamp("status_updated_at"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("feedback_created_idx").on(table.createdAt),
+    index("feedback_status_idx").on(table.status),
+  ]
+);
+
+/**
  * FCM token — ТӨХӨӨРӨМЖ тутамд нэг мөр.
  *
  * ⚠ Урьд нь `uid` нь PRIMARY KEY байсан буюу хэрэглэгч тутамд ГАНЦ мөр.
@@ -957,5 +1001,6 @@ export type WelfareHouseholdRow = typeof welfareHouseholds.$inferSelect;
 export type WelfareAidRow = typeof welfareAids.$inferSelect;
 export type DonationAccountRow = typeof donationAccounts.$inferSelect;
 export type HandbookDocumentRow = typeof handbookDocuments.$inferSelect;
+export type FeedbackRow = typeof feedback.$inferSelect;
 export type GuardPointRow = typeof guardPoints.$inferSelect;
 export type GuardPointVisitRow = typeof guardPointVisits.$inferSelect;

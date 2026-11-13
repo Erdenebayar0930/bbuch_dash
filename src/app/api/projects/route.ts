@@ -10,7 +10,7 @@ import {
 import { readProject } from "@/lib/api/taskInput";
 import { db } from "@/lib/db";
 import { projects, tasks } from "@/lib/db/schema";
-import { isAdminRole } from "@/lib/permissions";
+import { canSeeAllPlans } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
@@ -20,13 +20,14 @@ export const dynamic = "force-dynamic";
 /**
  * Аймагтай төсөл зөвхөн тухайн аймгийн гишүүдэд харагдана — өөр аймгийн
  * ажлын самбар руу нэвтэрч мэдээлэл алдагдахаас сэргийлнэ. Аймаггүй ("")
- * төсөл нийтийнх тул бүгд харна. Админ ба super бүгдийг харна.
+ * төсөл нийтийнх тул бүгд харна. Админ, super болон Харуулын аймгийн гишүүд
+ * бүгдийг харна (`canSeeAllPlans`).
  */
 function visibleProjectsFilter(caller: Awaited<ReturnType<typeof requireActiveUser>>) {
   if ("error" in caller) return undefined;
-  if (isAdminRole(caller.caller.user?.role)) return undefined;
-
   const myAimags = caller.caller.user?.aimags ?? [];
+  if (canSeeAllPlans(caller.caller.user?.role, myAimags)) return undefined;
+
   return myAimags.length > 0
     ? or(eq(projects.aimag, ""), inArray(projects.aimag, myAimags))
     : eq(projects.aimag, "");

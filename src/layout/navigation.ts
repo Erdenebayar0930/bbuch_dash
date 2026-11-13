@@ -13,6 +13,7 @@ import {
   IdCard,
   LayoutGrid,
   MapPin,
+  MessageSquarePlus,
   Music2,
   Package,
   Shield,
@@ -67,6 +68,15 @@ function tahiltMenu(aimag: string): NavItem {
 }
 
 /**
+ * Аймаг бүрийн "Төлөвлөгөө" цэс — үргэлж аймгийн цэсийн ЭХЭНД байрлана.
+ * Төсөл, даалгавар нь нэг сан; аймаг бүр өөрийнхөө төслийг л харна, харин
+ * Харуулын аймгийнх бүх аймгийн төлөвлөгөөг харна (`canSeeAllPlans`).
+ */
+function planMenu(aimag: string): NavItem {
+  return { name: "Төлөвлөгөө", path: `/aimag/${aimag}/plan`, icon: ClipboardList };
+}
+
+/**
  * Үндсэн цэс — хажуугийн самбар болон breadcrumb хоёулаа эндээс уншина.
  *
  * Аймгийн цэсүүд нь profileOptions.aimags-ийн дараалалтай нийцнэ: тэнд заасан
@@ -80,6 +90,7 @@ export const navItems: NavItem[] = [
     icon: Shield,
     aimag: "guard",
     children: [
+      planMenu("guard"),
       { name: "Газрын зураг", path: "/aimag/guard/map", icon: MapPin },
       tahiltMenu("guard"),
     ],
@@ -90,6 +101,7 @@ export const navItems: NavItem[] = [
     icon: Music2,
     aimag: "praise",
     children: [
+      planMenu("praise"),
       {
         name: "Эд хөрөнгө бүртгэл",
         path: "/aimag/praise/assets",
@@ -104,7 +116,7 @@ export const navItems: NavItem[] = [
     icon: Package,
     aimag: "supply",
     children: [
-      { name: "Төлөвлөгөө", path: "/aimag/supply/plan", icon: ClipboardList },
+      planMenu("supply"),
       tahiltMenu("supply"),
     ],
   },
@@ -114,11 +126,7 @@ export const navItems: NavItem[] = [
     icon: Gavel,
     aimag: "commission",
     children: [
-      {
-        name: "Төлөвлөгөө",
-        path: "/aimag/commission/plan",
-        icon: ClipboardList,
-      },
+      planMenu("commission"),
       {
         name: "Хуваарь",
         path: "/aimag/commission/schedule",
@@ -133,7 +141,7 @@ export const navItems: NavItem[] = [
     icon: HeartHandshake,
     aimag: "service",
     children: [
-      { name: "Төлөвлөгөө", path: "/aimag/service/plan", icon: ClipboardList },
+      planMenu("service"),
       {
         name: "Хандивын хайрцаг",
         path: "/aimag/service/donations",
@@ -157,6 +165,8 @@ export const navItems: NavItem[] = [
     icon: DatabaseBackup,
     superOnly: true,
   },
+  // Хамгийн доор — бүх хэрэглэгчид нээлттэй
+  { name: "Санал хүсэлт", path: "/feedback", icon: MessageSquarePlus },
 ];
 
 /** Цэс харах эрхийг шалгахад хэрэгтэй хэрэглэгчийн товч мэдээлэл */

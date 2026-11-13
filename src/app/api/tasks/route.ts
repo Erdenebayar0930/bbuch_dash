@@ -11,7 +11,7 @@ import { notifyUsers } from "@/lib/api/notify";
 import { readTask } from "@/lib/api/taskInput";
 import { db } from "@/lib/db";
 import { projects, tasks, users } from "@/lib/db/schema";
-import { isAdminRole } from "@/lib/permissions";
+import { canSeeAllPlans } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
@@ -55,9 +55,10 @@ export async function GET(request: NextRequest) {
     const mine = searchParams.get("mine") === "1";
 
     // Аймагтай төслийн даалгавар зөвхөн тухайн аймгийн гишүүдэд харагдана —
-    // /api/projects-тэй ижил дүрэм. Аймаггүй ("") төсөл нийтийнх.
+    // /api/projects-тэй ижил дүрэм. Аймаггүй ("") төсөл нийтийнх. Харуулын
+    // аймгийн гишүүд админтай адил бүгдийг харна.
     const myAimags = result.caller.user?.aimags ?? [];
-    const aimagVisibility = isAdminRole(result.caller.user?.role)
+    const aimagVisibility = canSeeAllPlans(result.caller.user?.role, myAimags)
       ? undefined
       : myAimags.length > 0
         ? or(eq(projects.aimag, ""), inArray(projects.aimag, myAimags))

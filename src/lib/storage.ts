@@ -225,3 +225,41 @@ export async function deleteHandbookFile(path: string): Promise<void> {
     if (code !== "storage/object-not-found") throw error;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Санал хүсэлтийн зураг — хэрэглэгч бүр өөрийн хавтас руу
+// ---------------------------------------------------------------------------
+
+/** Санал хүсэлтийн зургийн дээд хэмжээ — storage.rules-тэй ижил байлгана */
+export const MAX_FEEDBACK_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/** Санал хүсэлтийн зургийг `feedback/{uid}/` руу байршуулна. */
+export async function uploadFeedbackImage(
+  uid: string,
+  file: File
+): Promise<UploadedImage> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Зөвхөн зураг оруулах боломжтой.");
+  }
+  if (file.size > MAX_FEEDBACK_IMAGE_BYTES) {
+    throw new Error("Зургийн хэмжээ 10MB-аас хэтэрч болохгүй.");
+  }
+
+  const path = `feedback/${uid}/${crypto.randomUUID()}.${extensionOf(file)}`;
+  const snapshot = await uploadBytes(ref(storage, path), file, {
+    contentType: file.type,
+    cacheControl: "public, max-age=31536000",
+  });
+
+  return { url: await getDownloadURL(snapshot.ref), path };
+}
+
+/** Санал хүсэлтийн зургийг устгана. Байхгүй байсан ч алдаа шидэхгүй. */
+export async function deleteFeedbackImage(path: string): Promise<void> {
+  try {
+    await deleteObject(ref(storage, path));
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code !== "storage/object-not-found") throw error;
+  }
+}

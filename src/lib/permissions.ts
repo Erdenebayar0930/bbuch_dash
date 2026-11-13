@@ -30,6 +30,18 @@ export const canSendNotifications = (
   canNotify?: boolean | null
 ): boolean => isAdminRole(role) || !!canNotify;
 
+/**
+ * Төлөвлөгөөг (төсөл, даалгавар) БҮХ аймгаар нь харах эсэх.
+ *
+ * Мэдээлэл нь нэг сан — аймаг бүр зөвхөн өөрийнхөө төслийг харна. Харин
+ * Харуулын аймаг бүх аймгийг хянадаг тул админтай адил бүгдийг уншина
+ * (засах, үүсгэх эрх нэмэгдэхгүй — тэр нь админых хэвээр).
+ */
+export const canSeeAllPlans = (
+  role?: string | null,
+  aimags?: readonly string[] | null
+): boolean => isAdminRole(role) || (aimags ?? []).includes("guard");
+
 export const asRole = (role?: string | null): UserRole =>
   role === "super" || role === "admin" ? role : "user";
 
