@@ -6,6 +6,7 @@ import { forbidden, isAdminRole, requireActiveUser } from "@/lib/api/auth";
 import { writeWorkbook } from "@/lib/api/excel";
 import { datasets, findDataset } from "@/lib/api/exportDatasets";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { canExportExcel } from "@/lib/permissions";
 
 import type { NextRequest } from "next/server";
 
@@ -30,7 +31,8 @@ function today() {
  * Бүртгэлийг .xlsx болгон татна.
  *
  * `/api/export/welfare` гэх мэт нэг багц, эсвэл `/api/export/all` — бүх багцыг
- * нэг файлын олон хуудас болгоно. Хувийн мэдээлэл агуулсан багц (хэрэглэгчид)
+ * нэг файлын олон хуудас болгоно. Татах эрх нь зөвхөн Харуулын аймаг ба
+ * админд (`canExportExcel`). Хувийн мэдээлэл агуулсан багц (хэрэглэгчид)
  * админаас өөр хүнд өгөгдөхгүй; `all` нь тэднийг агуулдаг тул мөн админы эрх.
  */
 export async function GET(
@@ -54,6 +56,12 @@ export async function GET(
 
   const { dataset: key } = await context.params;
   const isAdmin = isAdminRole(result.caller.user?.role);
+
+  // Excel татах нь Харуулын аймаг (ба админ)-ийн эрх — товчийг нуусан ч
+  // хаягаар нь шууд дуудахаас энд хамгаална
+  if (!canExportExcel(result.caller.user?.role, result.caller.user?.aimags)) {
+    return forbidden("Excel татах эрх зөвхөн Харуулын аймагт байна.");
+  }
 
   const selected = key === "all" ? datasets : [findDataset(key)].filter(Boolean);
 

@@ -78,6 +78,13 @@ export const projectVisibleToAimag = (
   aimag: string
 ): boolean => projectAimags.length === 0 || projectAimags.includes(aimag);
 
+/**
+ * Excel татах эрх — ЗӨВХӨН Харуулын аймаг (ба админ). Бусад хэрэглэгч
+ * дэлгэц дээр харж болох ч бүртгэлийг файл болгон гаргаж чадахгүй.
+ * Хувийн мэдээлэлтэй багц (`adminOnly`) админд л хэвээр.
+ */
+export const canExportExcel = canSeeAllPlans;
+
 export const asRole = (role?: string | null): UserRole =>
   role === "super" || role === "admin" ? role : "user";
 

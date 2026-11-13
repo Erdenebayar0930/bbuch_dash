@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { FileSpreadsheet, Loader2 } from "lucide-react";
 
+import { useUser } from "@/app/(auth)/UserProvider";
 import { downloadExport } from "@/lib/exportFile";
+import { canExportExcel } from "@/lib/permissions";
 
 type ExportButtonProps = {
   /** Серверийн багцын түлхүүр — /api/export/<dataset> */
@@ -16,11 +18,15 @@ type ExportButtonProps = {
  * Бүртгэлийг .xlsx болгон татах товч.
  *
  * Алдааг товчны доор шууд харуулна — хуудас бүрт тусдаа алдааны талбар
- * барихгүйн тулд.
+ * барихгүйн тулд. Excel татах эрхгүй (Харуулын аймгийнх биш) хэрэглэгчид
+ * товч огт харагдахгүй — сервер ч мөн адил няцаана.
  */
 export default function ExportButton({ dataset, label }: ExportButtonProps) {
+  const { user } = useUser();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  if (!canExportExcel(user?.role, user?.aimags)) return null;
 
   const handleClick = async () => {
     setBusy(true);
