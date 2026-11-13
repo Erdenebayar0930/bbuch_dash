@@ -361,10 +361,10 @@ export const assetCountSessions = pgTable("asset_count_sessions", {
 });
 
 /**
- * Төсөл — ажлын даалгаврыг бүлэглэх нэгж.
+ * Тушаал — ажлын даалгаврыг бүлэглэх нэгж.
  *
  * `aimag` нь profileOptions.aimags доторх түлхүүр (guard, praise ...) бөгөөд
- * хоосон бол аймагт үл хамаарах "бусад" төсөл. Аймгийг ID-аар биш түлхүүрээр
+ * хоосон бол аймагт үл хамаарах "бусад" тушаал. Аймгийг ID-аар биш түлхүүрээр
  * хадгалж байгаа нь мэдэгдэл илгээх, хэрэглэгчийн харьяаллаар шүүхэд
  * users.aimags-тай шууд тааруулах боломж өгнө.
  */
@@ -379,14 +379,14 @@ export const projects = pgTable(
      */
     aimag: varchar("aimag", { length: 64 }).notNull().default(""),
     /**
-     * Төсөл харагдах аймгуудын түлхүүр. Хоосон жагсаалт = бүх аймагт.
-     * Төслийг Харуулын аймаг (эсвэл админ) үүсгэж, аймгуудаа сонгоно.
+     * Тушаал харагдах аймгуудын түлхүүр. Хоосон жагсаалт = бүх аймагт.
+     * Тушаалыг Харуулын аймаг (эсвэл админ) үүсгэж, аймгуудаа сонгоно.
      */
     aimags: jsonCol<string[]>("aimags").notNull().default([]),
     /**
-     * Эх төсөл — хоосон бол үндсэн төсөл, байвал "дэд төсөл". Дэд төсөл
-     * дотор дахин дэд төсөл үүсгэж болно (MAX_PROJECT_DEPTH хүртэл).
-     * Эх устахад дэд төслүүд нь (даалгавартайгаа) хамт устна.
+     * Эх тушаал — хоосон бол үндсэн тушаал, байвал "дэд тушаал". Дэд тушаал
+     * дотор дахин дэд тушаал үүсгэж болно (MAX_PROJECT_DEPTH хүртэл).
+     * Эх устахад дэд тушаалууд нь (даалгавартайгаа) хамт устна.
      */
     parentId: uuid("parent_id").references((): AnyPgColumn => projects.id, {
       onDelete: "cascade",
@@ -394,7 +394,7 @@ export const projects = pgTable(
     description: bodyText("description"),
     /** Жагсаалт дахь эрэмбэ */
     position: integer("position").notNull().default(0),
-    /** Дууссан төслийг нуухад — мөрийг устгахгүй */
+    /** Дууссан тушаалыг нуухад — мөрийг устгахгүй */
     archived: boolean("archived").notNull().default(false),
     createdBy: uidCol("created_by"),
     createdAt: utcTimestamp("created_at").notNull().defaultNow(),
@@ -424,7 +424,7 @@ export const tasks = pgTable(
     aimag: varchar("aimag", { length: 64 }).notNull().default(""),
     /**
      * Даалгаварт оролцох аймгууд — тэдгээрийн гишүүд үүсгэж, засна.
-     * Хоосон = төслийн ерөнхий даалгавар (Харуул/админ), бүх аймагт.
+     * Хоосон = тушаалын ерөнхий даалгавар (Харуул/админ), бүх аймагт.
      */
     aimags: jsonCol<string[]>("aimags").notNull().default([]),
     /** Хамтрагчид (uid) — ерөнхий хариуцагч нь `assignedTo` */

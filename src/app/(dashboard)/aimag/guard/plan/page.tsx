@@ -5,12 +5,12 @@ import TaskBoard from "@/components/tasks/TaskBoard";
 
 export const metadata: Metadata = {
   title: "Төлөвлөгөө | ББУЧ",
-  description: "Бүх аймгийн төсөл, ажлын даалгавар",
+  description: "Бүх аймгийн тушаал, ажлын даалгавар",
 };
 
 /**
  * Харуулын аймгийн төлөвлөгөө — бусад аймгаас ялгаатай нь БҮХ аймгийн
- * төсөл, даалгаврыг нэг самбарт харуулна (`aimagFilter`-гүй). Сервер тал
+ * тушаал, даалгаврыг нэг самбарт харуулна (`aimagFilter`-гүй). Сервер тал
  * `canSeeAllPlans`-аар Харуулын гишүүдэд бүх мөрийг буцаадаг.
  */
 export default function GuardPlanPage() {
@@ -21,7 +21,7 @@ export default function GuardPlanPage() {
           Төлөвлөгөө
         </h1>
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          Бүх аймгийн төслөөр бүлэглэсэн ажлын даалгавар
+          Бүх аймгийн тушаалаар бүлэглэсэн ажлын даалгавар
         </p>
       </div>
 

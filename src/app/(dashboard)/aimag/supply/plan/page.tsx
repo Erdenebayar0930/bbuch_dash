@@ -5,7 +5,7 @@ import TaskBoard from "@/components/tasks/TaskBoard";
 
 export const metadata: Metadata = {
   title: "Төлөвлөгөө | ББУЧ",
-  description: "Хангамжийн аймгийн төсөл, ажлын даалгавар",
+  description: "Хангамжийн аймгийн тушаал, ажлын даалгавар",
 };
 
 export default function SupplyPlanPage() {
@@ -16,7 +16,7 @@ export default function SupplyPlanPage() {
           Төлөвлөгөө
         </h1>
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          Төслөөр бүлэглэсэн ажлын даалгавар
+          Тушаалаар бүлэглэсэн ажлын даалгавар
         </p>
       </div>
 

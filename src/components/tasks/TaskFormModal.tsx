@@ -39,7 +39,7 @@ type TaskFormModalProps = {
   canMove: boolean;
   /** Устгах эрхтэй эсэх — үүсгэсэн хүн эсвэл Харуул/админ */
   canDelete: boolean;
-  /** Шинээр үүсгэхэд урьдчилж сонгогдох төсөл */
+  /** Шинээр үүсгэхэд урьдчилж сонгогдох тушаал */
   defaultProjectId: string;
   onClose: () => void;
   onSaved: () => void;
@@ -70,7 +70,7 @@ const emptyInput = (projectId: string, aimagList: string[]): TaskInput => ({
   dueDate: "",
 });
 
-/** Аймгуудын товч тайлбар — ижил нэртэй төсөл ялгагдана */
+/** Аймгуудын товч тайлбар — ижил нэртэй тушаал ялгагдана */
 const aimagsLabel = (project: Project) =>
   project.aimags.length > 0
     ? project.aimags.map((a) => labelOf(aimags, a)).join(", ")
@@ -156,7 +156,7 @@ export default function TaskFormModal({
   const tree = useMemo(() => buildProjectTree(projects), [projects]);
   const selectedProject = projects.find((p) => p.id === form.projectId);
 
-  // Сонгосон төсөл харагдах аймгууд л сонголтод орно
+  // Сонгосон тушаал харагдах аймгууд л сонголтод орно
   const aimagChoices = aimags.filter(
     (option) =>
       !selectedProject ||
@@ -198,7 +198,7 @@ export default function TaskFormModal({
     event.preventDefault();
 
     if (!form.projectId) {
-      setError("Төслийг сонгоно уу.");
+      setError("Тушаалыг сонгоно уу.");
       return;
     }
     if (!task && !canManage && form.aimags.length === 0) {
@@ -270,7 +270,7 @@ export default function TaskFormModal({
         <div className="mt-5 grid gap-4">
           <div>
             <label htmlFor="task-project" className={labelClass}>
-              Төсөл <span className="text-error-500">*</span>
+              Тушаал <span className="text-error-500">*</span>
             </label>
             <select
               id="task-project"
@@ -280,7 +280,7 @@ export default function TaskFormModal({
               className={fieldClass}
             >
               <option value="">Сонгоно уу</option>
-              {/* Модны дарааллаар — дэд төсөл эхийнхээ доор догол мөртэй */}
+              {/* Модны дарааллаар — дэд тушаал эхийнхээ доор догол мөртэй */}
               {tree.flat.map(({ project, depth }) => (
                 <option key={project.id} value={project.id}>
                   {`${"  ".repeat(depth)}${depth > 0 ? "└ " : ""}${project.name} · ${aimagsLabel(project)}`}
@@ -317,7 +317,7 @@ export default function TaskFormModal({
                   {option.label}
                 </button>
               ))}
-              {/* Төсөл солигдсоноор сонголтоос гарсан аймаг харагдсаар байна */}
+              {/* Тушаал солигдсоноор сонголтоос гарсан аймаг харагдсаар байна */}
               {form.aimags
                 .filter(
                   (aimag) => !aimagChoices.some((option) => option.value === aimag)
@@ -329,7 +329,7 @@ export default function TaskFormModal({
                     disabled={readOnly}
                     onClick={() => toggleAimag(aimag)}
                     className={`${chipClass(true)} line-through`}
-                    title="Энэ төсөлд харагдахгүй аймаг — дарж хасна"
+                    title="Энэ тушаалд харагдахгүй аймаг — дарж хасна"
                   >
                     {labelOf(aimags, aimag)}
                   </button>

@@ -24,9 +24,9 @@ export const dynamic = "force-dynamic";
 /**
  * Ажлын даалгаврууд.
  *
- * `?projectId=` — нэг төслийн, `?mine=1` — өөрөө хариуцагч эсвэл хамтрагч.
+ * `?projectId=` — нэг тушаалын, `?mine=1` — өөрөө хариуцагч эсвэл хамтрагч.
  * Харагдах дүрэм нь `taskVisibility`: Харуул/админ бүгдийг, бусад нь өөрийн
- * аймагт харагдах төслийн өөрийн аймаг оролцсон болон ерөнхий даалгаврыг.
+ * аймагт харагдах тушаалын өөрийн аймаг оролцсон болон ерөнхий даалгаврыг.
  */
 export async function GET(request: NextRequest) {
   const result = await requireActiveUser(request);
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * Шинэ даалгавар — сонгосон аймгуудын аль нэгийн гишүүн, тэдгээрт харагдах
- * төсөл дотор үүсгэнэ. Харуулын аймаг ба админ ямар ч аймагт (эсвэл ерөнхий).
+ * тушаал дотор үүсгэнэ. Харуулын аймаг ба админ ямар ч аймагт (эсвэл ерөнхий).
  */
 export async function POST(request: NextRequest) {
   const result = await requireActiveUser(request);

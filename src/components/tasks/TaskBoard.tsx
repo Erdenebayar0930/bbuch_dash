@@ -79,7 +79,7 @@ const ALL = "__all__";
 type TaskBoardProps = {
   /**
    * profileOptions.aimags доторх түлхүүр. Заасан бол зөвхөн тухайн аймагт
-   * харагдах төсөл, тэр аймгийн (болон ерөнхий) даалгавар гарна; шинэ
+   * харагдах тушаал, тэр аймгийн (болон ерөнхий) даалгавар гарна; шинэ
    * даалгавар тэр аймагт бэхлэгдэнэ. Заагаагүй = Харуулын нэгдсэн самбар.
    */
   aimagFilter?: string;
@@ -88,8 +88,8 @@ type TaskBoardProps = {
 /**
  * Ажлын даалгаврын канбан самбар.
  *
- * Төслийг Харуулын аймаг (ба админ) үүсгэж, харагдах аймгуудыг сонгоно.
- * Аймгийн гишүүд өөрийн аймагт харагдах төсөлд даалгавар үүсгэж, засна.
+ * Тушаалыг Харуулын аймаг (ба админ) үүсгэж, харагдах аймгуудыг сонгоно.
+ * Аймгийн гишүүд өөрийн аймагт харагдах тушаалд даалгавар үүсгэж, засна.
  * Гүйцэтгэгч өөрт оногдсон картаа багана хооронд чирж төлөвөө шинэчилнэ.
  */
 export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
@@ -97,7 +97,7 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
   const myUid = user?.uid ?? "";
   const role = user?.role;
   const myAimags = user?.aimags;
-  /** Төсөл үүсгэх/засах/устгах — Харуул ба админ */
+  /** Тушаал үүсгэх/засах/устгах — Харуул ба админ */
   const canManage = canManageProjects(role, myAimags);
   /** Энэ самбарт даалгавар үүсгэх эрх */
   const canCreate = aimagFilter
@@ -139,7 +139,7 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
     load();
   }, [load]);
 
-  /** Энэ аймагт харагдах төслүүд — `aimagFilter`-гүй бол бүгд */
+  /** Энэ аймагт харагдах тушаалууд — `aimagFilter`-гүй бол бүгд */
   const scopedProjects = useMemo(
     () =>
       aimagFilter
@@ -154,16 +154,16 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
     [scopedProjects]
   );
 
-  /** Төсөл ба дэд төслийн мод — шүүлт, нэр, тоололд */
+  /** Тушаал ба дэд тушаалын мод — шүүлт, нэр, тоололд */
   const tree = useMemo(() => buildProjectTree(scopedProjects), [scopedProjects]);
 
-  /** Сонгосон төсөл ба түүний бүх дэд төсөл — эх төслийг сонговол бүгд гарна */
+  /** Сонгосон тушаал ба түүний бүх дэд тушаал — эх тушаалыг сонговол бүгд гарна */
   const selectedIds = useMemo(
     () => (projectFilter === ALL ? null : tree.subtreeIds(projectFilter)),
     [tree, projectFilter]
   );
 
-  /** Дэд төслүүдийг оруулсан дуусаагүй ажлын тоо */
+  /** Дэд тушаалуудыг оруулсан дуусаагүй ажлын тоо */
   const openInSubtree = (id: string) =>
     scopedProjects
       .filter((project) => tree.subtreeIds(id).has(project.id))
@@ -262,10 +262,10 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Төслүүд — үндсэн мөр, сонгосон төслийн дэд төслүүд доор нь шатлан */}
+      {/* Тушаалууд — үндсэн мөр, сонгосон тушаалын дэд тушаалууд доор нь шатлан */}
       {(() => {
         const path = projectFilter === ALL ? [] : tree.pathOf(projectFilter);
-        // Мөр бүр: үндэс, дараа нь зам дээрх төсөл бүрийн хүүхдүүд
+        // Мөр бүр: үндэс, дараа нь зам дээрх тушаал бүрийн хүүхдүүд
         const levels = [
           tree.roots,
           ...path.map((node) => tree.childrenOf(node.id)),
@@ -295,10 +295,10 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
                     onClick={() => setProjectFilter(ALL)}
                     className={chip(projectFilter === ALL, false)}
                   >
-                    Бүх төсөл
+                    Бүх тушаал
                   </button>
                 ) : (
-                  <span className="text-theme-xs text-gray-400">Дэд төсөл:</span>
+                  <span className="text-theme-xs text-gray-400">Дэд тушаал:</span>
                 )}
 
                 {level.map((project) => {
@@ -368,7 +368,7 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
             className={buttonClass}
           >
             <FolderKanban className="h-4 w-4" strokeWidth={1.8} />
-            Төслүүд
+            Тушаалууд
           </button>
         )}
 
@@ -379,7 +379,7 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
               disabled={scopedProjects.length === 0}
               title={
                 scopedProjects.length === 0
-                  ? "Эхлээд төсөл үүсгэнэ үү"
+                  ? "Эхлээд тушаал үүсгэнэ үү"
                   : "Шинэ даалгавар"
               }
               className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -403,12 +403,12 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
             strokeWidth={1.5}
           />
           <p className="text-base font-medium text-gray-800 dark:text-white/90">
-            Төсөл байхгүй байна
+            Тушаал байхгүй байна
           </p>
           <p className="max-w-sm text-theme-sm text-gray-500 dark:text-gray-400">
             {canManage
-              ? "«Төслүүд» цэснээс төсөл үүсгээд харагдах аймгуудыг сонгоорой."
-              : "Харуулын аймаг төсөл үүсгэж энэ аймагт нээсний дараа энд харагдана."}
+              ? "«Тушаалууд» цэснээс тушаал үүсгээд харагдах аймгуудыг сонгоорой."
+              : "Харуулын аймаг тушаал үүсгэж энэ аймагт нээсний дараа энд харагдана."}
           </p>
         </div>
       )}

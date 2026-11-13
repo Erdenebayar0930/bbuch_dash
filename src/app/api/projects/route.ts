@@ -36,7 +36,7 @@ const projectColumns = {
 } as const;
 
 /**
- * Төсөл — тухайн хэрэглэгчид харагдах аймгуудынх, даалгаврын тоотой хамт.
+ * Тушаал — тухайн хэрэглэгчид харагдах аймгуудынх, даалгаврын тоотой хамт.
  * Харуулын аймаг ба админ бүгдийг харна (`projectVisibility`).
  */
 export async function GET(request: NextRequest) {
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       .where(projectVisibility(result.caller.user))
       .orderBy(asc(projects.position), asc(projects.createdAt));
 
-    // Төсөл тус бүрийн нийт ба дуусаагүй даалгаврын тоо — сонголтын жагсаалтад
+    // Тушаал тус бүрийн нийт ба дуусаагүй даалгаврын тоо — сонголтын жагсаалтад
     const counts = await db
       .select({
         projectId: tasks.projectId,
@@ -70,13 +70,13 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    return serverError(error, "Төслүүдийг уншихад алдаа гарлаа");
+    return serverError(error, "Тушаалуудыг уншихад алдаа гарлаа");
   }
 }
 
 /**
- * Шинэ төсөл эсвэл дэд төсөл (`parentId`) үүсгэнэ — Харуулын аймаг эсвэл
- * админ. Дэд төслийн аймгууд эхийнхээс сонгогдоно (`fitChildAimags`).
+ * Шинэ тушаал эсвэл дэд тушаал (`parentId`) үүсгэнэ — Харуулын аймаг эсвэл
+ * админ. Дэд тушаалын аймгууд эхийнхээс сонгогдоно (`fitChildAimags`).
  */
 export async function POST(request: NextRequest) {
   const result = await requireActiveUser(request);
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
   const user = result.caller.user;
   if (!canManageProjects(user?.role, user?.aimags)) {
-    return forbidden("Төслийг Харуулын аймаг бүртгэнэ.");
+    return forbidden("Тушаалыг Харуулын аймаг бүртгэнэ.");
   }
 
   try {
@@ -99,22 +99,22 @@ export async function POST(request: NextRequest) {
       const tree = await loadProjectTree();
       const parent = tree.get(parentId);
 
-      if (!parent) return badRequest("Эх төсөл олдсонгүй.");
+      if (!parent) return badRequest("Эх тушаал олдсонгүй.");
       if (depthOf(parentId, tree) >= MAX_PROJECT_DEPTH) {
         return badRequest(
-          `Дэд төсөл ${MAX_PROJECT_DEPTH} түвшнээс гүн байж болохгүй.`
+          `Дэд тушаал ${MAX_PROJECT_DEPTH} түвшнээс гүн байж болохгүй.`
         );
       }
 
       const fitted = fitChildAimags(parent.aimags, aimags);
       if (!fitted) {
-        return badRequest("Дэд төсөл зөвхөн эх төслийн аймгуудад харагдана.");
+        return badRequest("Дэд тушаал зөвхөн эх тушаалын аймгуудад харагдана.");
       }
       aimags = fitted;
     }
 
-    // Нэр нь нэг эхийн дотор давхардахгүй — өөр төсөлд ижил нэртэй дэд
-    // төсөл (жишээ нь "Бэлтгэл") байж болно
+    // Нэр нь нэг эхийн дотор давхардахгүй — өөр тушаалд ижил нэртэй дэд
+    // тушаал (жишээ нь "Бэлтгэл") байж болно
     const [duplicate] = await db
       .select({ id: projects.id })
       .from(projects)
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       )
       .limit(1);
 
-    if (duplicate) return badRequest(`"${name}" нэртэй төсөл энд аль хэдийн байна.`);
+    if (duplicate) return badRequest(`"${name}" нэртэй тушаал энд аль хэдийн байна.`);
 
     // Эрэмбийг сүүлд нь тавина — одоо байгаа дараалал өөрчлөгдөхгүй
     const [{ next }] = await db
@@ -154,6 +154,6 @@ export async function POST(request: NextRequest) {
       project: { ...created, taskCount: 0, openCount: 0 },
     });
   } catch (error) {
-    return serverError(error, "Төсөл үүсгэхэд алдаа гарлаа");
+    return serverError(error, "Тушаал үүсгэхэд алдаа гарлаа");
   }
 }

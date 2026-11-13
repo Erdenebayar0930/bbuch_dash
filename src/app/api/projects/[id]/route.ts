@@ -27,13 +27,13 @@ async function requireProjectManager(request: NextRequest) {
   const user = result.caller.user;
   if (!canManageProjects(user?.role, user?.aimags)) {
     return {
-      error: forbidden("Төслийг зөвхөн Харуулын аймаг удирдана."),
+      error: forbidden("Тушаалыг зөвхөн Харуулын аймаг удирдана."),
     } as const;
   }
   return result;
 }
 
-/** Төслийг засна (нэр, харагдах аймгууд) — Харуулын аймаг эсвэл админ. */
+/** Тушаалыг засна (нэр, харагдах аймгууд) — Харуулын аймаг эсвэл админ. */
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -60,12 +60,12 @@ export async function PATCH(
 
     const patch = { ...parsed.value };
 
-    // Дэд төслийн аймгууд эхийнхээ хүрээнд байх ёстой
+    // Дэд тушаалын аймгууд эхийнхээ хүрээнд байх ёстой
     if (patch.aimags !== undefined && current.parentId) {
       const parent = tree.get(current.parentId);
       const fitted = fitChildAimags(parent?.aimags ?? [], patch.aimags);
       if (!fitted) {
-        return badRequest("Дэд төсөл зөвхөн эх төслийн аймгуудад харагдана.");
+        return badRequest("Дэд тушаал зөвхөн эх тушаалын аймгуудад харагдана.");
       }
       patch.aimags = fitted;
     }
@@ -75,20 +75,20 @@ export async function PATCH(
       .set({ ...patch, updatedAt: new Date() })
       .where(eq(projects.id, id));
 
-    // Аймаг өөрчлөгдвөл доорх дэд төслүүдийг шинэ хүрээнд нь багтаана
+    // Аймаг өөрчлөгдвөл доорх дэд тушаалуудыг шинэ хүрээнд нь багтаана
     if (patch.aimags !== undefined) {
       await cascadeChildAimags(id, patch.aimags, tree);
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return serverError(error, "Төсөл засахад алдаа гарлаа");
+    return serverError(error, "Тушаал засахад алдаа гарлаа");
   }
 }
 
 /**
- * Төслийг устгана — ЗӨВХӨН Харуулын аймаг (ба админ).
- * Доторх бүх дэд төсөл, даалгавар хамт устана (FK cascade) — UI дээр
+ * Тушаалыг устгана — ЗӨВХӨН Харуулын аймаг (ба админ).
+ * Доторх бүх дэд тушаал, даалгавар хамт устана (FK cascade) — UI дээр
  * анхааруулна.
  */
 export async function DELETE(
@@ -115,6 +115,6 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return serverError(error, "Төсөл устгахад алдаа гарлаа");
+    return serverError(error, "Тушаал устгахад алдаа гарлаа");
   }
 }

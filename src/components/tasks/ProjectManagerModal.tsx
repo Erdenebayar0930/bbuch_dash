@@ -31,7 +31,7 @@ const sameSet = (a: string[], b: string[]) =>
   a.length === b.length && a.every((value) => b.includes(value));
 
 /**
- * Аймгийн олон сонголт. `allowed` заасан бол (дэд төсөл) зөвхөн эх төслийн
+ * Аймгийн олон сонголт. `allowed` заасан бол (дэд тушаал) зөвхөн эх тушаалын
  * аймгуудаас сонгоно — юу ч сонгоогүй нь "Эхтэй адил".
  */
 function AimagPicker({
@@ -57,7 +57,7 @@ function AimagPicker({
         : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/5"
     }`;
 
-  // Дэд төсөлд "бүгдийг сонгосон" нь эхтэй адил тул тэр чипийг идэвхтэй харуулна
+  // Дэд тушаалд "бүгдийг сонгосон" нь эхтэй адил тул тэр чипийг идэвхтэй харуулна
   const allSelected =
     value.length === 0 || (restricted && sameSet(value, allowed));
 
@@ -98,10 +98,10 @@ function AimagPicker({
 }
 
 /**
- * Төслүүдийг удирдах цонх — Харуулын аймаг ба админ.
+ * Тушаалуудыг удирдах цонх — Харуулын аймаг ба админ.
  *
- * Төсөл бүрт ямар аймгуудад харагдахыг сонгоно (сонгоогүй = бүх аймагт).
- * Төсөл дотор дэд төсөл, түүн дотор дахин дэд төсөл үүсгэж болно; дэд төсөл
+ * Тушаал бүрт ямар аймгуудад харагдахыг сонгоно (сонгоогүй = бүх аймагт).
+ * Тушаал дотор дэд тушаал, түүн дотор дахин дэд тушаал үүсгэж болно; дэд тушаал
  * нь зөвхөн эхийнхээ аймгуудад харагдана.
  */
 export default function ProjectManagerModal({
@@ -113,7 +113,7 @@ export default function ProjectManagerModal({
   const [name, setName] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
-  /** Дэд төсөл нэмэх маягт нээлттэй байгаа эх төсөл */
+  /** Дэд тушаал нэмэх маягт нээлттэй байгаа эх тушаал */
   const [childOf, setChildOf] = useState<string | null>(null);
   const [childName, setChildName] = useState("");
   const [childAimags, setChildAimags] = useState<string[]>([]);
@@ -143,7 +143,7 @@ export default function ProjectManagerModal({
       await action();
       onChanged();
     } catch (err) {
-      console.error("Төслийн үйлдэл амжилтгүй:", err);
+      console.error("Тушаалын үйлдэл амжилтгүй:", err);
       setError(err instanceof Error ? err.message : "Алдаа гарлаа.");
     } finally {
       setBusy(null);
@@ -204,13 +204,13 @@ export default function ProjectManagerModal({
       .reduce((sum, item) => sum + item.taskCount, 0);
 
     const parts = [
-      subCount > 0 ? `${subCount} дэд төсөл` : "",
+      subCount > 0 ? `${subCount} дэд тушаал` : "",
       taskCount > 0 ? `${taskCount} даалгавар` : "",
     ].filter(Boolean);
 
     const warning = parts.length
-      ? `"${project.name}" төслийг устгах уу? Доторх ${parts.join(", ")} хамт устана.`
-      : `"${project.name}" төслийг устгах уу?`;
+      ? `"${project.name}" тушаалыг устгах уу? Доторх ${parts.join(", ")} хамт устана.`
+      : `"${project.name}" тушаалыг устгах уу?`;
 
     if (!window.confirm(warning)) return;
 
@@ -221,14 +221,14 @@ export default function ProjectManagerModal({
     <Modal isOpen={isOpen} onClose={onClose} className="max-w-2xl p-0">
       <div className="p-5">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Төслүүд
+          Тушаалууд
         </h3>
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          Төсөл үүсгээд ямар аймгуудад харагдахыг сонгоно. Төсөл дотор дэд
-          төсөл, түүн дотор дахин дэд төсөл үүсгэж болно.
+          Тушаал үүсгээд ямар аймгуудад харагдахыг сонгоно. Тушаал дотор дэд
+          тушаал, түүн дотор дахин дэд тушаал үүсгэж болно.
         </p>
 
-        {/* Шинэ үндсэн төсөл */}
+        {/* Шинэ үндсэн тушаал */}
         <form
           onSubmit={handleCreate}
           className="mt-5 flex flex-col gap-2.5 rounded-lg border border-gray-200 p-3 dark:border-white/10"
@@ -237,7 +237,7 @@ export default function ProjectManagerModal({
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Үндсэн төслийн нэр"
+              placeholder="Үндсэн тушаалын нэр"
               maxLength={120}
               className={`${fieldClass} min-w-[180px] flex-1`}
             />
@@ -268,11 +268,11 @@ export default function ProjectManagerModal({
           </p>
         )}
 
-        {/* Одоо байгаа төслүүд — модны дарааллаар */}
+        {/* Одоо байгаа тушаалууд — модны дарааллаар */}
         <div className="mt-5 flex flex-col gap-2">
           {projects.length === 0 && (
             <p className="rounded-lg border border-dashed border-gray-200 px-4 py-6 text-center text-theme-sm text-gray-400 dark:border-white/10">
-              Төсөл үүсгээгүй байна.
+              Тушаал үүсгээгүй байна.
             </p>
           )}
 
@@ -302,7 +302,7 @@ export default function ProjectManagerModal({
                 <div className="flex flex-wrap items-center gap-2">
                   {depth > 0 && (
                     <span className="rounded bg-gray-100 px-1.5 py-0.5 text-theme-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
-                      Дэд төсөл
+                      Дэд тушаал
                     </span>
                   )}
                   <input
@@ -313,7 +313,7 @@ export default function ProjectManagerModal({
                         [project.id]: { ...draft, name: event.target.value },
                       }))
                     }
-                    aria-label="Төслийн нэр"
+                    aria-label="Тушаалын нэр"
                     maxLength={120}
                     className={`${fieldClass} min-w-[140px] flex-1`}
                   />
@@ -327,11 +327,11 @@ export default function ProjectManagerModal({
                       type="button"
                       onClick={() => openChildForm(project)}
                       disabled={busy !== null}
-                      title="Дэд төсөл нэмэх"
+                      title="Дэд тушаал нэмэх"
                       className="flex h-10 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 text-theme-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/5"
                     >
                       <CornerDownRight className="h-3.5 w-3.5" strokeWidth={2} />
-                      Дэд төсөл
+                      Дэд тушаал
                     </button>
                   )}
 
@@ -379,7 +379,7 @@ export default function ProjectManagerModal({
                       <input
                         value={childName}
                         onChange={(event) => setChildName(event.target.value)}
-                        placeholder={`"${project.name}" доторх дэд төслийн нэр`}
+                        placeholder={`"${project.name}" доторх дэд тушаалын нэр`}
                         maxLength={120}
                         autoFocus
                         className={`${fieldClass} min-w-[160px] flex-1`}

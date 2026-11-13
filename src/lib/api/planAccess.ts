@@ -15,10 +15,10 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { UserRow } from "@/lib/db/schema";
 
 /**
- * Төлөвлөгөөний (төсөл, даалгавар) харагдах дүрэм — нэг л газар.
+ * Төлөвлөгөөний (тушаал, даалгавар) харагдах дүрэм — нэг л газар.
  *
  * • Харуулын аймаг ба админ: бүгдийг.
- * • Бусад: өөрийн аймагт харагдах төсөл (`aimags` хоосон = бүх аймагт), тэр
+ * • Бусад: өөрийн аймагт харагдах тушаал (`aimags` хоосон = бүх аймагт), тэр
  *   дотроос өөрийн аймаг оролцсон болон ерөнхий (аймаггүй) даалгавар.
  */
 
@@ -30,7 +30,7 @@ function emptyOrContainsAny(column: AnyPgColumn, list: string[]) {
   );
 }
 
-/** Төслийн шүүлт. `undefined` = хязгааргүй. */
+/** Тушаалын шүүлт. `undefined` = хязгааргүй. */
 export function projectVisibility(user: UserRow | null) {
   const myAimags = user?.aimags ?? [];
   if (canSeeAllPlans(user?.role, myAimags)) return undefined;
@@ -133,12 +133,12 @@ export const planUrl = (aimags: string[] | null) =>
     : "/aimag/guard/plan";
 
 /**
- * Даалгаврыг (төсөл, аймгууд, хариуцагч, хамтрагчид) энэ хэрэглэгч ингэж
+ * Даалгаврыг (тушаал, аймгууд, хариуцагч, хамтрагчид) энэ хэрэглэгч ингэж
  * тавьж болох эсэх. Алдааны мессеж буцаана, болох бол `null`.
  *
  * • Энгийн гишүүн өөрийн аймгийн аль нэгийг заавал оруулна; ерөнхий
  *   (аймаггүй) даалгаврыг зөвхөн Харуул/админ.
- * • Сонгосон аймаг бүрт төсөл харагддаг байх ёстой.
+ * • Сонгосон аймаг бүрт тушаал харагддаг байх ёстой.
  * • Энгийн гишүүн зөвхөн сонгосон аймгуудын идэвхтэй хүмүүсийг хариуцагч,
  *   хамтрагч болгоно.
  */
@@ -166,11 +166,11 @@ export async function checkTaskTarget(
     .where(eq(projects.id, target.projectId))
     .limit(1);
 
-  if (!project) return "Төсөл олдсонгүй.";
+  if (!project) return "Тушаал олдсонгүй.";
   const hidden = target.aimags.find(
     (aimag) => !projectVisibleToAimag(project.aimags ?? [], aimag)
   );
-  if (hidden) return "Төсөл сонгосон аймгуудын заримд харагдахгүй байна.";
+  if (hidden) return "Тушаал сонгосон аймгуудын заримд харагдахгүй байна.";
 
   const people = [
     ...new Set([
@@ -202,7 +202,7 @@ export async function checkTaskTarget(
 
 type TreeNode = { id: string; parentId: string | null; aimags: string[] };
 
-/** Бүх төслийн мод — хүснэгт жижиг тул санах ойд ачаалж шалгана */
+/** Бүх тушаалын мод — хүснэгт жижиг тул санах ойд ачаалж шалгана */
 export async function loadProjectTree(): Promise<Map<string, TreeNode>> {
   const rows = await db
     .select({ id: projects.id, parentId: projects.parentId, aimags: projects.aimags })
@@ -216,7 +216,7 @@ export async function loadProjectTree(): Promise<Map<string, TreeNode>> {
   );
 }
 
-/** Төслийн гүн: үндсэн = 1. Эвдэрсэн (давталттай) мод бол Infinity. */
+/** Тушаалын гүн: үндсэн = 1. Эвдэрсэн (давталттай) мод бол Infinity. */
 export function depthOf(id: string, tree: Map<string, TreeNode>): number {
   let depth = 0;
   let current: string | null = id;
@@ -232,7 +232,7 @@ export function depthOf(id: string, tree: Map<string, TreeNode>): number {
 }
 
 /**
- * Эх төслийн аймаг өөрчлөгдсөний дараа доорх бүх дэд төслийг шинэ хүрээнд
+ * Эх тушаалын аймаг өөрчлөгдсөний дараа доорх бүх дэд тушаалыг шинэ хүрээнд
  * нь багтаана — эх харагдахгүй аймагт дэд нь үлдэхгүй.
  */
 export async function cascadeChildAimags(

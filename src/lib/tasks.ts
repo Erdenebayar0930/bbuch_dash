@@ -12,7 +12,7 @@ export type Project = {
   name: string;
   /** Харагдах аймгуудын түлхүүр — хоосон бол бүх аймагт */
   aimags: string[];
-  /** Эх төсөл — null бол үндсэн төсөл, байвал дэд төсөл */
+  /** Эх тушаал — null бол үндсэн тушаал, байвал дэд тушаал */
   parentId: string | null;
   description: string;
   archived: boolean;
@@ -40,9 +40,9 @@ export type Task = {
   id: string;
   projectId: string;
   projectName: string;
-  /** Төсөл харагдах аймгууд — хоосон бол бүх аймагт */
+  /** Тушаал харагдах аймгууд — хоосон бол бүх аймагт */
   projectAimags: string[];
-  /** Оролцох аймгууд — хоосон бол төслийн ерөнхий даалгавар */
+  /** Оролцох аймгууд — хоосон бол тушаалын ерөнхий даалгавар */
   aimags: string[];
   /** Үүсгэсэн хүний uid — өөрийн даалгавраа устгаж чадна */
   createdBy: string | null;
@@ -112,7 +112,7 @@ const toTask = (row: TaskRow): Task => ({
   createdAt: new Date(row.createdAt),
 });
 
-/** Бүх төсөл — даалгаврын тоотой. */
+/** Бүх тушаал — даалгаврын тоотой. */
 export async function listProjects(): Promise<Project[]> {
   const data = await apiFetch<{ projects: ProjectRow[] }>("/api/projects");
   return (data.projects ?? []).map(toProject);
@@ -123,11 +123,11 @@ export type ProjectInput = {
   /** Харагдах аймгууд — хоосон бол бүх аймагт */
   aimags: string[];
   description: string;
-  /** Эх төсөл — дэд төсөл үүсгэхэд л (дараа нь солигдохгүй) */
+  /** Эх тушаал — дэд тушаал үүсгэхэд л (дараа нь солигдохгүй) */
   parentId?: string | null;
 };
 
-/** Шинэ төсөл үүсгэнэ (Харуулын аймаг, админ). */
+/** Шинэ тушаал үүсгэнэ (Харуулын аймаг, админ). */
 export async function createProject(input: ProjectInput): Promise<Project> {
   const data = await apiFetch<{ project: ProjectRow }>("/api/projects", {
     method: "POST",
@@ -136,7 +136,7 @@ export async function createProject(input: ProjectInput): Promise<Project> {
   return toProject(data.project);
 }
 
-/** Төслийг засна (Харуулын аймаг, админ). */
+/** Тушаалыг засна (Харуулын аймаг, админ). */
 export async function updateProject(
   id: string,
   patch: Partial<Omit<ProjectInput, "parentId"> & { archived: boolean }>
@@ -144,12 +144,12 @@ export async function updateProject(
   await apiFetch(`/api/projects/${id}`, { method: "PATCH", body: patch });
 }
 
-/** Төслийг доторх даалгаврын хамт устгана (Харуулын аймаг, админ). */
+/** Тушаалыг доторх даалгаврын хамт устгана (Харуулын аймаг, админ). */
 export async function deleteProject(id: string): Promise<void> {
   await apiFetch(`/api/projects/${id}`, { method: "DELETE" });
 }
 
-/** Даалгаврууд — төслөөр эсвэл зөвхөн өөрт оногдсоноор шүүнэ. */
+/** Даалгаврууд — тушаалаар эсвэл зөвхөн өөрт оногдсоноор шүүнэ. */
 export async function listTasks(
   filter: { projectId?: string; mine?: boolean } = {}
 ): Promise<Task[]> {

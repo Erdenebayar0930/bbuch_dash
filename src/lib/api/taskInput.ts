@@ -25,14 +25,14 @@ export type ProjectPatch = {
   name?: string;
   /** Харагдах аймгууд — хоосон = бүх аймагт */
   aimags?: string[];
-  /** Эх төсөл — зөвхөн үүсгэхэд; дараа нь солихгүй (давталт үүсэхээс сэргийлнэ) */
+  /** Эх тушаал — зөвхөн үүсгэхэд; дараа нь солихгүй (давталт үүсэхээс сэргийлнэ) */
   parentId?: string | null;
   description?: string;
   archived?: boolean;
 };
 
 /**
- * Төслийн маягтыг шалгана.
+ * Тушаалын маягтыг шалгана.
  * `partial: true` үед зөвхөн ирсэн талбарыг — засварт ашиглана.
  */
 export function readProject(body: unknown, partial: boolean): Parsed<ProjectPatch> {
@@ -45,7 +45,7 @@ export function readProject(body: unknown, partial: boolean): Parsed<ProjectPatc
 
   if (input.name !== undefined || !partial) {
     const name = typeof input.name === "string" ? input.name.trim() : "";
-    if (!name) return invalid("Төслийн нэрийг оруулна уу.");
+    if (!name) return invalid("Тушаалын нэрийг оруулна уу.");
     if (name.length > MAX_NAME) {
       return invalid(`Нэр ${MAX_NAME} тэмдэгтээс урт байж болохгүй.`);
     }
@@ -78,9 +78,9 @@ export function readProject(body: unknown, partial: boolean): Parsed<ProjectPatc
   }
 
   if (input.parentId !== undefined) {
-    if (partial) return invalid("Эх төслийг дараа нь солих боломжгүй.");
+    if (partial) return invalid("Эх тушаалыг дараа нь солих боломжгүй.");
     if (input.parentId !== null && typeof input.parentId !== "string") {
-      return invalid("Эх төсөл буруу байна.");
+      return invalid("Эх тушаал буруу байна.");
     }
     patch.parentId = input.parentId || null;
   }
@@ -112,7 +112,7 @@ export type TaskPatch = {
 /**
  * Ажлын даалгаврын маягтыг шалгана.
  *
- * Төсөл ба гүйцэтгэгч үнэхээр байгаа эсэхийг баазаас шалгана — байхгүй бол
+ * Тушаал ба гүйцэтгэгч үнэхээр байгаа эсэхийг баазаас шалгана — байхгүй бол
  * FK алдаа өгөхийн оронд ойлгомжтой мессеж буцаана.
  */
 export async function readTask(
@@ -194,7 +194,7 @@ export async function readTask(
   if (input.projectId !== undefined || !partial) {
     const projectId =
       typeof input.projectId === "string" ? input.projectId : "";
-    if (!projectId) return invalid("Төслийг сонгоно уу.");
+    if (!projectId) return invalid("Тушаалыг сонгоно уу.");
 
     const [found] = await db
       .select({ id: projects.id })
@@ -202,7 +202,7 @@ export async function readTask(
       .where(eq(projects.id, projectId))
       .limit(1);
 
-    if (!found) return invalid("Төсөл олдсонгүй.");
+    if (!found) return invalid("Тушаал олдсонгүй.");
     patch.projectId = projectId;
   }
 

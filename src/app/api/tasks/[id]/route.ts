@@ -83,8 +83,8 @@ export async function PATCH(
       );
     }
 
-    // Төсөл, аймаг, хүмүүс солигдвол шинэ байрлалыг бүхэлд нь шалгана —
-    // өөр аймгийн нэр барих, харагдахгүй төсөл рүү зөөхөөс сэргийлнэ
+    // Тушаал, аймаг, хүмүүс солигдвол шинэ байрлалыг бүхэлд нь шалгана —
+    // өөр аймгийн нэр барих, харагдахгүй тушаал рүү зөөхөөс сэргийлнэ
     if (
       patch.projectId !== undefined ||
       patch.aimags !== undefined ||
@@ -105,7 +105,7 @@ export async function PATCH(
     const moved =
       nextStatus !== current.status || nextProjectId !== current.projectId;
 
-    // Өөр багана / төсөл рүү зөөвөл сүүлд нь тавина
+    // Өөр багана / тушаал рүү зөөвөл сүүлд нь тавина
     let position = current.position;
     if (moved) {
       const [{ next }] = await db

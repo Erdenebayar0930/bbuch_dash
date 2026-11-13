@@ -327,7 +327,7 @@ const purchaseDataset: Dataset = {
   },
 };
 
-/** Ажлын даалгавар — төсөл ба даалгавар */
+/** Ажлын даалгавар — тушаал ба даалгавар */
 const taskDataset: Dataset = {
   key: "tasks",
   label: "Ажлууд",
@@ -359,7 +359,7 @@ const taskDataset: Dataset = {
 
     return [
       {
-        name: "Төслүүд",
+        name: "Тушаалууд",
         rows: projectRows,
         columns: [
           { header: "Нэр", value: (row) => row.name, width: 26 },
@@ -384,7 +384,7 @@ const taskDataset: Dataset = {
         name: "Даалгаврууд",
         rows: taskRows,
         columns: [
-          { header: "Төсөл", value: (row) => row.projectName, width: 24 },
+          { header: "Тушаал", value: (row) => row.projectName, width: 24 },
           {
             header: "Аймаг",
             value: (row) =>
