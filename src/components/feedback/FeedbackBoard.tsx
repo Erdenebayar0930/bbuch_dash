@@ -30,6 +30,7 @@ import {
   updateFeedbackStatus,
   type Feedback,
 } from "@/lib/feedback";
+import { aimags, labelOf } from "@/data/profileOptions";
 import { isAdminRole } from "@/lib/permissions";
 
 const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
@@ -119,6 +120,13 @@ export default function FeedbackBoard() {
       {user?.uid && (
         <FeedbackForm
           uid={user.uid}
+          aimagChoices={
+            isAdmin
+              ? aimags
+              : aimags.filter((option) =>
+                  (user.aimags ?? []).includes(option.value)
+                )
+          }
           onCreated={(created) => {
             setItems((prev) => [created, ...prev]);
             setFilter(ALL);
@@ -212,11 +220,15 @@ export default function FeedbackBoard() {
 
 function FeedbackForm({
   uid,
+  aimagChoices,
   onCreated,
 }: {
   uid: string;
+  /** Нэрийн өмнөөс бичиж болох аймгууд — энгийн хэрэглэгчид өөрийнх нь л */
+  aimagChoices: { value: string; label: string }[];
   onCreated: (item: Feedback) => void;
 }) {
+  const [aimag, setAimag] = useState("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -258,11 +270,13 @@ function FeedbackForm({
 
     try {
       const created = await createFeedback(uid, {
+        aimag,
         title: title.trim(),
         body: body.trim(),
         files,
       });
       onCreated(created);
+      setAimag("");
       setTitle("");
       setBody("");
       setFiles([]);
@@ -279,6 +293,24 @@ function FeedbackForm({
       <h3 className="text-theme-sm font-semibold text-gray-800 dark:text-white/90">
         Санал хүсэлт илгээх
       </h3>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-theme-sm text-gray-500 dark:text-gray-400">
+          Хэнээс:
+        </span>
+        <select
+          value={aimag}
+          onChange={(event) => setAimag(event.target.value)}
+          className={`${inputClass} h-10 w-auto`}
+        >
+          <option value="">Хувь хүнээс</option>
+          {aimagChoices.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <input
         value={title}
@@ -502,7 +534,16 @@ function FeedbackCard({
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">
             {item.title}
           </h3>
-          <p className="mt-0.5 text-theme-xs text-gray-400">
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-theme-xs text-gray-400">
+            <span
+              className={`rounded px-1.5 py-0.5 font-medium ${
+                item.aimag
+                  ? "bg-accent-50 text-accent-700 dark:bg-accent-500/15 dark:text-accent-400"
+                  : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300"
+              }`}
+            >
+              {item.aimag ? labelOf(aimags, item.aimag) : "Хувь хүн"}
+            </span>
             {item.authorName} · {dateFormatter.format(item.createdAt)}
           </p>
         </div>

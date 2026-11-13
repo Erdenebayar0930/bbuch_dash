@@ -18,6 +18,8 @@ export type Feedback = {
   authorUid: string | null;
   authorName: string;
   authorPhotoUrl: string;
+  /** Аймгийн түлхүүр, эсвэл "" — хувь хүнээс */
+  aimag: string;
   title: string;
   body: string;
   images: FeedbackImage[];
@@ -34,6 +36,7 @@ type FeedbackRow = {
   authorFirstName: string | null;
   authorLastName: string | null;
   authorPhotoUrl: string | null;
+  aimag: string | null;
   title: string;
   body: string | null;
   images: FeedbackImage[] | null;
@@ -51,6 +54,7 @@ const toFeedback = (row: FeedbackRow): Feedback => ({
     [row.authorFirstName, row.authorLastName].filter(Boolean).join(" ") ||
     "Нэргүй хэрэглэгч",
   authorPhotoUrl: row.authorPhotoUrl ?? "",
+  aimag: row.aimag ?? "",
   title: row.title,
   body: row.body ?? "",
   images: row.images ?? [],
@@ -77,7 +81,7 @@ export async function listFeedback(): Promise<Feedback[]> {
  */
 export async function createFeedback(
   uid: string,
-  input: { title: string; body: string; files: File[] }
+  input: { aimag: string; title: string; body: string; files: File[] }
 ): Promise<Feedback> {
   const { uploadFeedbackImage, deleteFeedbackImage } = await import("./storage");
   const images: FeedbackImage[] = [];
@@ -89,7 +93,7 @@ export async function createFeedback(
 
     const data = await apiFetch<{ feedback: FeedbackRow }>("/api/feedback", {
       method: "POST",
-      body: { title: input.title, body: input.body, images },
+      body: { aimag: input.aimag, title: input.title, body: input.body, images },
     });
     return toFeedback(data.feedback);
   } catch (error) {

@@ -12,6 +12,7 @@ export const feedbackColumns = {
   authorFirstName: users.firstName,
   authorLastName: users.lastName,
   authorPhotoUrl: users.photoUrl,
+  aimag: feedback.aimag,
   title: feedback.title,
   body: feedback.body,
   images: feedback.images,

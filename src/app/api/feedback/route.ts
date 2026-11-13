@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 
 import { badRequest, requireActiveUser, serverError } from "@/lib/api/auth";
 import { MAX_FEEDBACK_IMAGES } from "@/data/feedbackOptions";
+import { aimags as aimagOptions, isValidOption } from "@/data/profileOptions";
+import { isAdminRole } from "@/lib/permissions";
 import { feedbackColumns, readFeedback } from "@/lib/api/feedback";
 import { db } from "@/lib/db";
 import { feedback, users } from "@/lib/db/schema";
@@ -57,6 +59,20 @@ export async function POST(request: NextRequest) {
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     const text = typeof body?.body === "string" ? body.body.trim() : "";
     const rawImages: unknown[] = Array.isArray(body?.images) ? body.images : [];
+    const aimag = typeof body?.aimag === "string" ? body.aimag : "";
+
+    // "" = хувь хүнээс. Аймгийн нэрээр зөвхөн тэр аймгийн гишүүн (эсвэл
+    // админ) бичнэ — өөр аймгийн нэр барьж санал оруулахаас сэргийлнэ.
+    if (!isValidOption(aimagOptions, aimag)) {
+      return badRequest("Аймаг буруу байна.");
+    }
+    if (
+      aimag &&
+      !isAdminRole(result.caller.user?.role) &&
+      !(result.caller.user?.aimags ?? []).includes(aimag)
+    ) {
+      return badRequest("Та энэ аймагт харьяалагдахгүй байна.");
+    }
 
     if (!title) return badRequest("Гарчгийг оруулна уу.");
     if (title.length > 255) {
@@ -95,6 +111,7 @@ export async function POST(request: NextRequest) {
     await db.insert(feedback).values({
       id,
       authorUid: result.caller.uid,
+      aimag,
       title,
       body: text,
       images,

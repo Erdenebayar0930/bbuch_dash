@@ -840,6 +840,11 @@ export const feedback = pgTable(
     authorUid: uidCol("author_uid").references(() => users.uid, {
       onDelete: "set null",
     }),
+    /**
+     * Хэний нэрийн өмнөөс — аймгийн түлхүүр (profileOptions.aimags), эсвэл
+     * "" = хувь хүнээс. Энгийн хэрэглэгч зөвхөн өөрийн аймгийг сонгоно.
+     */
+    aimag: varchar("aimag", { length: 64 }).notNull().default(""),
     title: varchar("title", { length: 255 }).notNull(),
     body: bodyText("body"),
     images: jsonCol<{ url: string; path: string }[]>("images")
