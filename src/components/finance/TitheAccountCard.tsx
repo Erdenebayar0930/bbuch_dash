@@ -5,7 +5,11 @@ import { Check, Copy } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import BankLogo from "@/components/finance/BankLogo";
-import { bankLabel, formatAccountNumber } from "@/data/donationAccounts";
+import {
+  LAND_TITHE_ACCOUNT,
+  bankLabel,
+  formatAccountNumber,
+} from "@/data/donationAccounts";
 import { OFFERING, TITHE } from "@/data/titheOptions";
 import { useDonationAccounts } from "@/hooks/useDonationAccounts";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -83,13 +87,25 @@ function CopyLine({ hint, display, value, mono, copied, onCopy }: CopyLineProps)
  * «1/10-<системийн нэр>», «Өргөл-<системийн нэр>»: хуулга уншихад «1/10»
  * загвараар 1/10, бусдыг өргөл гэж ангилна (@see data/titheOptions.ts).
  */
-export default function TitheAccountCard() {
+type TitheAccountCardProps = {
+  /**
+   * `tithe` — 1/10 ба өргөл (`isTithe` данс, хоёр төрлийн утга),
+   * `land` — Газрын 1/10 (`LAND_TITHE_ACCOUNT`, нэг төрлийн утга)
+   */
+  variant?: "tithe" | "land";
+};
+
+export default function TitheAccountCard({ variant = "tithe" }: TitheAccountCardProps) {
   const { user } = useUser();
   const { accounts, loading } = useDonationAccounts();
   const [copied, setCopied] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
-  const account = accounts.find((item) => item.isTithe) ?? null;
+  const isLand = variant === "land";
+  const account = isLand
+    ? (accounts.find((item) => item.number === LAND_TITHE_ACCOUNT.number) ??
+      (loading ? null : { ...LAND_TITHE_ACCOUNT }))
+    : (accounts.find((item) => item.isTithe) ?? null);
   const name = systemName(user?.first_name, user?.last_name);
 
   const copy = async (value: string) => {
@@ -104,8 +120,33 @@ export default function TitheAccountCard() {
     }
   };
 
-  const titheMemo = `${TITHE}-${name}`;
-  const offeringMemo = `${OFFERING}-${name}`;
+  /** Гүйлгээний утгын төрлүүд — өнгөөр нь ялгаж зэрэгцүүлнэ */
+  const kinds = isLand
+    ? [
+        {
+          label: "Газрын 1/10",
+          hint: "Газрын аравны нэгээ өргөхөд",
+          memo: `Газрын ${TITHE}-${name}`,
+          box: "border-warning-200 bg-warning-50/60 dark:border-warning-500/30 dark:bg-warning-500/10",
+          badge: "bg-warning-600 text-white",
+        },
+      ]
+    : [
+        {
+          label: TITHE,
+          hint: "Аравны нэгээ өргөхөд",
+          memo: `${TITHE}-${name}`,
+          box: "border-accent-200 bg-accent-50/60 dark:border-accent-500/30 dark:bg-accent-500/10",
+          badge: "bg-accent-600 text-white",
+        },
+        {
+          label: OFFERING,
+          hint: "Өргөл өргөхөд",
+          memo: `${OFFERING}-${name}`,
+          box: "border-success-200 bg-success-50/60 dark:border-success-500/30 dark:bg-success-500/10",
+          badge: "bg-success-600 text-white",
+        },
+      ];
 
   if (loading && !account) {
     return (
@@ -119,7 +160,7 @@ export default function TitheAccountCard() {
     return (
       <div className="surface p-6">
         <p className="rounded-lg border border-dashed border-gray-200 px-4 py-6 text-center text-theme-sm text-gray-400 dark:border-white/10">
-          1/10 ба өргөлийн данс бүртгэгдээгүй байна.
+          {isLand ? "Газрын 1/10-ийн" : "1/10 ба өргөлийн"} данс бүртгэгдээгүй байна.
         </p>
       </div>
     );
@@ -134,7 +175,9 @@ export default function TitheAccountCard() {
           <p className="text-base font-semibold text-gray-900 dark:text-white">
             {bankLabel(account.bank) || account.title}
           </p>
-          <p className="text-theme-sm text-gray-500 dark:text-gray-400">{account.holder}</p>
+          {account.holder && (
+            <p className="text-theme-sm text-gray-500 dark:text-gray-400">{account.holder}</p>
+          )}
         </div>
       </div>
 
@@ -158,23 +201,8 @@ export default function TitheAccountCard() {
 
         {name ? (
           // Хоёр төрөл андуурагдахгүйн тулд өөр өнгөтэй, тусдаа хайрцагт зэрэгцэнэ
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              {
-                label: "1/10",
-                hint: "Аравны нэгээ өргөхөд",
-                memo: titheMemo,
-                box: "border-accent-200 bg-accent-50/60 dark:border-accent-500/30 dark:bg-accent-500/10",
-                badge: "bg-accent-600 text-white",
-              },
-              {
-                label: "Өргөл",
-                hint: "Өргөл өргөхөд",
-                memo: offeringMemo,
-                box: "border-success-200 bg-success-50/60 dark:border-success-500/30 dark:bg-success-500/10",
-                badge: "bg-success-600 text-white",
-              },
-            ].map((kind) => (
+          <div className={`grid gap-3 ${kinds.length > 1 ? "sm:grid-cols-2" : ""}`}>
+            {kinds.map((kind) => (
               <div key={kind.label} className={`rounded-xl border p-4 ${kind.box}`}>
                 <div className="mb-3 flex items-center gap-2">
                   <span
@@ -201,8 +229,8 @@ export default function TitheAccountCard() {
         )}
 
         <p className="mt-3 text-theme-xs text-gray-500 dark:text-gray-400">
-          Гүйлгээний утгыг яг ингэж бичвэл таны 1/10 ба өргөл системд зөв
-          бүртгэгдэнэ.
+          Гүйлгээний утгыг яг ингэж бичвэл таны{" "}
+          {isLand ? "газрын 1/10" : "1/10 ба өргөл"} системд зөв бүртгэгдэнэ.
         </p>
 
         {failed && (

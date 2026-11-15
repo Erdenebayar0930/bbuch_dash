@@ -56,8 +56,23 @@ export const bankAppSchemes: Record<Bank, string> = {
   state: "statebank://",
 };
 
+/**
+ * Газрын 1/10 өргөх данс. Сан дахь мөрийг (байвал) дугаараар нь олж
+ * уншина — админ эзэмшигчийн нэрийг засах боломжтой. Санд байхгүй бол энэ
+ * утгаар харуулна.
+ */
+export const LAND_TITHE_ACCOUNT = {
+  title: "Газрын 1/10",
+  number: "MN430005005402556919",
+  bank: "khan",
+  // Эзэмшигчийн нэр хараахан тодорхойгүй — таамаглаж бичихгүй
+  holder: "",
+  isTithe: false,
+} as const;
+
 /** Хоосон бааз дээр нэг удаа суух данснууд */
 export const seedDonationAccounts = [
+  LAND_TITHE_ACCOUNT,
   {
     title: "1/10 ба өргөл",
     number: "MN100005005312334127",
