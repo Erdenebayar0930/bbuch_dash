@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
 import { readCampaign } from "@/lib/api/campaignInput";
+import { currentPeriod } from "@/lib/api/campaignRollover";
 import { db } from "@/lib/db";
 import { donationCampaigns } from "@/lib/db/schema";
 
@@ -30,9 +31,28 @@ export async function PATCH(
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
+    // Төрөл солигдвол сарын хугацааг тааруулна: сар бүрийнх болбол одоогийн
+    // сараас эхэлж цуврал болно, нэг удаагийнх болбол сар хамаарахгүй
+    const patch: Partial<typeof donationCampaigns.$inferInsert> = { ...parsed.value };
+    if (parsed.value.kind === "monthly") {
+      const [current] = await db
+        .select({ period: donationCampaigns.period, seriesId: donationCampaigns.seriesId })
+        .from(donationCampaigns)
+        .where(eq(donationCampaigns.id, id))
+        .limit(1);
+      if (current && !current.period) {
+        patch.period = currentPeriod();
+        patch.seriesId = current.seriesId ?? id;
+        patch.endsOn = "";
+      }
+    } else if (parsed.value.kind === "once") {
+      patch.period = "";
+      patch.seriesId = null;
+    }
+
     const [updated] = await db
       .update(donationCampaigns)
-      .set({ ...parsed.value, updatedAt: new Date() })
+      .set({ ...patch, updatedAt: new Date() })
       .where(eq(donationCampaigns.id, id))
       .returning();
 

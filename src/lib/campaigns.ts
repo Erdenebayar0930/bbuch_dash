@@ -3,10 +3,9 @@
 import { apiFetch } from "./apiClient";
 
 /** Хандивын төрөл */
-export type CampaignKind = "target" | "monthly" | "once";
+export type CampaignKind = "monthly" | "once";
 
 export const campaignKindLabels: Record<CampaignKind, string> = {
-  target: "Зорилтот",
   monthly: "Сар бүр",
   once: "Нэг удаа",
 };
@@ -15,6 +14,12 @@ export const campaignKindLabels: Record<CampaignKind, string> = {
 export type Campaign = {
   id: string;
   kind: CampaignKind;
+  /** Сар бүрийнх: YYYY-MM, нэг удаагийнх: хоосон */
+  period: string;
+  /** Админы эрэмбэ — бага нь дээрээ */
+  position: number;
+  /** Онцлох — хамгийн дээр */
+  featured: boolean;
   /** Хандивын зорилго */
   title: string;
   /** Тайлбар */
@@ -29,13 +34,19 @@ export type Campaign = {
   createdAt: Date;
 };
 
-export type CampaignInput = Omit<Campaign, "id" | "createdAt">;
+export type CampaignInput = Omit<Campaign, "id" | "createdAt" | "period">;
 
-type CampaignRow = Omit<Campaign, "createdAt"> & { createdAt: string };
+type CampaignRow = Omit<Campaign, "createdAt" | "kind"> & {
+  kind: string;
+  createdAt: string;
+};
 
 const toCampaign = (row: CampaignRow): Campaign => ({
   ...row,
-  kind: row.kind === "monthly" || row.kind === "once" ? row.kind : "target",
+  kind: row.kind === "monthly" ? "monthly" : "once",
+  period: row.period ?? "",
+  position: row.position ?? 0,
+  featured: row.featured ?? false,
   purpose: row.purpose ?? "",
   memoPrefix: row.memoPrefix ?? "",
   endsOn: row.endsOn ?? "",

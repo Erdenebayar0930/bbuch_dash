@@ -1,7 +1,7 @@
 import "server-only";
 
 /** Хандивын төрөл */
-export const CAMPAIGN_KINDS = ["target", "monthly", "once"] as const;
+export const CAMPAIGN_KINDS = ["monthly", "once"] as const;
 
 export type CampaignInput = {
   title?: string;
@@ -11,6 +11,8 @@ export type CampaignInput = {
   memoPrefix?: string;
   endsOn?: string;
   active?: boolean;
+  position?: number;
+  featured?: boolean;
 };
 
 type Parsed = { ok: true; value: CampaignInput } | { ok: false; error: string };
@@ -82,6 +84,20 @@ export function readCampaign(body: unknown, partial: boolean): Parsed {
       return { ok: false, error: "Дуусах огноо YYYY-MM-DD хэлбэртэй байна." };
     }
     value.endsOn = input.endsOn;
+  }
+
+  if (input.position !== undefined) {
+    if (typeof input.position !== "number" || !Number.isInteger(input.position)) {
+      return { ok: false, error: "Эрэмбэ буруу байна." };
+    }
+    value.position = input.position;
+  }
+
+  if (input.featured !== undefined) {
+    if (typeof input.featured !== "boolean") {
+      return { ok: false, error: "featured нь true/false байна." };
+    }
+    value.featured = input.featured;
   }
 
   if (input.active !== undefined) {

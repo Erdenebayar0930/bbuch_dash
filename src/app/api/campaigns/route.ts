@@ -1,14 +1,14 @@
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
   badRequest,
-  isAdminRole,
   requireActiveUser,
   requireAdmin,
   serverError,
 } from "@/lib/api/auth";
 import { readCampaign } from "@/lib/api/campaignInput";
+import { currentPeriod, rollOverMonthlyCampaigns } from "@/lib/api/campaignRollover";
 import { db } from "@/lib/db";
 import { donationCampaigns } from "@/lib/db/schema";
 
@@ -18,21 +18,25 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Хандивын аянууд. Гишүүд зөвхөн нээлттэйг, админ дууссаныг ч харна
- * (дахин нээх, засахад).
+ * Хандивын аянууд — нээлттэй ба дууссан бүгд («Дууссан» табд гишүүд ч
+ * харна). Өмнөх сарын сар бүрийн хандивыг эхлээд шинэ сар руу шилжүүлнэ.
+ * Эрэмбэ: онцлох → админы эрэмбэ → шинэ нь.
  */
 export async function GET(request: NextRequest) {
   const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
 
-  const isAdmin = isAdminRole(result.caller.user?.role);
-
   try {
+    await rollOverMonthlyCampaigns();
+
     const rows = await db
       .select()
       .from(donationCampaigns)
-      .where(isAdmin ? undefined : eq(donationCampaigns.active, true))
-      .orderBy(desc(donationCampaigns.active), desc(donationCampaigns.createdAt));
+      .orderBy(
+        desc(donationCampaigns.featured),
+        asc(donationCampaigns.position),
+        desc(donationCampaigns.createdAt)
+      );
 
     return NextResponse.json({ campaigns: rows });
   } catch (error) {
@@ -50,11 +54,25 @@ export async function POST(request: NextRequest) {
     if (!parsed.ok) return badRequest(parsed.error);
 
     const input = parsed.value;
+    const monthly = input.kind === "monthly";
+
+    // Шинэ нь жагсаалтын төгсгөлд
+    const [{ next }] = await db
+      .select({ next: sql<number>`(coalesce(max(${donationCampaigns.position}), -1) + 1)::int` })
+      .from(donationCampaigns);
+
+    const id = crypto.randomUUID();
     const [created] = await db
       .insert(donationCampaigns)
       .values({
+        position: next,
         ...input,
+        id,
         title: input.title as string,
+        // Сар бүрийнх одоогийн сараас эхэлж, өөрөө цувралынхаа эх болно
+        period: monthly ? currentPeriod() : "",
+        seriesId: monthly ? id : null,
+        endsOn: monthly ? "" : (input.endsOn ?? ""),
         createdBy: result.caller.uid,
       })
       .returning();

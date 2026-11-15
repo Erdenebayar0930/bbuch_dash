@@ -27,7 +27,9 @@ const labelClass =
   "mb-1.5 block text-theme-sm font-medium text-gray-700 dark:text-gray-300";
 
 const empty: CampaignInput = {
-  kind: "target",
+  kind: "monthly",
+  position: 0,
+  featured: false,
   title: "",
   purpose: "",
   targetAmount: null,
@@ -53,9 +55,10 @@ export default function CampaignModal({
     if (!isOpen) return;
     setError(null);
     if (campaign) {
-      const { id: _id, createdAt: _createdAt, ...rest } = campaign;
+      const { id: _id, createdAt: _createdAt, period: _period, ...rest } = campaign;
       void _id;
       void _createdAt;
+      void _period;
       setForm(rest);
       setHasTarget(campaign.targetAmount !== null);
     } else {
@@ -191,18 +194,20 @@ export default function CampaignModal({
             </p>
           </div>
 
+          {form.kind === "once" && (
           <div>
-            <label htmlFor="campaign-ends" className={labelClass}>
-              Дуусах огноо
-            </label>
-            <input
-              id="campaign-ends"
-              type="date"
-              value={form.endsOn}
-              onChange={(event) => set("endsOn", event.target.value)}
-              className={fieldClass}
-            />
-          </div>
+              <label htmlFor="campaign-ends" className={labelClass}>
+                Дуусах огноо
+              </label>
+              <input
+                id="campaign-ends"
+                type="date"
+                value={form.endsOn}
+                onChange={(event) => set("endsOn", event.target.value)}
+                className={fieldClass}
+              />
+            </div>
+          )}
         </div>
 
         {error && (

@@ -12,6 +12,9 @@ import {
   Target,
   Trash2,
   XCircle,
+  ArrowDown,
+  ArrowUp,
+  Star,
 } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
@@ -61,6 +64,8 @@ export default function CampaignBoard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  /** Сар бүр | Нэг удаа | Дууссан */
+  const [tab, setTab] = useState<"monthly" | "once" | "ended">("monthly");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -93,9 +98,10 @@ export default function CampaignBoard() {
   const saved = (campaign: Campaign) =>
     setCampaigns((prev) => {
       const exists = prev.some((item) => item.id === campaign.id);
-      return exists
+      const next = exists
         ? prev.map((item) => (item.id === campaign.id ? campaign : item))
-        : [campaign, ...prev];
+        : [...prev, campaign];
+      return sortCampaigns(next);
     });
 
   const setActive = async (campaign: Campaign, active: boolean) => {
@@ -116,8 +122,60 @@ export default function CampaignBoard() {
     }
   };
 
-  const open = campaigns.filter((item) => item.active);
-  const closed = campaigns.filter((item) => !item.active);
+  /** Онцлох → эрэмбэ → шинэ нь — сервертэй ижил дараалал */
+  function sortCampaigns(list: Campaign[]) {
+    return [...list].sort(
+      (a, b) =>
+        Number(b.featured) - Number(a.featured) ||
+        a.position - b.position ||
+        b.createdAt.getTime() - a.createdAt.getTime()
+    );
+  }
+
+  const tabs = [
+    { key: "monthly" as const, label: "Сар бүр", items: campaigns.filter((c) => c.active && c.kind === "monthly") },
+    { key: "once" as const, label: "Нэг удаа", items: campaigns.filter((c) => c.active && c.kind === "once") },
+    { key: "ended" as const, label: "Дууссан", items: campaigns.filter((c) => !c.active) },
+  ];
+  const visible = tabs.find((item) => item.key === tab)?.items ?? [];
+
+  const toggleFeatured = async (campaign: Campaign) => {
+    try {
+      saved(await updateCampaign(campaign.id, { featured: !campaign.featured }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хадгалахад алдаа гарлаа.");
+    }
+  };
+
+  /**
+   * Эрэмбийг нэг алхам зөөнө — тухайн таб доторх хөршөөрөө байраа солино.
+   * Онцлох нь үргэлж дээрээ тул зөвхөн ижил онцлох төлөвтэйтэйгээ солигдоно.
+   */
+  const move = async (campaign: Campaign, direction: -1 | 1) => {
+    const peers = visible.filter((item) => item.featured === campaign.featured);
+    const index = peers.findIndex((item) => item.id === campaign.id);
+    const other = peers[index + direction];
+    if (!other) return;
+
+    // Ижил эрэмбэтэй бол ялгаатай болгоно
+    const a = other.position;
+    const b = campaign.position === other.position ? other.position + direction : campaign.position;
+    try {
+      const [first, second] = await Promise.all([
+        updateCampaign(campaign.id, { position: a }),
+        updateCampaign(other.id, { position: b }),
+      ]);
+      saved(first);
+      saved(second);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Эрэмбэ хадгалахад алдаа гарлаа.");
+    }
+  };
+
+  const periodLabel = (period: string) => {
+    const [year, month] = period.split("-").map(Number);
+    return year ? `${year} оны ${month}-р сар` : "";
+  };
 
   const iconButton =
     "flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5";
@@ -176,6 +234,8 @@ export default function CampaignBoard() {
       <article
         key={campaign.id}
         className={`relative overflow-hidden rounded-2xl border shadow-sm ${
+          campaign.featured && campaign.active ? "ring-2 ring-warning-400" : ""
+        } ${
           campaign.active
             ? "border-accent-200 bg-gradient-to-br from-accent-50 via-white to-white dark:border-accent-500/30 dark:from-accent-500/15 dark:via-transparent dark:to-transparent"
             : "border-gray-200 bg-white opacity-70 grayscale dark:border-white/10 dark:bg-white/[0.03]"
@@ -192,8 +252,15 @@ export default function CampaignBoard() {
               {campaign.title}
             </h2>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              {campaign.featured && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-warning-500 px-2 py-0.5 text-theme-xs font-bold text-white">
+                  <Star className="h-3 w-3 fill-current" strokeWidth={2} />
+                  Онцлох
+                </span>
+              )}
               <span className="rounded-full bg-gray-900 px-2 py-0.5 text-theme-xs font-semibold text-white dark:bg-white dark:text-gray-900">
                 {campaignKindLabels[campaign.kind]}
+                {campaign.kind === "monthly" && campaign.period && ` · ${periodLabel(campaign.period)}`}
               </span>
               {campaign.targetAmount !== null && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-accent-600/10 px-2 py-0.5 text-theme-xs font-semibold text-accent-700 dark:text-accent-300">
@@ -216,7 +283,37 @@ export default function CampaignBoard() {
           </div>
 
           {isAdmin && (
-            <div className="flex gap-0.5">
+            <div className="flex flex-wrap justify-end gap-0.5">
+              <button
+                type="button"
+                onClick={() => toggleFeatured(campaign)}
+                aria-label={campaign.featured ? "Онцлохоос хасах" : "Онцлох болгох"}
+                title={campaign.featured ? "Онцлохоос хасах" : "Онцлох болгох"}
+                className={`${iconButton} ${campaign.featured ? "text-warning-500" : ""}`}
+              >
+                <Star
+                  className={`h-3.5 w-3.5 ${campaign.featured ? "fill-current" : ""}`}
+                  strokeWidth={1.8}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={() => move(campaign, -1)}
+                aria-label="Дээш"
+                title="Дээш"
+                className={iconButton}
+              >
+                <ArrowUp className="h-3.5 w-3.5" strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                onClick={() => move(campaign, 1)}
+                aria-label="Доош"
+                title="Доош"
+                className={iconButton}
+              >
+                <ArrowDown className="h-3.5 w-3.5" strokeWidth={1.8} />
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -264,7 +361,8 @@ export default function CampaignBoard() {
           </p>
         )}
 
-        {/* Хандив өгөх алхмууд — данс, утга доор доороо */}
+        {/* Хандив өгөх алхмууд — данс, утга доор доороо (нээлттэйд л) */}
+        {campaign.active ? (
         <div className="m-4 mt-3 flex flex-col gap-2.5 rounded-xl border border-white/60 bg-white/80 p-3 shadow-xs backdrop-blur dark:border-white/10 dark:bg-gray-900/60">
           {step(
             1,
@@ -287,6 +385,9 @@ export default function CampaignBoard() {
             Банкны аппаараа шилжүүлээд хандиваа өгнө
           </p>
         </div>
+        ) : (
+          <div className="h-4" />
+        )}
 
         {/* Улаан уриа — картын доод хэсэгт, хүн юу хийхээ шууд ойлгоно */}
         {campaign.active && (
@@ -327,22 +428,43 @@ export default function CampaignBoard() {
         <p className="py-8 text-center text-theme-sm text-gray-500">Ачаалж байна...</p>
       )}
 
-      {!loading && open.length === 0 && (
+      {/* Сар бүр | Нэг удаа | Дууссан */}
+      <div
+        role="tablist"
+        aria-label="Хандивын төрөл"
+        className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-white/10"
+      >
+        {tabs.map((item) => {
+          const selected = item.key === tab;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setTab(item.key)}
+              className={`-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-theme-sm font-medium transition-colors ${
+                selected
+                  ? "border-accent-600 text-accent-700 dark:border-accent-400 dark:text-accent-300"
+                  : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
+            >
+              {item.label}
+              <span className="rounded-full bg-gray-100 px-1.5 text-theme-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
+                {item.items.length}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {!loading && visible.length === 0 && (
         <p className="surface px-4 py-10 text-center text-theme-sm text-gray-400">
-          Одоогоор зарласан хандив алга.
+          {tab === "ended" ? "Дууссан хандив алга." : "Одоогоор зарласан хандив алга."}
         </p>
       )}
 
-      {open.map(renderCard)}
-
-      {isAdmin && closed.length > 0 && (
-        <>
-          <p className="mt-2 text-theme-sm font-medium text-gray-500 dark:text-gray-400">
-            Дууссан хандив
-          </p>
-          {closed.map(renderCard)}
-        </>
-      )}
+      {visible.map(renderCard)}
 
       {isAdmin && (
         <CampaignModal

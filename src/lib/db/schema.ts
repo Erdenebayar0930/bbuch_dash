@@ -844,8 +844,20 @@ export const donationCampaigns = pgTable(
     id: uuidPk(),
     /** Хандивын зорилго — аяны нэр */
     title: varchar("title", { length: 255 }).notNull(),
-    /** target — Зорилтот, monthly — Сар бүр, once — Нэг удаа */
-    kind: varchar("kind", { length: 16 }).notNull().default("target"),
+    /** monthly — Сар бүр, once — Нэг удаа. Дууссан нь `active = false` */
+    kind: varchar("kind", { length: 16 }).notNull().default("once"),
+    /**
+     * Сар бүрийнх: аль сарынх (YYYY-MM). Сар солигдоход тэр сарынх «Дууссан»
+     * болж, ижил `seriesId`-тай дараа сарынх автоматаар нээгдэнэ
+     * (@see lib/api/campaignRollover.ts). Нэг удаагийнх бол хоосон.
+     */
+    period: varchar("period", { length: 7 }).notNull().default(""),
+    /** Сар бүрийн хандивын цуврал — сар бүрийн мөрүүдийг холбоно */
+    seriesId: uuid("series_id"),
+    /** Админы тогтоосон эрэмбэ — бага нь дээрээ */
+    position: integer("position").notNull().default(0),
+    /** Онцлох — жагсаалтын хамгийн дээр, тодорхой харагдана */
+    featured: boolean("featured").notNull().default(false),
     /** Тайлбар */
     purpose: bodyText("purpose"),
     /** Зорилтот дүн, ₮ — хоосон бол тогтсон дүнгүй */
@@ -860,7 +872,11 @@ export const donationCampaigns = pgTable(
     createdAt: utcTimestamp("created_at").notNull().defaultNow(),
     updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
-  (table) => [index("donation_campaigns_active_idx").on(table.active, table.createdAt)]
+  (table) => [
+    index("donation_campaigns_active_idx").on(table.active, table.createdAt),
+    // Нэг цувралд нэг сард нэг л мөр — зэрэг хүсэлт давхар үүсгэхгүй
+    uniqueIndex("donation_campaigns_series_period_idx").on(table.seriesId, table.period),
+  ]
 );
 
 /**
