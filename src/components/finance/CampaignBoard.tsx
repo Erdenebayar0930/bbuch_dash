@@ -318,7 +318,7 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
         }`}
       >
         {/* Толгой — зорилго, дүн, огноо */}
-        <div className="flex items-start gap-3 px-4 pt-4">
+        <div className="flex flex-wrap items-start gap-3 px-4 pt-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-600 text-white shadow-sm">
             <HeartHandshake className="h-5 w-5" strokeWidth={1.8} />
           </span>
@@ -327,7 +327,7 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
             <h2 className="text-base font-bold leading-snug text-gray-900 dark:text-white">
               {campaign.title}
             </h2>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 [&>span]:whitespace-nowrap">
               {campaign.featured && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-warning-500 px-2 py-0.5 text-theme-xs font-bold text-white">
                   <Star className="h-3 w-3 fill-current" strokeWidth={2} />
@@ -381,7 +381,7 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
           </div>
 
           {isAdmin && (
-            <div className="flex flex-wrap justify-end gap-0.5">
+            <div className="order-first flex w-full justify-end gap-0.5 border-b border-gray-100 pb-2 sm:order-none sm:w-auto sm:border-0 sm:pb-0 dark:border-white/5">
               <button
                 type="button"
                 onClick={() => toggleFeatured(campaign)}
