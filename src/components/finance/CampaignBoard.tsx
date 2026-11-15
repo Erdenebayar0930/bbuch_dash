@@ -14,17 +14,26 @@ import {
   XCircle,
   ArrowDown,
   ArrowUp,
+  Bell,
+  CheckCircle2,
+  Clock,
+  MessageSquareWarning,
   Star,
+  UserCog,
 } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
+import CampaignApproversModal from "@/components/finance/CampaignApproversModal";
 import CampaignModal from "@/components/finance/CampaignModal";
 import { systemName } from "@/components/finance/TitheAccountCard";
+import { campaignBoards, type CampaignBoardKey } from "@/data/campaignBoards";
 import { CAMPAIGN_ACCOUNT, bankLabel, formatAccountNumber } from "@/data/donationAccounts";
 import {
   campaignKindLabels,
+  campaignStatusLabels,
   deleteCampaign,
   listCampaigns,
+  reviewCampaign,
   updateCampaign,
   type Campaign,
 } from "@/lib/campaigns";
@@ -53,7 +62,13 @@ const COPIED_MS = 2000;
  * нэг данс руу (`CAMPAIGN_ACCOUNT`) — данс нь хуудасны дээд хэсэгт нэг удаа.
  * Админ аян зарлаж, засаж, хааж, устгана; гишүүд нээлттэйг нь харна.
  */
-export default function CampaignBoard() {
+type CampaignBoardProps = {
+  /** Хандив (анхдагч) эсвэл Өглөг — Өглөг нь нэг удаагийнх, табууд нь Идэвхтэй | Дууссан */
+  board?: CampaignBoardKey;
+};
+
+export default function CampaignBoard({ board = "donation" }: CampaignBoardProps) {
+  const info = campaignBoards[board];
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
   const name = systemName(user?.first_name, user?.last_name);
@@ -64,20 +79,31 @@ export default function CampaignBoard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-  /** Сар бүр | Нэг удаа | Дууссан */
-  const [tab, setTab] = useState<"monthly" | "once" | "ended">("monthly");
+  /** Сар бүр | Нэг удаа | Дууссан | Хүлээгдэж буй */
+  const [tab, setTab] = useState<"monthly" | "once" | "ended" | "review">(
+    info.onceOnly ? "once" : "monthly"
+  );
+  /** Дуудагч зөвшөөрөх эрхтэй эсэх — серверээс */
+  const [canApprove, setCanApprove] = useState(false);
+  const [approversOpen, setApproversOpen] = useState(false);
+  /** «Өөрчлүүлэх» тайлбар бичиж буй хандив */
+  const [returning, setReturning] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [reviewing, setReviewing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setCampaigns(await listCampaigns());
+      const data = await listCampaigns(board);
+      setCampaigns(data.campaigns);
+      setCanApprove(data.canApprove);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ачаалахад алдаа гарлаа.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [board]);
 
   useEffect(() => {
     load();
@@ -113,7 +139,7 @@ export default function CampaignBoard() {
   };
 
   const remove = async (campaign: Campaign) => {
-    if (!window.confirm(`«${campaign.title}» хандивыг устгах уу?`)) return;
+    if (!window.confirm(`«${campaign.title}» ${info.accusative} устгах уу?`)) return;
     try {
       await deleteCampaign(campaign.id);
       setCampaigns((prev) => prev.filter((item) => item.id !== campaign.id));
@@ -132,11 +158,47 @@ export default function CampaignBoard() {
     );
   }
 
+  const approved = campaigns.filter((c) => c.status === "approved");
+  const awaiting = campaigns.filter((c) => c.status !== "approved");
   const tabs = [
-    { key: "monthly" as const, label: "Сар бүр", items: campaigns.filter((c) => c.active && c.kind === "monthly") },
-    { key: "once" as const, label: "Нэг удаа", items: campaigns.filter((c) => c.active && c.kind === "once") },
-    { key: "ended" as const, label: "Дууссан", items: campaigns.filter((c) => !c.active) },
+    // Өглөг нь нэг удаагийнх тул «Сар бүр» табгүй, нээлттэй нь «Идэвхтэй»
+    ...(info.onceOnly
+      ? []
+      : [{ key: "monthly" as const, label: "Сар бүр", items: approved.filter((c) => c.active && c.kind === "monthly") }]),
+    {
+      key: "once" as const,
+      label: info.onceOnly ? "Идэвхтэй" : "Нэг удаа",
+      items: approved.filter((c) => c.active && (info.onceOnly || c.kind === "once")),
+    },
+    { key: "ended" as const, label: "Дууссан", items: approved.filter((c) => !c.active) },
+    // Зөвшөөрөгдөөгүй нь зөвхөн админ, зөвшөөрөгчид ирнэ
+    ...(isAdmin || canApprove
+      ? [{ key: "review" as const, label: "Хүлээгдэж буй", items: awaiting }]
+      : []),
   ];
+
+  const review = async (campaign: Campaign, action: "approve" | "changes") => {
+    if (action === "changes" && !note.trim()) {
+      setError("Юуг өөрчлөхийг тайлбарт бичнэ үү.");
+      return;
+    }
+    setReviewing(true);
+    setError(null);
+    try {
+      saved(
+        await reviewCampaign(
+          campaign.id,
+          action === "approve" ? { action } : { action, note: note.trim() }
+        )
+      );
+      setReturning(null);
+      setNote("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Хадгалахад алдаа гарлаа.");
+    } finally {
+      setReviewing(false);
+    }
+  };
   const visible = tabs.find((item) => item.key === tab)?.items ?? [];
 
   const toggleFeatured = async (campaign: Campaign) => {
@@ -279,6 +341,28 @@ export default function CampaignBoard() {
                   Дууссан
                 </span>
               )}
+              {campaign.status !== "approved" && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-theme-xs font-semibold ${
+                    campaign.status === "changes"
+                      ? "bg-error-500/10 text-error-700 dark:text-error-400"
+                      : "bg-warning-500/10 text-warning-700 dark:text-warning-400"
+                  }`}
+                >
+                  {campaign.status === "changes" ? (
+                    <MessageSquareWarning className="h-3 w-3" strokeWidth={2} />
+                  ) : (
+                    <Clock className="h-3 w-3" strokeWidth={2} />
+                  )}
+                  {campaignStatusLabels[campaign.status]}
+                </span>
+              )}
+              {(isAdmin || canApprove) && campaign.kind === "monthly" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                  <Bell className="h-3 w-3" strokeWidth={2} />
+                  Сар бүрийн {campaign.notifyDay}-нд {campaign.notifyTime}
+                </span>
+              )}
             </div>
           </div>
 
@@ -361,6 +445,78 @@ export default function CampaignBoard() {
           </p>
         )}
 
+        {/* Өөрчлүүлэх тайлбар — зарласан админд харагдана */}
+        {campaign.status === "changes" && campaign.reviewNote && (
+          <p className="mx-4 mt-3 whitespace-pre-line rounded-lg border border-error-200 bg-error-50 px-3 py-2 text-theme-sm text-error-700 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-300">
+            <span className="font-semibold">Өөрчлөх зүйл: </span>
+            {campaign.reviewNote}
+          </p>
+        )}
+
+        {/* Зөвшөөрөх / Өөрчлүүлэх — зөвшөөрөгчид */}
+        {canApprove && campaign.status !== "approved" && (
+          <div className="mx-4 mt-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-gray-900/60">
+            {returning === campaign.id ? (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  autoFocus
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="Юуг өөрчлөх вэ?"
+                  aria-label="Өөрчлүүлэх тайлбар"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-theme-sm text-gray-800 placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReturning(null);
+                      setNote("");
+                    }}
+                    className="h-9 rounded-lg px-3 text-theme-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
+                  >
+                    Болих
+                  </button>
+                  <button
+                    type="button"
+                    disabled={reviewing}
+                    onClick={() => review(campaign, "changes")}
+                    className="h-9 rounded-lg bg-error-600 px-3.5 text-theme-sm font-semibold text-white hover:bg-error-700 disabled:opacity-60"
+                  >
+                    Буцаах
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={reviewing}
+                  onClick={() => review(campaign, "approve")}
+                  className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-success-600 px-3.5 text-theme-sm font-semibold text-white hover:bg-success-700 disabled:opacity-60"
+                >
+                  <CheckCircle2 className="h-4 w-4" strokeWidth={2} />
+                  Зөвшөөрөх
+                </button>
+                <button
+                  type="button"
+                  disabled={reviewing}
+                  onClick={() => {
+                    setReturning(campaign.id);
+                    setNote("");
+                  }}
+                  className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-error-300 px-3.5 text-theme-sm font-semibold text-error-600 hover:bg-error-50 disabled:opacity-60 dark:border-error-500/40 dark:hover:bg-error-500/10"
+                >
+                  <MessageSquareWarning className="h-4 w-4" strokeWidth={2} />
+                  Өөрчлүүлэх
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Хандив өгөх алхмууд — данс, утга доор доороо (нээлттэйд л) */}
         {campaign.active ? (
         <div className="m-4 mt-3 flex flex-col gap-2.5 rounded-xl border border-white/60 bg-white/80 p-3 shadow-xs backdrop-blur dark:border-white/10 dark:bg-gray-900/60">
@@ -382,7 +538,7 @@ export default function CampaignBoard() {
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-600/15 font-bold text-accent-700 dark:text-accent-300">
               3
             </span>
-            Банкны аппаараа шилжүүлээд хандиваа өгнө
+            Банкны аппаараа шилжүүлээд {info.reflexive} өгнө
           </p>
         </div>
         ) : (
@@ -393,7 +549,7 @@ export default function CampaignBoard() {
         {campaign.active && (
           <div className="flex items-center justify-center gap-2 bg-error-600 px-4 py-2.5 text-theme-sm font-bold uppercase tracking-wide text-white">
             <HeartHandshake className="h-4 w-4" strokeWidth={2.2} />
-            Хандив өргөх
+            {info.cta}
           </div>
         )}
       </article>
@@ -403,7 +559,15 @@ export default function CampaignBoard() {
   return (
     <div className="flex flex-col gap-4">
       {isAdmin && (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setApproversOpen(true)}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-theme-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
+          >
+            <UserCog className="h-4 w-4" strokeWidth={1.8} />
+            Зөвшөөрөгчид
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -413,7 +577,7 @@ export default function CampaignBoard() {
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
           >
             <Plus className="h-4 w-4" strokeWidth={2.2} />
-            Хандив зарлах
+            {info.create}
           </button>
         </div>
       )}
@@ -431,7 +595,7 @@ export default function CampaignBoard() {
       {/* Сар бүр | Нэг удаа | Дууссан */}
       <div
         role="tablist"
-        aria-label="Хандивын төрөл"
+        aria-label={`${info.title} — ангилал`}
         className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-white/10"
       >
         {tabs.map((item) => {
@@ -460,11 +624,19 @@ export default function CampaignBoard() {
 
       {!loading && visible.length === 0 && (
         <p className="surface px-4 py-10 text-center text-theme-sm text-gray-400">
-          {tab === "ended" ? "Дууссан хандив алга." : "Одоогоор зарласан хандив алга."}
+          {tab === "ended"
+            ? `Дууссан ${info.noun} алга.`
+            : tab === "review"
+              ? `Зөвшөөрөл хүлээж буй ${info.noun} алга.`
+              : `Одоогоор ${info.noun} алга.`}
         </p>
       )}
 
       {visible.map(renderCard)}
+
+      {isAdmin && (
+        <CampaignApproversModal isOpen={approversOpen} onClose={() => setApproversOpen(false)} />
+      )}
 
       {isAdmin && (
         <CampaignModal
@@ -472,6 +644,7 @@ export default function CampaignBoard() {
           campaign={editing}
           onClose={() => setModalOpen(false)}
           onSaved={saved}
+          board={board}
         />
       )}
     </div>

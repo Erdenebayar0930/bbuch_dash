@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import { sendCampaignReminders } from "@/lib/api/campaignReview";
 import { notifyUsers, resolveNotifyTargets } from "@/lib/api/notify";
 import { db } from "@/lib/db";
 import { scheduledNotifications } from "@/lib/db/schema";
@@ -84,7 +85,10 @@ export async function GET(request: NextRequest) {
       results.push({ id: schedule.id, title: schedule.title, recipients: uids.length });
     }
 
-    return NextResponse.json({ ok: true, checked: schedules.length, sent: results });
+    // Сар бүрийн хандивын сануулга — тохируулсан өдөр, цагт нь
+    const campaigns = await sendCampaignReminders();
+
+    return NextResponse.json({ ok: true, checked: schedules.length, sent: results, campaigns });
   } catch (error) {
     console.error("Тогтмол мэдэгдэл илгээхэд алдаа гарлаа:", error);
     return NextResponse.json({ error: "Дотоод алдаа гарлаа." }, { status: 500 });

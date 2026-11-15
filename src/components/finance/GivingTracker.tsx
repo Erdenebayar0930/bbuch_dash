@@ -15,6 +15,10 @@ import { listUsers, type AppUser } from "@/lib/users";
 
 type GivingTrackerProps = {
   board: GivingBoard;
+  /** Чагтлах боломжгүй — зөвхөн харна */
+  readOnly?: boolean;
+  /** Хүн нэмэх, хасах боломжтой (админ) */
+  canManage?: boolean;
 };
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
@@ -43,7 +47,15 @@ const fieldClass =
  * Хүнийг системийн хэрэглэгчээс сонгох эсвэл чөлөөт нэрээр нэмнэ.
  * (Энэ хэсэг зөвхөн админд харагдана — API ч `requireAdmin`.)
  */
-export default function GivingTracker({ board }: GivingTrackerProps) {
+export default function GivingTracker({
+  board,
+  readOnly = false,
+  canManage = true,
+}: GivingTrackerProps) {
+  // Сахилгажуулалт бол «төлсөн», бусад нь «өргөсөн»
+  const isDiscipline = board === "discipline";
+  const doneWord = isDiscipline ? "төлсөн" : "өргөсөн";
+  const notDoneWord = isDiscipline ? "төлөөгүй" : "өргөөгүй";
   const now = useMemo(() => nowInUlaanbaatar(), []);
   const [year, setYear] = useState(now.year);
 
@@ -77,8 +89,9 @@ export default function GivingTracker({ board }: GivingTrackerProps) {
     load();
   }, [load]);
 
-  // Хэрэглэгч сонгох жагсаалт — нэг удаа
+  // Хэрэглэгч сонгох жагсаалт — нэг удаа (нэмэх эрхтэйд л)
   useEffect(() => {
+    if (!canManage) return;
     listUsers()
       .then((rows) =>
         setUsers(
@@ -90,7 +103,7 @@ export default function GivingTracker({ board }: GivingTrackerProps) {
         )
       )
       .catch((err) => console.error("Хэрэглэгчдийг уншиж чадсангүй:", err));
-  }, []);
+  }, [canManage]);
 
   const listedUids = useMemo(
     () => new Set(people.map((person) => person.uid).filter(Boolean)),
@@ -99,6 +112,7 @@ export default function GivingTracker({ board }: GivingTrackerProps) {
   const userChoices = users.filter((user) => !listedUids.has(user.uid));
 
   const toggle = async (person: GivingPerson, month: number) => {
+    if (readOnly) return;
     const key = monthKey(year, month);
     const given = !(marks.get(person.id)?.has(key) ?? false);
 
@@ -191,6 +205,7 @@ export default function GivingTracker({ board }: GivingTrackerProps) {
           </button>
         </div>
 
+        {canManage && (
         <form onSubmit={add} className="ml-auto flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg border border-gray-200 p-0.5 text-theme-xs dark:border-white/10">
             {(
@@ -249,6 +264,7 @@ export default function GivingTracker({ board }: GivingTrackerProps) {
             Нэмэх
           </button>
         </form>
+        )}
       </div>
 
       {error && (
@@ -307,6 +323,11 @@ export default function GivingTracker({ board }: GivingTrackerProps) {
                           Системд бүртгэлгүй
                         </span>
                       )}
+                      {person.inAimag && (
+                        <span className="text-theme-xs font-normal text-gray-400">
+                          Хангамжийн аймаг
+                        </span>
+                      )}
                     </td>
 
                     {MONTHS.map((month) => {
@@ -318,8 +339,9 @@ export default function GivingTracker({ board }: GivingTrackerProps) {
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggle(person, month)}
-                            aria-label={`${person.name} — ${year} оны ${month}-р сар ${checked ? "өргөсөн" : "өргөөгүй"}`}
-                            className="h-5 w-5 cursor-pointer accent-success-600"
+                            disabled={readOnly}
+                            aria-label={`${person.name} — ${year} оны ${month}-р сар ${checked ? doneWord : notDoneWord}`}
+                            className="h-5 w-5 cursor-pointer accent-success-600 disabled:cursor-default"
                           />
                         </td>
                       );
@@ -329,6 +351,8 @@ export default function GivingTracker({ board }: GivingTrackerProps) {
                       {count}/12
                     </td>
                     <td className="px-1 py-2 text-center">
+                      {/* Аймгийн гишүүн хасагдвал дахин автоматаар орох тул товчгүй */}
+                      {canManage && !person.inAimag && (
                       <button
                         type="button"
                         onClick={() => remove(person)}
@@ -337,6 +361,7 @@ export default function GivingTracker({ board }: GivingTrackerProps) {
                       >
                         <Trash2 className="h-4 w-4" strokeWidth={1.8} />
                       </button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -346,7 +371,7 @@ export default function GivingTracker({ board }: GivingTrackerProps) {
             <tfoot>
               <tr className="border-t border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/[0.03]">
                 <td className="sticky left-0 z-10 bg-gray-50 px-3 py-2 text-theme-xs font-semibold text-gray-600 dark:bg-gray-900 dark:text-gray-400">
-                  Өргөсөн хүн
+                  {isDiscipline ? "Төлсөн хүн" : "Өргөсөн хүн"}
                 </td>
                 {monthTotals.map((total, index) => (
                   <td

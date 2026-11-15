@@ -2,6 +2,12 @@ import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
+import {
+  DISCIPLINE_AIMAG,
+  DISCIPLINE_BOARD,
+  requireDisciplineViewer,
+  syncDisciplineMembers,
+} from "@/lib/api/discipline";
 import { db } from "@/lib/db";
 import { givingMarks, givingPeople, users } from "@/lib/db/schema";
 
@@ -10,8 +16,8 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** tithe — 1/10 ба өргөл, land — Газрын 1/10 */
-const BOARDS = new Set(["tithe", "land"]);
+/** tithe — 1/10 ба өргөл, land — Газрын 1/10, discipline — Сахилгажуулалт */
+const BOARDS = new Set(["tithe", "land", DISCIPLINE_BOARD]);
 
 const readBoard = (value: unknown) =>
   typeof value === "string" && BOARDS.has(value) ? value : null;
@@ -21,20 +27,28 @@ const readBoard = (value: unknown) =>
  * сарууд. Зөвхөн админ (хэн хэдэн сард өргөсөн нь хувийн мэдээлэл).
  */
 export async function GET(request: NextRequest) {
-  const result = await requireAdmin(request);
-  if ("error" in result) return result.error;
-
   const params = request.nextUrl.searchParams;
   const board = readBoard(params.get("board"));
   const year = Number(params.get("year"));
 
   if (!board) return badRequest("board буруу байна.");
+
+  // Сахилгажуулалтыг админаас гадна сонгогдсон чагтлагч ч харна
+  const result =
+    board === DISCIPLINE_BOARD
+      ? await requireDisciplineViewer(request)
+      : await requireAdmin(request);
+  if ("error" in result) return result.error;
+
   if (!Number.isInteger(year) || year < 2000 || year > 2100) {
     return badRequest("year буруу байна.");
   }
 
   try {
-    const people = await db
+    // Сахилгажуулалт: Хангамжийн аймгийн гишүүд жагсаалтад өөрөө орно
+    if (board === DISCIPLINE_BOARD) await syncDisciplineMembers(result.caller.uid);
+
+    const rows = await db
       .select({
         id: givingPeople.id,
         uid: givingPeople.uid,
@@ -42,11 +56,19 @@ export async function GET(request: NextRequest) {
         firstName: users.firstName,
         lastName: users.lastName,
         position: givingPeople.position,
+        aimags: users.aimags,
       })
       .from(givingPeople)
       .leftJoin(users, eq(givingPeople.uid, users.uid))
       .where(eq(givingPeople.board, board))
       .orderBy(asc(givingPeople.position), asc(givingPeople.createdAt));
+
+    // `inAimag` — аймгаас автоматаар орсон тул хасах боломжгүй (дахин орно)
+    const people = rows.map(({ aimags, ...row }) => ({
+      ...row,
+      inAimag:
+        board === DISCIPLINE_BOARD && Array.isArray(aimags) && aimags.includes(DISCIPLINE_AIMAG),
+    }));
 
     const marks =
       people.length > 0

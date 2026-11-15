@@ -13,7 +13,17 @@ export type CampaignInput = {
   active?: boolean;
   position?: number;
   featured?: boolean;
+  /** Сар бүрийнх: сарын хэдэнд сануулах (1-28) */
+  notifyDay?: number;
+  /** Сар бүрийнх: сануулах цаг HH:mm */
+  notifyTime?: string;
 };
+
+/**
+ * Засвар хийхэд зөвшөөрлийг дахин шаардах талбарууд — гишүүдэд харагдах
+ * агуулга. Эрэмбэ, онцлох, нээх/хаах, сануулгын цаг нь хамаарахгүй.
+ */
+export const CONTENT_FIELDS = ["title", "kind", "purpose", "targetAmount", "memoPrefix", "endsOn"] as const;
 
 type Parsed = { ok: true; value: CampaignInput } | { ok: false; error: string };
 
@@ -98,6 +108,21 @@ export function readCampaign(body: unknown, partial: boolean): Parsed {
       return { ok: false, error: "featured нь true/false байна." };
     }
     value.featured = input.featured;
+  }
+
+  if (input.notifyDay !== undefined) {
+    const day = input.notifyDay;
+    if (typeof day !== "number" || !Number.isInteger(day) || day < 1 || day > 28) {
+      return { ok: false, error: "Сануулах өдөр 1-28 байна." };
+    }
+    value.notifyDay = day;
+  }
+
+  if (input.notifyTime !== undefined) {
+    if (typeof input.notifyTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(input.notifyTime)) {
+      return { ok: false, error: "Сануулах цаг HH:mm хэлбэртэй байна." };
+    }
+    value.notifyTime = input.notifyTime;
   }
 
   if (input.active !== undefined) {

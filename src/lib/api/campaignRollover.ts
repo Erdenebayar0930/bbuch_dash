@@ -57,6 +57,16 @@ export async function rollOverMonthlyCampaigns(): Promise<void> {
           seriesId: row.seriesId ?? row.id,
           position: row.position,
           featured: row.featured,
+          // Цуврал нэг удаа зөвшөөрөгдсөн бол дараагийн сар дахин хүлээхгүй;
+          // зарласан мэдэгдэл ч дахин явахгүй — зөвхөн сарын сануулга
+          status: row.status,
+          reviewNote: row.reviewNote,
+          reviewedBy: row.reviewedBy,
+          reviewedAt: row.reviewedAt,
+          announcedAt: row.announcedAt,
+          notifyDay: row.notifyDay,
+          notifyTime: row.notifyTime,
+          lastNotifiedPeriod: "",
           active: true,
           createdBy: row.createdBy,
         })

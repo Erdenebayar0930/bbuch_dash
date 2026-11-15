@@ -844,6 +844,11 @@ export const donationCampaigns = pgTable(
     id: uuidPk(),
     /** Хандивын зорилго — аяны нэр */
     title: varchar("title", { length: 255 }).notNull(),
+    /**
+     * Аль хуудасных: donation — Санхүү → Хандив, alms — Санхүү → Өглөг.
+     * Хоёр жагсаалт тусдаа; Өглөг нь үргэлж нэг удаагийнх.
+     */
+    board: varchar("board", { length: 16 }).notNull().default("donation"),
     /** monthly — Сар бүр, once — Нэг удаа. Дууссан нь `active = false` */
     kind: varchar("kind", { length: 16 }).notNull().default("once"),
     /**
@@ -868,12 +873,31 @@ export const donationCampaigns = pgTable(
     endsOn: varchar("ends_on", { length: 10 }).notNull().default(""),
     /** false бол дууссан — жагсаалтын доод хэсэгт */
     active: boolean("active").notNull().default(true),
+    /**
+     * Зөвшөөрлийн төлөв: pending — хүлээгдэж буй, approved — зөвшөөрсөн
+     * (гишүүдэд харагдана), changes — өөрчлүүлэхээр буцаасан.
+     * @see lib/api/campaignReview.ts
+     */
+    status: varchar("status", { length: 16 }).notNull().default("pending"),
+    /** Өөрчлүүлэх үеийн зөвшөөрөгчийн тайлбар */
+    reviewNote: bodyText("review_note"),
+    reviewedBy: uidCol("reviewed_by"),
+    reviewedAt: utcTimestamp("reviewed_at"),
+    /** Зарласан мэдэгдэл анх явсан хугацаа — дахин зөвшөөрөхөд давхар явуулахгүй */
+    announcedAt: utcTimestamp("announced_at"),
+    /** Сар бүрийнх: сарын хэдэнд сануулах (1-28) */
+    notifyDay: integer("notify_day").notNull().default(1),
+    /** Сар бүрийнх: сануулах цаг, HH:mm Улаанбаатарын цагаар */
+    notifyTime: varchar("notify_time", { length: 5 }).notNull().default("09:00"),
+    /** Сар бүрийнх: сануулга сүүлд явсан сар (YYYY-MM) — сард нэг л удаа */
+    lastNotifiedPeriod: varchar("last_notified_period", { length: 7 }).notNull().default(""),
     createdBy: uidCol("created_by"),
     createdAt: utcTimestamp("created_at").notNull().defaultNow(),
     updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
     index("donation_campaigns_active_idx").on(table.active, table.createdAt),
+    index("donation_campaigns_board_idx").on(table.board),
     // Нэг цувралд нэг сард нэг л мөр — зэрэг хүсэлт давхар үүсгэхгүй
     uniqueIndex("donation_campaigns_series_period_idx").on(table.seriesId, table.period),
   ]

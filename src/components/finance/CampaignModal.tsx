@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 
 import { Modal } from "@/components/ui/modal";
+import { campaignBoards, type CampaignBoardKey } from "@/data/campaignBoards";
 import {
   createCampaign,
   updateCampaign,
@@ -18,6 +19,8 @@ type CampaignModalProps = {
   campaign: Campaign | null;
   onClose: () => void;
   onSaved: (campaign: Campaign) => void;
+  /** Хандив эсвэл Өглөг — Өглөг нь зөвхөн нэг удаагийнх */
+  board?: CampaignBoardKey;
 };
 
 const fieldClass =
@@ -36,7 +39,11 @@ const empty: CampaignInput = {
   memoPrefix: "",
   endsOn: "",
   active: true,
+  notifyDay: 1,
+  notifyTime: "09:00",
 };
+
+const DAYS = Array.from({ length: 28 }, (_, index) => index + 1);
 
 /** Хандивын аян нээх / засах цонх — зөвхөн админ. */
 export default function CampaignModal({
@@ -44,7 +51,10 @@ export default function CampaignModal({
   campaign,
   onClose,
   onSaved,
+  board = "donation",
 }: CampaignModalProps) {
+  const info = campaignBoards[board];
+  const Genitive = info.genitive.charAt(0).toUpperCase() + info.genitive.slice(1);
   const [form, setForm] = useState<CampaignInput>(empty);
   /** Зорилтот дүнтэй эсэх — заавал биш */
   const [hasTarget, setHasTarget] = useState(false);
@@ -55,17 +65,26 @@ export default function CampaignModal({
     if (!isOpen) return;
     setError(null);
     if (campaign) {
-      const { id: _id, createdAt: _createdAt, period: _period, ...rest } = campaign;
+      const {
+        id: _id,
+        createdAt: _createdAt,
+        period: _period,
+        status: _status,
+        reviewNote: _reviewNote,
+        ...rest
+      } = campaign;
       void _id;
       void _createdAt;
       void _period;
+      void _status;
+      void _reviewNote;
       setForm(rest);
       setHasTarget(campaign.targetAmount !== null);
     } else {
-      setForm(empty);
+      setForm(info.onceOnly ? { ...empty, kind: "once" } : empty);
       setHasTarget(false);
     }
-  }, [isOpen, campaign]);
+  }, [isOpen, campaign, info.onceOnly]);
 
   const set = <K extends keyof CampaignInput>(key: K, value: CampaignInput[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -73,7 +92,7 @@ export default function CampaignModal({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!form.title.trim()) return setError("Хандивын зорилгоо оруулна уу.");
+    if (!form.title.trim()) return setError(`${Genitive} зорилгоо оруулна уу.`);
     if (hasTarget && !form.targetAmount) return setError("Зорилтот дүнгээ оруулна уу.");
 
     const input = { ...form, targetAmount: hasTarget ? form.targetAmount : null };
@@ -83,7 +102,7 @@ export default function CampaignModal({
     try {
       const saved = campaign
         ? await updateCampaign(campaign.id, input)
-        : await createCampaign(input);
+        : await createCampaign(input, board);
       onSaved(saved);
       onClose();
     } catch (err) {
@@ -97,10 +116,11 @@ export default function CampaignModal({
     <Modal isOpen={isOpen} onClose={onClose} className="max-w-lg p-0">
       <form onSubmit={handleSubmit} className="p-5">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          {campaign ? "Хандив засах" : "Хандив зарлах"}
+          {campaign ? `${info.title} засах` : info.create}
         </h3>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {!info.onceOnly && (
           <div className="sm:col-span-2">
             <p className={labelClass}>Төрөл</p>
             <div className="flex gap-2">
@@ -121,10 +141,11 @@ export default function CampaignModal({
               ))}
             </div>
           </div>
+          )}
 
           <div className="sm:col-span-2">
             <label htmlFor="campaign-title" className={labelClass}>
-              Хандивын зорилго <span className="text-error-500">*</span>
+              {Genitive} зорилго <span className="text-error-500">*</span>
             </label>
             <input
               id="campaign-title"
@@ -190,7 +211,7 @@ export default function CampaignModal({
               className={fieldClass}
             />
             <p className="mt-1 text-theme-xs text-gray-400">
-              Хоосон бол хандивын зорилго. Ард нь өргөж буй хүний нэр залгагдана.
+              Хоосон бол {info.genitive} зорилго. Ард нь өгч буй хүний нэр залгагдана.
             </p>
           </div>
 
@@ -208,7 +229,43 @@ export default function CampaignModal({
               />
             </div>
           )}
+
+          {form.kind === "monthly" && (
+            <div className="sm:col-span-2">
+              <p className={labelClass}>Сар бүрийн сануулга</p>
+              <div className="flex flex-wrap items-center gap-2 text-theme-sm text-gray-600 dark:text-gray-300">
+                Сар бүрийн
+                <select
+                  value={form.notifyDay}
+                  onChange={(event) => set("notifyDay", Number(event.target.value))}
+                  aria-label="Сануулах өдөр"
+                  className={`${fieldClass} w-20`}
+                >
+                  {DAYS.map((day) => (
+                    <option key={day} value={day}>
+                      {day}
+                    </option>
+                  ))}
+                </select>
+                -нд
+                <input
+                  type="time"
+                  value={form.notifyTime}
+                  onChange={(event) => set("notifyTime", event.target.value || "09:00")}
+                  aria-label="Сануулах цаг"
+                  className={`${fieldClass} w-32`}
+                />
+                цагт бүх гишүүнд мэдэгдэл очно
+              </div>
+            </div>
+          )}
         </div>
+
+        <p className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-theme-xs text-gray-500 dark:bg-white/5 dark:text-gray-400">
+          {campaign
+            ? "Зорилго, тайлбар, дүн зэргийг өөрчилбөл дахин зөвшөөрөл хүлээнэ."
+            : "Зөвшөөрөгч зөвшөөрсний дараа гишүүдэд харагдаж, бүгдэд мэдэгдэл очно."}
+        </p>
 
         {error && (
           <p className="mt-4 rounded-lg bg-error-50 px-4 py-3 text-theme-sm text-error-600 dark:bg-error-500/10 dark:text-error-400">

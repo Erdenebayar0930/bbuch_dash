@@ -2,12 +2,23 @@
 
 import { apiFetch } from "./apiClient";
 
+import type { CampaignBoardKey } from "@/data/campaignBoards";
+
 /** Хандивын төрөл */
 export type CampaignKind = "monthly" | "once";
 
 export const campaignKindLabels: Record<CampaignKind, string> = {
   monthly: "Сар бүр",
   once: "Нэг удаа",
+};
+
+/** Зөвшөөрлийн төлөв */
+export type CampaignStatus = "pending" | "approved" | "changes";
+
+export const campaignStatusLabels: Record<CampaignStatus, string> = {
+  pending: "Зөвшөөрөл хүлээж буй",
+  approved: "Зөвшөөрсөн",
+  changes: "Өөрчлүүлэх",
 };
 
 /** Хандивын аян (Санхүү → Хандив) */
@@ -31,13 +42,25 @@ export type Campaign = {
   /** YYYY-MM-DD, хоосон бол заагаагүй */
   endsOn: string;
   active: boolean;
+  /** Зөвшөөрлийн төлөв — гишүүдэд зөвхөн approved ирнэ */
+  status: CampaignStatus;
+  /** Өөрчлүүлэх үеийн зөвшөөрөгчийн тайлбар */
+  reviewNote: string;
+  /** Сар бүрийнх: сарын хэдэнд сануулах (1-28) */
+  notifyDay: number;
+  /** Сар бүрийнх: сануулах цаг HH:mm */
+  notifyTime: string;
   createdAt: Date;
 };
 
-export type CampaignInput = Omit<Campaign, "id" | "createdAt" | "period">;
+export type CampaignInput = Omit<
+  Campaign,
+  "id" | "createdAt" | "period" | "status" | "reviewNote"
+>;
 
-type CampaignRow = Omit<Campaign, "createdAt" | "kind"> & {
+type CampaignRow = Omit<Campaign, "createdAt" | "kind" | "status"> & {
   kind: string;
+  status: string;
   createdAt: string;
 };
 
@@ -50,18 +73,56 @@ const toCampaign = (row: CampaignRow): Campaign => ({
   purpose: row.purpose ?? "",
   memoPrefix: row.memoPrefix ?? "",
   endsOn: row.endsOn ?? "",
+  status: row.status === "pending" || row.status === "changes" ? row.status : "approved",
+  reviewNote: row.reviewNote ?? "",
+  notifyDay: row.notifyDay ?? 1,
+  notifyTime: row.notifyTime ?? "09:00",
   createdAt: new Date(row.createdAt),
 });
 
-export async function listCampaigns(): Promise<Campaign[]> {
-  const data = await apiFetch<{ campaigns: CampaignRow[] }>("/api/campaigns");
-  return data.campaigns.map(toCampaign);
+/** Жагсаалт ба дуудагч зөвшөөрөх эрхтэй эсэх — `board`: Хандив эсвэл Өглөг */
+export async function listCampaigns(
+  board: CampaignBoardKey = "donation"
+): Promise<{ campaigns: Campaign[]; canApprove: boolean }> {
+  const data = await apiFetch<{ campaigns: CampaignRow[]; canApprove?: boolean }>(
+    `/api/campaigns?board=${board}`
+  );
+  return { campaigns: data.campaigns.map(toCampaign), canApprove: data.canApprove ?? false };
 }
 
-export async function createCampaign(input: CampaignInput): Promise<Campaign> {
+/** Зөвшөөрөх эсвэл өөрчлүүлэхээр буцаана */
+export async function reviewCampaign(
+  id: string,
+  review: { action: "approve" } | { action: "changes"; note: string }
+): Promise<Campaign> {
+  const data = await apiFetch<{ campaign: CampaignRow }>(`/api/campaigns/${id}/review`, {
+    method: "POST",
+    body: review,
+  });
+  return toCampaign(data.campaign);
+}
+
+/** Хандив зөвшөөрөх эрхтэй хүмүүс — зөвхөн админ */
+export async function loadApprovers(): Promise<string[]> {
+  const data = await apiFetch<{ uids: string[] }>("/api/campaigns/approvers");
+  return data.uids;
+}
+
+export async function saveApprovers(uids: string[]): Promise<string[]> {
+  const data = await apiFetch<{ uids: string[] }>("/api/campaigns/approvers", {
+    method: "PUT",
+    body: { uids },
+  });
+  return data.uids;
+}
+
+export async function createCampaign(
+  input: CampaignInput,
+  board: CampaignBoardKey = "donation"
+): Promise<Campaign> {
   const data = await apiFetch<{ campaign: CampaignRow }>("/api/campaigns", {
     method: "POST",
-    body: input,
+    body: { ...input, board },
   });
   return toCampaign(data.campaign);
 }

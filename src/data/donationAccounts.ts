@@ -82,6 +82,16 @@ export const CAMPAIGN_ACCOUNT = {
   isTithe: false,
 } as const;
 
+/**
+ * Сахилгажуулалт (Санхүү → Хангамж) — Хангамжийн аймгийнхан сар бүр төлөх данс.
+ */
+export const DISCIPLINE_ACCOUNT = {
+  title: "Сахилгажуулалт",
+  number: "MN410034197912186977",
+  bank: "state",
+  holder: "Мөнгөнцэцэг",
+} as const;
+
 /** Хоосон бааз дээр нэг удаа суух данснууд */
 export const seedDonationAccounts = [
   LAND_TITHE_ACCOUNT,

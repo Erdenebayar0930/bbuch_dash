@@ -1,13 +1,16 @@
-import { asc, desc, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
   badRequest,
+  isAdminRole,
   requireActiveUser,
   requireAdmin,
   serverError,
 } from "@/lib/api/auth";
+import { isCampaignBoard } from "@/data/campaignBoards";
 import { readCampaign } from "@/lib/api/campaignInput";
+import { canApprove, notifyApprovers, readApprovers } from "@/lib/api/campaignReview";
 import { currentPeriod, rollOverMonthlyCampaigns } from "@/lib/api/campaignRollover";
 import { db } from "@/lib/db";
 import { donationCampaigns } from "@/lib/db/schema";
@@ -21,24 +24,41 @@ export const dynamic = "force-dynamic";
  * Хандивын аянууд — нээлттэй ба дууссан бүгд («Дууссан» табд гишүүд ч
  * харна). Өмнөх сарын сар бүрийн хандивыг эхлээд шинэ сар руу шилжүүлнэ.
  * Эрэмбэ: онцлох → админы эрэмбэ → шинэ нь.
+ *
+ * Гишүүд зөвхөн зөвшөөрсөн хандивыг харна; админ ба зөвшөөрөгч бүгдийг.
+ * `canApprove` нь дуудагч зөвшөөрөх товч харах эсэх.
  */
 export async function GET(request: NextRequest) {
   const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
 
+  // ?board=alms — Өглөг; бусад үед Хандив
+  const boardParam = request.nextUrl.searchParams.get("board");
+  const board = isCampaignBoard(boardParam) ? boardParam : "donation";
+
   try {
     await rollOverMonthlyCampaigns();
+
+    const approvers = await readApprovers();
+    const approver = canApprove(result.caller, approvers);
+    const seesAll = approver || isAdminRole(result.caller.user?.role);
 
     const rows = await db
       .select()
       .from(donationCampaigns)
+      .where(
+        and(
+          eq(donationCampaigns.board, board),
+          seesAll ? undefined : eq(donationCampaigns.status, "approved")
+        )
+      )
       .orderBy(
         desc(donationCampaigns.featured),
         asc(donationCampaigns.position),
         desc(donationCampaigns.createdAt)
       );
 
-    return NextResponse.json({ campaigns: rows });
+    return NextResponse.json({ campaigns: rows, canApprove: approver });
   } catch (error) {
     return serverError(error, "Хандивын мэдээлэл уншихад алдаа гарлаа");
   }
@@ -50,10 +70,13 @@ export async function POST(request: NextRequest) {
   if ("error" in result) return result.error;
 
   try {
-    const parsed = readCampaign(await request.json().catch(() => ({})), false);
+    const body = await request.json().catch(() => ({}));
+    const parsed = readCampaign(body, false);
     if (!parsed.ok) return badRequest(parsed.error);
 
-    const input = parsed.value;
+    const board = isCampaignBoard(body?.board) ? body.board : "donation";
+    // Өглөг нь үргэлж нэг удаагийнх
+    const input = board === "alms" ? { ...parsed.value, kind: "once" as const } : parsed.value;
     const monthly = input.kind === "monthly";
 
     // Шинэ нь жагсаалтын төгсгөлд
@@ -73,9 +96,14 @@ export async function POST(request: NextRequest) {
         period: monthly ? currentPeriod() : "",
         seriesId: monthly ? id : null,
         endsOn: monthly ? "" : (input.endsOn ?? ""),
+        board,
+        // Зөвшөөрөгч зөвшөөртөл гишүүдэд харагдахгүй
+        status: "pending",
         createdBy: result.caller.uid,
       })
       .returning();
+
+    await notifyApprovers(created, false);
 
     return NextResponse.json({ campaign: created });
   } catch (error) {

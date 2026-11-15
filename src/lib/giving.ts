@@ -2,8 +2,8 @@
 
 import { apiFetch } from "./apiClient";
 
-/** tithe — 1/10 ба өргөл, land — Газрын 1/10 */
-export type GivingBoard = "tithe" | "land";
+/** tithe — 1/10 ба өргөл, land — Газрын 1/10, discipline — Сахилгажуулалт */
+export type GivingBoard = "tithe" | "land" | "discipline";
 
 export type GivingPerson = {
   id: string;
@@ -11,6 +11,8 @@ export type GivingPerson = {
   uid: string | null;
   /** Харуулах нэр — хэрэглэгчийн одоогийн нэр, эсвэл хадгалсан нэр */
   name: string;
+  /** Аймгаас автоматаар орсон (Сахилгажуулалт) — хасах боломжгүй */
+  inAimag: boolean;
 };
 
 type PersonRow = {
@@ -19,7 +21,46 @@ type PersonRow = {
   name: string;
   firstName: string | null;
   lastName: string | null;
+  inAimag?: boolean;
 };
+
+export type DisciplineInfo = {
+  /** Сар бүрийн дүн (төгрөг) */
+  amount: number;
+  /** Чагтлагч — сонгоогүй бол null */
+  checker: { uid: string; name: string } | null;
+  /** Дуудагч чагтлаж болох эсэх */
+  canCheck: boolean;
+  /** Дуудагч төлөлтийн хүснэгтийг харж болох эсэх */
+  canView: boolean;
+};
+
+export async function loadDiscipline(): Promise<DisciplineInfo> {
+  const data = await apiFetch<{
+    amount: number;
+    checker: { uid: string; firstName: string | null; lastName: string | null } | null;
+    canCheck: boolean;
+    canView: boolean;
+  }>("/api/discipline");
+  return {
+    ...data,
+    checker: data.checker
+      ? {
+          uid: data.checker.uid,
+          name:
+            [data.checker.lastName, data.checker.firstName].filter(Boolean).join(" ") || "Нэргүй",
+        }
+      : null,
+  };
+}
+
+/** Дүн ба/эсвэл чагтлагчийг солино — зөвхөн админ */
+export async function saveDiscipline(patch: {
+  amount?: number;
+  checkerUid?: string;
+}): Promise<void> {
+  await apiFetch("/api/discipline", { method: "PATCH", body: patch });
+}
 
 /** Жагсаалт ба тухайн жилийн өргөсөн сарууд (`personId` → {"YYYY-MM"}) */
 export async function loadGiving(
@@ -39,6 +80,7 @@ export async function loadGiving(
       row.uid && (row.firstName || row.lastName)
         ? [row.lastName, row.firstName].filter(Boolean).join(" ")
         : row.name,
+    inAimag: row.inAimag ?? false,
   }));
 
   const marks = new Map<string, Set<string>>();

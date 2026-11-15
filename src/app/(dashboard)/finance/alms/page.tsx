@@ -1,13 +1,27 @@
 import { Metadata } from "next";
 
-import ComingSoon from "@/components/dashboard/ComingSoon";
+import CampaignBoard from "@/components/finance/CampaignBoard";
 
 export const metadata: Metadata = {
   title: "Өглөг | ББУЧ",
-  description: "Өглөгийн бүртгэл",
+  description: "Нэг удаагийн өглөгүүд",
 };
 
-/** Санхүү → Өглөг. Агуулга нь хараахан тодорхойгүй (цэс нь зөвхөн админд). */
+/**
+ * Санхүү → Өглөг. Хандивтай ижил бүтэцтэй (зөвшөөрөл, мэдэгдэл, эрэмбэ)
+ * боловч тусдаа жагсаалт, үргэлж нэг удаагийнх. Табууд: Идэвхтэй | Дууссан.
+ */
 export default function FinanceAlmsPage() {
-  return <ComingSoon title="Өглөг" description="Өглөгийн бүртгэл" />;
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Өглөг</h1>
+        <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
+          Нэг удаагийн өглөг — данс, гүйлгээний утгаа хуулж өгнө
+        </p>
+      </div>
+
+      <CampaignBoard board="alms" />
+    </div>
+  );
 }

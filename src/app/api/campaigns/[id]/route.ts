@@ -2,7 +2,8 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
-import { readCampaign } from "@/lib/api/campaignInput";
+import { CONTENT_FIELDS, readCampaign } from "@/lib/api/campaignInput";
+import { notifyApprovers } from "@/lib/api/campaignReview";
 import { currentPeriod } from "@/lib/api/campaignRollover";
 import { db } from "@/lib/db";
 import { donationCampaigns } from "@/lib/db/schema";
@@ -34,13 +35,26 @@ export async function PATCH(
     // Төрөл солигдвол сарын хугацааг тааруулна: сар бүрийнх болбол одоогийн
     // сараас эхэлж цуврал болно, нэг удаагийнх болбол сар хамаарахгүй
     const patch: Partial<typeof donationCampaigns.$inferInsert> = { ...parsed.value };
+
+    const [current] = await db
+      .select()
+      .from(donationCampaigns)
+      .where(eq(donationCampaigns.id, id))
+      .limit(1);
+    if (!current) return notFound();
+    if (current.board === "alms" && parsed.value.kind === "monthly") {
+      return badRequest("Өглөг нь нэг удаагийнх байна.");
+    }
+
+    // Гишүүдэд харагдах агуулга өөрчлөгдвөл дахин зөвшөөрөл хүлээнэ
+    const contentChanged = CONTENT_FIELDS.some(
+      (field) => field in parsed.value && parsed.value[field] !== current[field]
+    );
+    const needsReview = contentChanged && current.status !== "pending";
+    if (needsReview) patch.status = "pending";
+
     if (parsed.value.kind === "monthly") {
-      const [current] = await db
-        .select({ period: donationCampaigns.period, seriesId: donationCampaigns.seriesId })
-        .from(donationCampaigns)
-        .where(eq(donationCampaigns.id, id))
-        .limit(1);
-      if (current && !current.period) {
+      if (!current.period) {
         patch.period = currentPeriod();
         patch.seriesId = current.seriesId ?? id;
         patch.endsOn = "";
@@ -57,6 +71,7 @@ export async function PATCH(
       .returning();
 
     if (!updated) return notFound();
+    if (needsReview) await notifyApprovers(updated, true);
     return NextResponse.json({ campaign: updated });
   } catch (error) {
     return serverError(error, "Хандив засахад алдаа гарлаа");

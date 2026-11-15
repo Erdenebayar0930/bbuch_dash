@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
+import { DISCIPLINE_BOARD, requireDisciplineChecker } from "@/lib/api/discipline";
 import { db } from "@/lib/db";
 import { givingMarks, givingPeople } from "@/lib/db/schema";
 
@@ -22,23 +23,28 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(request);
-  if ("error" in result) return result.error;
-
   const { id } = await context.params;
+
+  // Аль жагсаалтынх болохоос эрх хамаарна — эхлээд board-ыг олно
+  const [person] = await db
+    .select({ id: givingPeople.id, board: givingPeople.board })
+    .from(givingPeople)
+    .where(eq(givingPeople.id, id))
+    .limit(1);
+
+  // Сахилгажуулалтыг зөвхөн сонгогдсон чагтлагч тэмдэглэнэ
+  const result =
+    person?.board === DISCIPLINE_BOARD
+      ? await requireDisciplineChecker(request)
+      : await requireAdmin(request);
+  if ("error" in result) return result.error;
+  if (!person) return notFound();
 
   try {
     const body = await request.json().catch(() => ({}));
     const month = typeof body.month === "string" ? body.month : "";
     if (!MONTH.test(month)) return badRequest("Сар YYYY-MM хэлбэртэй байна.");
     if (typeof body.given !== "boolean") return badRequest("given нь true/false байна.");
-
-    const [person] = await db
-      .select({ id: givingPeople.id })
-      .from(givingPeople)
-      .where(eq(givingPeople.id, id))
-      .limit(1);
-    if (!person) return notFound();
 
     if (body.given) {
       await db
