@@ -292,7 +292,7 @@ export default function CampaignBoard() {
         {campaign.active && (
           <div className="flex items-center justify-center gap-2 bg-error-600 px-4 py-2.5 text-theme-sm font-bold uppercase tracking-wide text-white">
             <HeartHandshake className="h-4 w-4" strokeWidth={2.2} />
-            Өргөл өргөх
+            Хандив өргөх
           </div>
         )}
       </article>
