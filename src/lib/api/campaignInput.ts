@@ -1,7 +1,11 @@
 import "server-only";
 
+/** Хандивын төрөл */
+export const CAMPAIGN_KINDS = ["target", "monthly", "once"] as const;
+
 export type CampaignInput = {
   title?: string;
+  kind?: (typeof CAMPAIGN_KINDS)[number];
   purpose?: string;
   targetAmount?: number | null;
   memoPrefix?: string;
@@ -48,6 +52,13 @@ export function readCampaign(body: unknown, partial: boolean): Parsed {
   ] as const) {
     const error = text(key, max, label);
     if (error) return { ok: false, error };
+  }
+
+  if (input.kind !== undefined) {
+    if (!(CAMPAIGN_KINDS as readonly unknown[]).includes(input.kind)) {
+      return { ok: false, error: "Хандивын төрөл буруу байна." };
+    }
+    value.kind = input.kind as CampaignInput["kind"];
   }
 
   if (input.targetAmount !== undefined) {

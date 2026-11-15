@@ -2,9 +2,19 @@
 
 import { apiFetch } from "./apiClient";
 
+/** Хандивын төрөл */
+export type CampaignKind = "target" | "monthly" | "once";
+
+export const campaignKindLabels: Record<CampaignKind, string> = {
+  target: "Зорилтот",
+  monthly: "Сар бүр",
+  once: "Нэг удаа",
+};
+
 /** Хандивын аян (Санхүү → Хандив) */
 export type Campaign = {
   id: string;
+  kind: CampaignKind;
   /** Хандивын зорилго */
   title: string;
   /** Тайлбар */
@@ -25,6 +35,7 @@ type CampaignRow = Omit<Campaign, "createdAt"> & { createdAt: string };
 
 const toCampaign = (row: CampaignRow): Campaign => ({
   ...row,
+  kind: row.kind === "monthly" || row.kind === "once" ? row.kind : "target",
   purpose: row.purpose ?? "",
   memoPrefix: row.memoPrefix ?? "",
   endsOn: row.endsOn ?? "",

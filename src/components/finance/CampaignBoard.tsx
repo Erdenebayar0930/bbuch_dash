@@ -19,6 +19,7 @@ import CampaignModal from "@/components/finance/CampaignModal";
 import { systemName } from "@/components/finance/TitheAccountCard";
 import { CAMPAIGN_ACCOUNT, bankLabel, formatAccountNumber } from "@/data/donationAccounts";
 import {
+  campaignKindLabels,
   deleteCampaign,
   listCampaigns,
   updateCampaign,
@@ -191,6 +192,9 @@ export default function CampaignBoard() {
               {campaign.title}
             </h2>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-full bg-gray-900 px-2 py-0.5 text-theme-xs font-semibold text-white dark:bg-white dark:text-gray-900">
+                {campaignKindLabels[campaign.kind]}
+              </span>
               {campaign.targetAmount !== null && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-accent-600/10 px-2 py-0.5 text-theme-xs font-semibold text-accent-700 dark:text-accent-300">
                   <Target className="h-3 w-3" strokeWidth={2} />

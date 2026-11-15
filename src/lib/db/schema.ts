@@ -844,6 +844,8 @@ export const donationCampaigns = pgTable(
     id: uuidPk(),
     /** Хандивын зорилго — аяны нэр */
     title: varchar("title", { length: 255 }).notNull(),
+    /** target — Зорилтот, monthly — Сар бүр, once — Нэг удаа */
+    kind: varchar("kind", { length: 16 }).notNull().default("target"),
     /** Тайлбар */
     purpose: bodyText("purpose"),
     /** Зорилтот дүн, ₮ — хоосон бол тогтсон дүнгүй */
