@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/auth";
 import { aimags, isValidOption } from "@/data/profileOptions";
 import { syncUserClaims } from "@/lib/api/claims";
+import { notifyUsers } from "@/lib/api/notify";
 import { db } from "@/lib/db";
 import { adminAuth } from "@/lib/firebaseAdmin";
 import {
@@ -27,6 +28,7 @@ import {
   canAssignGroups,
   canChangeRole,
   canChangeStatus,
+  isAdminRole,
   keepsLastSuper,
   type Permission,
   type Target,
@@ -315,6 +317,32 @@ export async function PATCH(
         role: asRole(updated.role),
         status: (updated.status ?? "pending") as UserStatus,
       });
+    }
+
+    // Мэдэгдэл илгээх эрх өөрчлөгдвөл тэр хүнд шууд мэдэгдэнэ. Push ирмэгц
+    // клиент профайлаа дахин уншдаг тул цэс нь 60 секундын шалгалтыг
+    // хүлээлгүй тэр даруй шинэчлэгдэнэ. Админд эрх нь үргэлж нээлттэй тул
+    // түүнд мэдэгдэх утгагүй.
+    if (
+      updated &&
+      patch.canNotify !== undefined &&
+      patch.canNotify !== (targetRow.canNotify ?? false) &&
+      !isAdminRole(asRole(updated.role))
+    ) {
+      await notifyUsers(
+        [updated.uid],
+        updated.canNotify
+          ? {
+              title: "Мэдэгдэл илгээх эрх нээгдлээ",
+              body: "Та одоо аймаг эсвэл тодорхой хүн рүү мэдэгдэл илгээж болно.",
+              url: "/admin/notifications",
+            }
+          : {
+              title: "Мэдэгдэл илгээх эрх хаагдлаа",
+              body: "Таны мэдэгдэл илгээх эрхийг админ хаалаа.",
+            },
+        actor.uid
+      );
     }
 
     return NextResponse.json({ user: updated });

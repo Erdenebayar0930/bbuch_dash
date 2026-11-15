@@ -6,6 +6,7 @@ import { onAuthStateChanged } from "firebase/auth";
 
 import { refreshClaimsIfStale } from "@/lib/claims";
 import { auth } from "@/lib/firebase";
+import { NOTIFICATION_RECEIVED_EVENT } from "@/lib/notifications";
 import { isAdminRole } from "@/lib/permissions";
 import { forceSignOut, signOutCompletely } from "@/lib/session";
 import { ensureCurrentUserProfile, getCurrentUser } from "@/lib/users";
@@ -205,6 +206,10 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
     };
     document.addEventListener("visibilitychange", onVisible);
 
+    // Мэдэгдэл ирэхэд шууд шалгана — админ эрх нээх/хаахад серверээс мэдэгдэл
+    // илгээдэг тул цэс нь 60 секундыг хүлээлгүй тэр даруй шинэчлэгдэнэ
+    window.addEventListener(NOTIFICATION_RECEIVED_EVENT, validate);
+
     // Нэг хуудсан дээр удаан сууж байхад ч эрхийн өөрчлөлт барина
     const timer = window.setInterval(validate, REVALIDATE_MS);
 
@@ -230,6 +235,7 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
     return () => {
       unsub();
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener(NOTIFICATION_RECEIVED_EVENT, validate);
       window.clearInterval(timer);
       window.clearTimeout(watchdog);
     };

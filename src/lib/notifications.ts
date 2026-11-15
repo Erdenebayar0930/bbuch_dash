@@ -85,3 +85,18 @@ export function setupForegroundNotifications(
     });
   });
 }
+
+/**
+ * Шинэ мэдэгдэл ирснийг апп доторх бусад хэсэгт дамжуулах үйл явдал.
+ *
+ * Firebase-ийн `onMessage` нь НЭГ л сонсогч хадгалдаг (дараагийнх нь өмнөхийг
+ * дарна) тул AdminGuard өөрөө бүртгүүлж чадахгүй — NotificationDropdown энэ
+ * үйл явдлыг цацаж, AdminGuard профайлаа дахин уншина. Ингэснээр админ эрх
+ * нээх/хаахад цэс нь 60 секундын шалгалтыг хүлээлгүй шууд шинэчлэгдэнэ.
+ */
+export const NOTIFICATION_RECEIVED_EVENT = "app:notification-received";
+
+export function announceNotificationReceived() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(NOTIFICATION_RECEIVED_EVENT));
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 
@@ -13,7 +13,10 @@ import {
   markRead,
   type InboxNotification,
 } from "@/lib/inbox";
-import { setupForegroundNotifications } from "@/lib/notifications";
+import {
+  announceNotificationReceived,
+  setupForegroundNotifications,
+} from "@/lib/notifications";
 
 const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
   month: "short",
@@ -29,6 +32,13 @@ export default function NotificationDropdown() {
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  /**
+   * Сүүлд харсан хамгийн шинэ мэдэгдлийн id. Push хүрэхгүй төхөөрөмж дээр
+   * (зөвшөөрөл өгөөгүй г.м.) шинэ мэдэгдлийг үечилсэн татлагаар л мэднэ —
+   * тэр үед ч эрхийн өөрчлөлтийг AdminGuard-д дамжуулна.
+   */
+  const newestId = useRef<string | null>(null);
+
   /** Серверээс мэдэгдлүүдийг татна — жинхэнэ эх сурвалж нь DB */
   const load = useCallback(async () => {
     if (!auth.currentUser) return;
@@ -39,6 +49,12 @@ export default function NotificationDropdown() {
       const inbox = await fetchInbox();
       setItems(inbox.notifications);
       setUnread(inbox.unread);
+
+      const newest = inbox.notifications[0]?.id ?? null;
+      if (newestId.current !== null && newest !== null && newest !== newestId.current) {
+        announceNotificationReceived();
+      }
+      if (newest !== null) newestId.current = newest;
     } catch (error) {
       console.error("Мэдэгдэл татахад алдаа гарлаа:", error);
     } finally {
@@ -50,6 +66,8 @@ export default function NotificationDropdown() {
     // Push ирвэл жагсаалтыг шинэчилнэ (мөр нь серверт аль хэдийн үүссэн)
     const unsubscribe = setupForegroundNotifications(() => {
       load();
+      // Эрх нээгдсэн/хаагдсан мэдэгдэл байж болно — профайлаа шууд шалгуулна
+      announceNotificationReceived();
     });
 
     // Апп нээлттэй байхад бусад төхөөрөмжөөс ирсэн мэдэгдлийг барина
