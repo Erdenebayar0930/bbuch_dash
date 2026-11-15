@@ -1,6 +1,7 @@
 import {
   Baby,
   Bell,
+  BookOpen,
   Boxes,
   CalendarClock,
   ClipboardList,
@@ -77,6 +78,14 @@ function planMenu(aimag: string): NavItem {
 }
 
 /**
+ * «Сайн мэдээ» — Харуул, Магтаал, Агуу захирамжийн аймагт. Бүртгэл нь нэг
+ * л сан (@see data/gospelOptions.ts), зөвхөн зам нь тухайн аймгийнх.
+ */
+function gospelMenu(aimag: string): NavItem {
+  return { name: "Сайн мэдээ", path: `/aimag/${aimag}/gospel`, icon: BookOpen };
+}
+
+/**
  * Үндсэн цэс — хажуугийн самбар болон breadcrumb хоёулаа эндээс уншина.
  *
  * Аймгийн цэсүүд нь profileOptions.aimags-ийн дараалалтай нийцнэ: тэнд заасан
@@ -92,6 +101,7 @@ export const navItems: NavItem[] = [
     children: [
       planMenu("guard"),
       { name: "Газрын зураг", path: "/aimag/guard/map", icon: MapPin },
+      gospelMenu("guard"),
       tahiltMenu("guard"),
     ],
   },
@@ -107,6 +117,7 @@ export const navItems: NavItem[] = [
         path: "/aimag/praise/assets",
         icon: Boxes,
       },
+      gospelMenu("praise"),
       tahiltMenu("praise"),
     ],
   },
@@ -132,6 +143,7 @@ export const navItems: NavItem[] = [
         path: "/aimag/commission/schedule",
         icon: CalendarClock,
       },
+      gospelMenu("commission"),
       tahiltMenu("commission"),
     ],
   },
