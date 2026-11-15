@@ -14,17 +14,8 @@ export const isGospelAimag = (value: unknown): value is GospelAimag =>
   typeof value === "string" &&
   (gospelAimags as readonly string[]).includes(value);
 
-/** Сайн мэдээ сонссон хүний хариу */
-export const gospelResponses = ["accepted", "interested", "declined"] as const;
+/** Төрсөн оны доод хязгаар — дээд нь тухайн жил */
+export const MIN_BIRTH_YEAR = 1900;
 
-export type GospelResponse = (typeof gospelResponses)[number];
-
-export const gospelResponseLabels: Record<GospelResponse, string> = {
-  accepted: "Хүлээн авсан",
-  interested: "Сонирхсон",
-  declined: "Татгалзсан",
-};
-
-export const isGospelResponse = (value: unknown): value is GospelResponse =>
-  typeof value === "string" &&
-  (gospelResponses as readonly string[]).includes(value);
+/** Бүртгэлийн зургийн дээд хэмжээ — storage.rules-тэй ижил байлгана */
+export const MAX_GOSPEL_PHOTO_BYTES = 10 * 1024 * 1024;

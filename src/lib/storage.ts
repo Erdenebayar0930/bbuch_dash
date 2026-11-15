@@ -263,3 +263,41 @@ export async function deleteFeedbackImage(path: string): Promise<void> {
     if (code !== "storage/object-not-found") throw error;
   }
 }
+
+// ---------------------------------------------------------------------------
+// «Сайн мэдээ» бүртгэлийн зураг — бүртгэж буй хэрэглэгчийн хавтас руу
+// ---------------------------------------------------------------------------
+
+/** Бүртгэлийн зургийг `gospel/{uid}/` руу байршуулна. */
+export async function uploadGospelPhoto(
+  uid: string,
+  file: File
+): Promise<UploadedImage> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Зөвхөн зураг оруулах боломжтой.");
+  }
+  if (file.size > MAX_FEEDBACK_IMAGE_BYTES) {
+    throw new Error("Зургийн хэмжээ 10MB-аас хэтэрч болохгүй.");
+  }
+
+  const path = `gospel/${uid}/${crypto.randomUUID()}.${extensionOf(file)}`;
+  const snapshot = await uploadBytes(ref(storage, path), file, {
+    contentType: file.type,
+    cacheControl: "public, max-age=31536000",
+  });
+
+  return { url: await getDownloadURL(snapshot.ref), path };
+}
+
+/**
+ * Бүртгэлийн зургийг устгана. Байхгүй эсвэл эрхгүй бол чимээгүй алгасна —
+ * бүртгэл аль хэдийн хадгалагдсан тул үлдсэн файл нь зөвхөн хог.
+ */
+export async function deleteGospelPhoto(path: string): Promise<void> {
+  if (!path) return;
+  try {
+    await deleteObject(ref(storage, path));
+  } catch (error) {
+    console.warn("Сайн мэдээний зургийг устгаж чадсангүй:", error);
+  }
+}

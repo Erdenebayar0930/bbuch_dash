@@ -162,6 +162,19 @@ export const navItems: NavItem[] = [
       tahiltMenu("service"),
     ],
   },
+  {
+    // Аймгуудтай адил үйлчлэлийн нэгж — profileOptions.aimags дахь "tahilt"
+    // харьяалалтай гишүүд (ба админ) харна. Халамж нь аймгуудын Тахилт доорхтой
+    // нэг л сан.
+    name: "Тахилт",
+    path: "/tahilt",
+    icon: HandCoins,
+    aimag: "tahilt",
+    children: [
+      { name: "Төлөвлөгөө", path: "/tahilt/plan", icon: ClipboardList },
+      { name: "Халамж", path: "/tahilt/welfare", icon: HandHeart },
+    ],
+  },
   { name: "Мэдэгдэл илгээх", path: "/admin/notifications", icon: Bell, notifierOnly: true },
   { name: "Хэрэглэгчид", path: "/users", icon: Users, adminOnly: true },
   {

@@ -9,7 +9,11 @@ import {
   requireAimag,
   serverError,
 } from "@/lib/api/auth";
-import { gospelSelection, readGospelContact } from "@/lib/api/gospelInput";
+import {
+  checkContactArea,
+  gospelSelection,
+  readGospelContact,
+} from "@/lib/api/gospelInput";
 import { db } from "@/lib/db";
 import { gospelContacts, users } from "@/lib/db/schema";
 import { isAdminRole } from "@/lib/permissions";
@@ -35,7 +39,7 @@ export async function PATCH(
 
   try {
     const [existing] = await db
-      .select({ sharedBy: gospelContacts.sharedBy })
+      .select({ sharedBy: gospelContacts.sharedBy, photoPath: gospelContacts.photoPath })
       .from(gospelContacts)
       .where(eq(gospelContacts.id, id))
       .limit(1);
@@ -45,13 +49,21 @@ export async function PATCH(
       return forbidden("Зөвхөн өөрийн бүртгэлээ засна.");
     }
 
-    const parsed = readGospelContact(await request.json().catch(() => ({})), true);
+    const parsed = readGospelContact(await request.json().catch(() => ({})), true, {
+      uid: caller.uid,
+      currentPath: existing.photoPath || undefined,
+    });
     if (!parsed.ok) return badRequest(parsed.error);
     if (Object.keys(parsed.value).length === 0) {
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
     const { aimag } = parsed.value;
+
+    if (parsed.value.areaId) {
+      const areaError = await checkContactArea(parsed.value.areaId);
+      if (areaError) return badRequest(areaError);
+    }
     if (aimag && !isAdmin && !(caller.user?.aimags ?? []).includes(aimag)) {
       return forbidden("Зөвхөн өөрийн аймгийн нэрээр бүртгэнэ.");
     }

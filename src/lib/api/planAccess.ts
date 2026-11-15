@@ -126,10 +126,15 @@ export async function readTaskRow(id: string) {
   return row ?? null;
 }
 
-/** Мэдэгдлээс очих хуудас — нэг аймгийнх бол тэр аймгийн, үгүй бол Харуулын */
+/**
+ * Мэдэгдлээс очих хуудас — нэг аймгийнх бол тэр аймгийн, үгүй бол Харуулын.
+ * Тахилт нь `/aimag/` доор биш, өөрийн `/tahilt/plan` замтай.
+ */
 export const planUrl = (aimags: string[] | null) =>
   aimags && aimags.length === 1
-    ? `/aimag/${aimags[0]}/plan`
+    ? aimags[0] === "tahilt"
+      ? "/tahilt/plan"
+      : `/aimag/${aimags[0]}/plan`
     : "/aimag/guard/plan";
 
 /**

@@ -1,24 +1,55 @@
 import "server-only";
 
-import { isGospelAimag, isGospelResponse } from "@/data/gospelOptions";
+import { eq } from "drizzle-orm";
+
+import { isGospelAimag, MIN_BIRTH_YEAR } from "@/data/gospelOptions";
 import { genders, isValidOption } from "@/data/profileOptions";
-import { gospelContacts, users } from "@/lib/db/schema";
+import { db } from "@/lib/db";
+import { gospelAreas, gospelContacts, users } from "@/lib/db/schema";
 
 export type GospelInput = {
   name?: string;
   phone?: string;
   gender?: string;
-  age?: number;
+  birthYear?: number;
   address?: string;
-  sharedOn?: string;
-  response?: string;
+  holySpiritBaptismDate?: string;
+  waterBaptismDate?: string;
   note?: string;
+  photoUrl?: string;
+  photoPath?: string;
   aimag?: string;
+  areaId?: string;
 };
 
 type Parsed = { ok: true; value: GospelInput } | { ok: false; error: string };
 
-const isDate = (value: string) => {
+type PhotoContext = {
+  /** Хүсэлт явуулсан хэрэглэгч — шинэ зураг нь түүний хавтаст байх ёстой */
+  uid: string;
+  /** Засвар үед одоо байгаа зургийн зам — өөрчлөхгүй үлдээж болно */
+  currentPath?: string;
+};
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const STORAGE_HOSTS = new Set([
+  "firebasestorage.googleapis.com",
+  "storage.googleapis.com",
+]);
+
+function isStorageUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && STORAGE_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** YYYY-MM-DD эсвэл хоосон (хүлээж аваагүй) */
+const isDateOrEmpty = (value: string) => {
+  if (value === "") return true;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   return !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime());
 };
@@ -26,13 +57,24 @@ const isDate = (value: string) => {
 /** Текст талбар ба түүний дээд урт */
 const TEXT_LIMITS = { name: 255, phone: 32, address: 255, note: 2000 } as const;
 
+const DATE_FIELDS = ["holySpiritBaptismDate", "waterBaptismDate"] as const;
+
+const DATE_LABELS: Record<(typeof DATE_FIELDS)[number], string> = {
+  holySpiritBaptismDate: "Ариун сүнсний баптисмын огноо",
+  waterBaptismDate: "Усан баптисмын огноо",
+};
+
 /**
  * Хүсэлтийн биеийг шалгаж, зөвхөн зөв талбаруудыг буцаана.
  *
- * `partial` үед (засвар) ирээгүй талбарыг алгасна; эс бөгөөс нэр, огноо,
- * аймаг заавал байна.
+ * `partial` үед (засвар) ирээгүй талбарыг алгасна; эс бөгөөс нэр, аймаг,
+ * ангилал заавал байна.
  */
-export function readGospelContact(body: unknown, partial: boolean): Parsed {
+export function readGospelContact(
+  body: unknown,
+  partial: boolean,
+  photo: PhotoContext
+): Parsed {
   if (typeof body !== "object" || body === null) {
     return { ok: false, error: "Хүсэлтийн бие буруу байна." };
   }
@@ -53,7 +95,7 @@ export function readGospelContact(body: unknown, partial: boolean): Parsed {
   }
 
   if (value.name !== undefined && value.name === "") {
-    return { ok: false, error: "Нэрээ оруулна уу." };
+    return { ok: false, error: "Овог нэрээ оруулна уу." };
   }
 
   if (input.gender !== undefined) {
@@ -66,26 +108,66 @@ export function readGospelContact(body: unknown, partial: boolean): Parsed {
     value.gender = input.gender;
   }
 
-  if (input.age !== undefined) {
-    const age = input.age;
-    if (typeof age !== "number" || !Number.isInteger(age) || age < 0 || age > 120) {
-      return { ok: false, error: "Нас 0-120 хооронд бүхэл тоо байна." };
+  if (input.birthYear !== undefined) {
+    const year = input.birthYear;
+    const thisYear = new Date().getFullYear();
+    if (
+      typeof year !== "number" ||
+      !Number.isInteger(year) ||
+      (year !== 0 && (year < MIN_BIRTH_YEAR || year > thisYear))
+    ) {
+      return {
+        ok: false,
+        error: `Төрсөн он ${MIN_BIRTH_YEAR}-${thisYear} хооронд байна.`,
+      };
     }
-    value.age = age;
+    value.birthYear = year;
   }
 
-  if (input.sharedOn !== undefined) {
-    if (typeof input.sharedOn !== "string" || !isDate(input.sharedOn)) {
-      return { ok: false, error: "Огноо YYYY-MM-DD хэлбэртэй байна." };
+  for (const key of DATE_FIELDS) {
+    const raw = input[key];
+    if (raw === undefined) continue;
+    if (typeof raw !== "string" || !isDateOrEmpty(raw)) {
+      return { ok: false, error: `${DATE_LABELS[key]} YYYY-MM-DD хэлбэртэй байна.` };
     }
-    value.sharedOn = input.sharedOn;
+    value[key] = raw;
   }
 
-  if (input.response !== undefined) {
-    if (!isGospelResponse(input.response)) {
-      return { ok: false, error: "Хариу буруу байна." };
+  // Зураг: url ба зам хамт ирнэ. Хоёулаа хоосон = зураггүй. Шинэ зураг нь
+  // ЗӨВХӨН илгээгчийн хавтаст байна — өөр хүний файлыг холбож, дараа нь
+  // устгуулахаас сэргийлнэ. Засварт хуучин зургаа хэвээр үлдээж болно.
+  if (input.photoUrl !== undefined || input.photoPath !== undefined) {
+    const url = input.photoUrl;
+    const path = input.photoPath;
+
+    if (typeof url !== "string" || typeof path !== "string") {
+      return { ok: false, error: "Зургийн мэдээлэл буруу байна." };
     }
-    value.response = input.response;
+
+    if (url !== "" || path !== "") {
+      const ownFolder = path.startsWith(`gospel/${photo.uid}/`);
+      const unchanged = !!photo.currentPath && path === photo.currentPath;
+
+      if (
+        !isStorageUrl(url) ||
+        path.includes("..") ||
+        path.length > 512 ||
+        url.length > 1024 ||
+        !(ownFolder || unchanged)
+      ) {
+        return { ok: false, error: "Зургийн мэдээлэл буруу байна." };
+      }
+    }
+
+    value.photoUrl = url;
+    value.photoPath = path;
+  }
+
+  if (input.areaId !== undefined) {
+    if (typeof input.areaId !== "string" || !UUID.test(input.areaId)) {
+      return { ok: false, error: "Ангилал буруу байна." };
+    }
+    value.areaId = input.areaId;
   }
 
   if (input.aimag !== undefined) {
@@ -94,28 +176,60 @@ export function readGospelContact(body: unknown, partial: boolean): Parsed {
   }
 
   if (!partial) {
-    if (!value.name) return { ok: false, error: "Нэрээ оруулна уу." };
-    if (!value.sharedOn) return { ok: false, error: "Огноогоо оруулна уу." };
+    if (!value.name) return { ok: false, error: "Овог нэрээ оруулна уу." };
     if (!value.aimag) return { ok: false, error: "Аймгаа заана уу." };
+    if (!value.areaId) return { ok: false, error: "Ангиллаа сонгоно уу." };
   }
 
   return { ok: true, value };
 }
 
-/** Хүргэсэн гишүүний нэртэй хамт уншина — жагсаалт ба засварын хариунд */
+/** Бүртгэгчийн нэртэй хамт уншина — жагсаалт ба засварын хариунд */
 export const gospelSelection = {
   id: gospelContacts.id,
   name: gospelContacts.name,
   phone: gospelContacts.phone,
   gender: gospelContacts.gender,
-  age: gospelContacts.age,
+  birthYear: gospelContacts.birthYear,
   address: gospelContacts.address,
+  holySpiritBaptismDate: gospelContacts.holySpiritBaptismDate,
+  waterBaptismDate: gospelContacts.waterBaptismDate,
   sharedOn: gospelContacts.sharedOn,
-  response: gospelContacts.response,
   note: gospelContacts.note,
+  photoUrl: gospelContacts.photoUrl,
+  photoPath: gospelContacts.photoPath,
   aimag: gospelContacts.aimag,
+  areaId: gospelContacts.areaId,
   sharedBy: gospelContacts.sharedBy,
   sharedByFirstName: users.firstName,
   sharedByLastName: users.lastName,
   createdAt: gospelContacts.createdAt,
 };
+
+/** Улаанбаатарын өнөөдөр, YYYY-MM-DD — бүртгэсэн өдөр */
+export const todayInUlaanbaatar = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ulaanbaatar" }).format(
+    new Date()
+  );
+
+/**
+ * Бүртгэл хавсаргаж болох ангилал мөн эсэх — байх ёстой бөгөөд задаргаатай
+ * табыг шууд сонгохгүй (задаргааных нь аль нэгийг сонгоно).
+ */
+export async function checkContactArea(areaId: string): Promise<string | null> {
+  const [area] = await db
+    .select({ id: gospelAreas.id })
+    .from(gospelAreas)
+    .where(eq(gospelAreas.id, areaId))
+    .limit(1);
+
+  if (!area) return "Ангилал олдсонгүй.";
+
+  const [child] = await db
+    .select({ id: gospelAreas.id })
+    .from(gospelAreas)
+    .where(eq(gospelAreas.parentId, areaId))
+    .limit(1);
+
+  return child ? "Задаргааны аль нэгийг сонгоно уу." : null;
+}

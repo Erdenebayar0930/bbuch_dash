@@ -3,7 +3,12 @@ import { NextResponse } from "next/server";
 
 import { gospelAimags } from "@/data/gospelOptions";
 import { badRequest, forbidden, requireAimag, serverError } from "@/lib/api/auth";
-import { gospelSelection, readGospelContact } from "@/lib/api/gospelInput";
+import {
+  checkContactArea,
+  gospelSelection,
+  readGospelContact,
+  todayInUlaanbaatar,
+} from "@/lib/api/gospelInput";
 import { db } from "@/lib/db";
 import { gospelContacts, users } from "@/lib/db/schema";
 import { isAdminRole } from "@/lib/permissions";
@@ -44,10 +49,16 @@ export async function POST(request: NextRequest) {
   const { caller } = result;
 
   try {
-    const parsed = readGospelContact(await request.json().catch(() => ({})), false);
+    const parsed = readGospelContact(await request.json().catch(() => ({})), false, {
+      uid: caller.uid,
+    });
     if (!parsed.ok) return badRequest(parsed.error);
 
     const input = parsed.value;
+
+    const areaError = await checkContactArea(input.areaId as string);
+    if (areaError) return badRequest(areaError);
+
     const aimag = input.aimag as string;
 
     if (
@@ -62,7 +73,9 @@ export async function POST(request: NextRequest) {
       .values({
         ...input,
         name: input.name as string,
-        sharedOn: input.sharedOn as string,
+        // Бүртгэсэн өдөр — клиентээс авахгүй, сервер өөрөө оноодог
+        sharedOn: todayInUlaanbaatar(),
+        areaId: input.areaId as string,
         aimag,
         sharedBy: caller.uid,
       })

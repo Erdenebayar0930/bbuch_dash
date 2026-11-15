@@ -903,6 +903,30 @@ export const feedback = pgTable(
 );
 
 /**
+ * «Сайн мэдээ»-ний ангилал — хоёр түвшинтэй мод.
+ *
+ *  • `parentId` хоосон мөр = ТАБ (УБ хотын, ОУ-ын, Хөдөө орон нутгийн г.м.)
+ *  • `parentId` заасан мөр = тухайн табын ЗАДАРГАА (чиглэл, сум г.м.)
+ *
+ * Админ нэмж, нэрийг нь засаж, хасна. Бүртгэлтэй ангиллыг устгахгүй —
+ * `gospel_contacts.area_id` нь `restrict` тул сан өөрөө ч хамгаална.
+ */
+export const gospelAreas = pgTable(
+  "gospel_areas",
+  {
+    id: uuidPk(),
+    parentId: uuidRef("parent_id").references((): AnyPgColumn => gospelAreas.id, {
+      onDelete: "cascade",
+    }),
+    name: varchar("name", { length: 255 }).notNull(),
+    /** Дэлгэцэнд гарах дараалал — бага нь түрүүнд */
+    position: integer("position").notNull().default(0),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [index("gospel_areas_parent_idx").on(table.parentId)]
+);
+
+/**
  * «Сайн мэдээ» хүргэсэн хүмүүсийн бүртгэл — Харуул, Магтаал, Агуу захирамжийн
  * аймаг НЭГ санг хамтран хөтөлнө (@see data/gospelOptions.ts).
  *
@@ -913,19 +937,32 @@ export const gospelContacts = pgTable(
   "gospel_contacts",
   {
     id: uuidPk(),
-    /** Сайн мэдээ сонссон хүний нэр */
+    /** Сайн мэдээ хүлээн авсан хүний овог нэр — нэг талбарт */
     name: varchar("name", { length: 255 }).notNull(),
     phone: varchar("phone", { length: 32 }).notNull().default(""),
     /** male | female | "" */
     gender: varchar("gender", { length: 16 }).notNull().default(""),
-    /** Нас — 0 бол тодорхойгүй */
-    age: integer("age").notNull().default(0),
+    /** Төрсөн он — 0 бол тодорхойгүй */
+    birthYear: integer("birth_year").notNull().default(0),
     address: varchar("address", { length: 255 }).notNull().default(""),
-    /** Хүргэсэн өдөр, YYYY-MM-DD */
+    /** YYYY-MM-DD, хоосон бол хүлээж аваагүй */
+    holySpiritBaptismDate: varchar("holy_spirit_baptism_date", { length: 10 })
+      .notNull()
+      .default(""),
+    waterBaptismDate: varchar("water_baptism_date", { length: 10 })
+      .notNull()
+      .default(""),
+    /** Бүртгэсэн өдөр, YYYY-MM-DD (Улаанбаатарын цагаар) — сервер оноодог */
     sharedOn: varchar("shared_on", { length: 10 }).notNull(),
-    /** accepted | interested | declined */
-    response: varchar("response", { length: 16 }).notNull().default("interested"),
     note: bodyText("note"),
+    /** Firebase Storage дахь зураг — хоосон бол зураггүй */
+    photoUrl: varchar("photo_url", { length: 1024 }).notNull().default(""),
+    /** Storage доторх зам (`gospel/{uid}/...`) — солих/устгахад */
+    photoPath: varchar("photo_path", { length: 512 }).notNull().default(""),
+    /** Таб эсвэл түүний задаргаа (@see gospelAreas) */
+    areaId: uuidRef("area_id")
+      .notNull()
+      .references(() => gospelAreas.id, { onDelete: "restrict" }),
     /** Бүртгэсэн аймаг — guard | praise | commission */
     aimag: varchar("aimag", { length: 64 }).notNull(),
     /** Сайн мэдээ хүргэсэн (бүртгэсэн) гишүүн */
@@ -938,6 +975,7 @@ export const gospelContacts = pgTable(
   (table) => [
     index("gospel_contacts_shared_on_idx").on(table.sharedOn),
     index("gospel_contacts_shared_by_idx").on(table.sharedBy),
+    index("gospel_contacts_area_idx").on(table.areaId),
   ]
 );
 
@@ -1077,5 +1115,6 @@ export type DonationAccountRow = typeof donationAccounts.$inferSelect;
 export type HandbookDocumentRow = typeof handbookDocuments.$inferSelect;
 export type FeedbackRow = typeof feedback.$inferSelect;
 export type GospelContactRow = typeof gospelContacts.$inferSelect;
+export type GospelAreaRow = typeof gospelAreas.$inferSelect;
 export type GuardPointRow = typeof guardPoints.$inferSelect;
 export type GuardPointVisitRow = typeof guardPointVisits.$inferSelect;
