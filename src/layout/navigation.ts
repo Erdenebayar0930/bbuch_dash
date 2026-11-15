@@ -119,7 +119,7 @@ export const navItems: NavItem[] = [
       { name: "1/10 ба өргөл", path: "/finance/allocation", icon: Coins },
       { name: "Газрын 1/10", path: "/finance/land-tithe", icon: Wheat },
       { name: "Хангамж", path: "/finance/supply", icon: Package, adminOnly: true },
-      { name: "Хандив", path: "/finance/donations", icon: Gift, adminOnly: true },
+      { name: "Хандив", path: "/finance/donations", icon: Gift },
       { name: "Өглөг", path: "/finance/alms", icon: HandHeart, adminOnly: true },
     ],
   },

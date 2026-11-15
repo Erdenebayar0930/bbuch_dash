@@ -800,6 +800,110 @@ export const donationBoxVisits = pgTable(
 );
 
 /**
+ * Чуулганы хангамж — орж ирсэн мөнгө ба эд зүйлсийн бүртгэл (Санхүү →
+ * Хангамж → Чуулганы хангамж). Жишээ нь «Портер авах» зориулалтаар орсон
+ * мөнгө, эсвэл хандивласан «Портер машин». Зөвхөн админ бүртгэнэ.
+ */
+export const churchSupplies = pgTable(
+  "church_supplies",
+  {
+    id: uuidPk(),
+    /** money | item */
+    kind: varchar("kind", { length: 16 }).notNull(),
+    /** Юу — «Мөнгө», «Портер машин», «Сандал» г.м. */
+    title: varchar("title", { length: 255 }).notNull(),
+    /** Зориулалт — «Портер авах» г.м. Хоосон бол ерөнхий */
+    purpose: varchar("purpose", { length: 255 }).notNull().default(""),
+    /** Мөнгө бол дүн, эд зүйл бол үнэлгээ (₮). Хоосон бол үнэлээгүй */
+    amount: integer("amount"),
+    /** Эд зүйлийн тоо ширхэг — мөнгөнд 1 */
+    quantity: integer("quantity").notNull().default(1),
+    /** Хэнээс — хоосон бол заагаагүй */
+    giver: varchar("giver", { length: 255 }).notNull().default(""),
+    /** Орж ирсэн өдөр, YYYY-MM-DD */
+    receivedOn: varchar("received_on", { length: 10 }).notNull(),
+    note: bodyText("note"),
+    createdBy: uidCol("created_by"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("church_supplies_received_idx").on(table.receivedOn)]
+);
+
+/**
+ * Хандивын аян — тухайн үед зарладаг хандив (Санхүү → Хандив).
+ *
+ * Бүх хандив нэг данс руу орно (`CAMPAIGN_ACCOUNT`, data/donationAccounts.ts)
+ * тул аян нь данс хадгалахгүй. Зорилтот дүн заавал биш (`targetAmount`
+ * хоосон бол дүнгүй). Админ нээж, хааж (`active`), засна; гишүүд нээлттэйг
+ * нь харж гүйлгээний утгаа хуулна.
+ */
+export const donationCampaigns = pgTable(
+  "donation_campaigns",
+  {
+    id: uuidPk(),
+    /** Хандивын зорилго — аяны нэр */
+    title: varchar("title", { length: 255 }).notNull(),
+    /** Тайлбар */
+    purpose: bodyText("purpose"),
+    /** Зорилтот дүн, ₮ — хоосон бол тогтсон дүнгүй */
+    targetAmount: integer("target_amount"),
+    /** Гүйлгээний утгын эхлэл — хоосон бол аяны нэр. «<эхлэл>-<системийн нэр>» */
+    memoPrefix: varchar("memo_prefix", { length: 64 }).notNull().default(""),
+    /** YYYY-MM-DD, хоосон бол заагаагүй */
+    endsOn: varchar("ends_on", { length: 10 }).notNull().default(""),
+    /** false бол дууссан — жагсаалтын доод хэсэгт */
+    active: boolean("active").notNull().default(true),
+    createdBy: uidCol("created_by"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("donation_campaigns_active_idx").on(table.active, table.createdAt)]
+);
+
+/**
+ * «Өргөж буй байдал» — хэн аль сард өргөсөн эсэхийг админ гараар тэмдэглэнэ.
+ *
+ * `board`: `tithe` — 1/10 ба өргөл, `land` — Газрын 1/10. Хоёр жагсаалт
+ * тусдаа. Хүн нь системийн хэрэглэгч (`uid`) эсвэл чөлөөт нэр (`name`)
+ * байна; хэрэглэгч устсан ч мөр нь нэрээрээ үлдэнэ.
+ */
+export const givingPeople = pgTable(
+  "giving_people",
+  {
+    id: uuidPk(),
+    board: varchar("board", { length: 16 }).notNull(),
+    uid: uidCol("uid").references(() => users.uid, { onDelete: "set null" }),
+    /** Чөлөөт нэр, эсвэл хэрэглэгчийг нэмэх үеийн нэр (устсан үед харуулна) */
+    name: varchar("name", { length: 255 }).notNull(),
+    position: integer("position").notNull().default(0),
+    createdBy: uidCol("created_by"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("giving_people_board_idx").on(table.board, table.position),
+    // Нэг хэрэглэгч нэг жагсаалтад нэг л удаа (uid хоосон бол хамаарахгүй)
+    uniqueIndex("giving_people_board_uid_idx").on(table.board, table.uid),
+  ]
+);
+
+/** Өргөсөн сар — мөр байвал «өргөсөн», байхгүй бол «өргөөгүй». */
+export const givingMarks = pgTable(
+  "giving_marks",
+  {
+    id: uuidPk(),
+    personId: uuidRef("person_id")
+      .notNull()
+      .references(() => givingPeople.id, { onDelete: "cascade" }),
+    /** YYYY-MM */
+    month: varchar("month", { length: 7 }).notNull(),
+    markedBy: uidCol("marked_by"),
+    markedAt: utcTimestamp("marked_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("giving_marks_person_month_idx").on(table.personId, table.month)]
+);
+
+/**
  * Хандив/1-10-ыг хүлээн авах банкны данс — «1/10 ба өргөл» хуудсанд харагдана.
  */
 export const donationAccounts = pgTable(
@@ -1244,6 +1348,9 @@ export type WelfareAidRow = typeof welfareAids.$inferSelect;
 export type DonationAccountRow = typeof donationAccounts.$inferSelect;
 export type HandbookDocumentRow = typeof handbookDocuments.$inferSelect;
 export type FeedbackRow = typeof feedback.$inferSelect;
+export type GivingPersonRow = typeof givingPeople.$inferSelect;
+export type DonationCampaignRow = typeof donationCampaigns.$inferSelect;
+export type ChurchSupplyRow = typeof churchSupplies.$inferSelect;
 export type GospelContactRow = typeof gospelContacts.$inferSelect;
 export type GospelAreaRow = typeof gospelAreas.$inferSelect;
 export type RevelationRow = typeof revelations.$inferSelect;

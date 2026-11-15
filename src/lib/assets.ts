@@ -166,8 +166,15 @@ export async function removeAssetImage(
     { method: "DELETE" }
   );
 
-  const { deleteAssetImageFile } = await import("./storage");
-  await deleteAssetImageFile(image.path);
+  // Бүртгэл аль хэдийн хасагдсан. Файлыг устгах эрх Storage дээр зөвхөн
+  // админд тул Магтаалын гишүүнд энэ алхам бүтэлгүйтэж болно — файл нь хог
+  // болж үлдэнэ, хэрэглэгчид алдаа харуулахгүй.
+  try {
+    const { deleteAssetImageFile } = await import("./storage");
+    await deleteAssetImageFile(image.path);
+  } catch (error) {
+    console.warn("Зургийн файлыг устгаж чадсангүй:", error);
+  }
 }
 
 type CheckRow = {

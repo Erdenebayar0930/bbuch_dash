@@ -6,10 +6,11 @@ import { readAsset } from "@/lib/api/assetInput";
 import {
   badRequest,
   requireActiveUser,
-  requireAdmin,
   requireAimag,
   serverError,
+  isAdminRole,
 } from "@/lib/api/auth";
+import { ASSET_AIMAG, requireAssetEditor } from "@/lib/api/assetAccess";
 import { db } from "@/lib/db";
 import {
   assetCategories,
@@ -128,14 +129,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Шинэ эд хөрөнгө бүртгэнэ (зөвхөн админ). */
+/** Шинэ эд хөрөнгө бүртгэнэ — админ эсвэл Магтаалын аймгийн гишүүн. */
 export async function POST(request: NextRequest) {
-  const result = await requireAdmin(request);
+  const result = await requireAssetEditor(request);
   if ("error" in result) return result.error;
 
   try {
     const parsed = await readAsset(await request.json().catch(() => ({})), false);
     if (!parsed.ok) return badRequest(parsed.error);
+
+    // Админ бус хүний бүртгэсэн хөрөнгө Магтаалын аймагт хамаарна
+    if (!isAdminRole(result.caller.user?.role)) parsed.value.aimag = ASSET_AIMAG;
 
     // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
     const id = crypto.randomUUID();

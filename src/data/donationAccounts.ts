@@ -70,6 +70,18 @@ export const LAND_TITHE_ACCOUNT = {
   isTithe: false,
 } as const;
 
+/**
+ * Хандив (Санхүү → Хандив) өргөх данс — бүх хандивын аян энэ нэг данс руу.
+ * Сан дахь мөрийг (байвал) дугаараар нь олж уншина.
+ */
+export const CAMPAIGN_ACCOUNT = {
+  title: "Зорилтот хандив",
+  number: "MN960034106201877869",
+  bank: "state",
+  holder: "Мөнгөнцэцэг",
+  isTithe: false,
+} as const;
+
 /** Хоосон бааз дээр нэг удаа суух данснууд */
 export const seedDonationAccounts = [
   LAND_TITHE_ACCOUNT,
@@ -88,13 +100,7 @@ export const seedDonationAccounts = [
     holder: "Г.Мөнгөнцэцэг",
     isTithe: false,
   },
-  {
-    title: "Зорилтот хандив",
-    number: "MN960034106201877869",
-    bank: "state",
-    holder: "Г.Мөнгөнцэцэг",
-    isTithe: false,
-  },
+  CAMPAIGN_ACCOUNT,
   {
     title: "Илгээлтийн сан",
     number: "MN290034106201880239",

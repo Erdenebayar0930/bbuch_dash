@@ -2,7 +2,8 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { readAsset } from "@/lib/api/assetInput";
-import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
+import { badRequest, isAdminRole, requireAdmin, serverError } from "@/lib/api/auth";
+import { ASSET_AIMAG, requireAssetEditor } from "@/lib/api/assetAccess";
 import { db } from "@/lib/db";
 import { assets } from "@/lib/db/schema";
 
@@ -11,19 +12,28 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Эд хөрөнгийн бүртгэлийг засна (зөвхөн админ). */
+/** Эд хөрөнгийн бүртгэлийг засна — админ эсвэл Магтаалын аймгийн гишүүн. */
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(request);
-  if ("error" in result) return result.error;
-
   const { id } = await context.params;
+  // Админ эсвэл Магтаалын аймгийн гишүүн (тухайн хөрөнгө Магтаалынх байх)
+  const result = await requireAssetEditor(request, id);
+  if ("error" in result) return result.error;
 
   try {
     const parsed = await readAsset(await request.json().catch(() => ({})), true);
     if (!parsed.ok) return badRequest(parsed.error);
+
+    // Админ бус хүн хөрөнгийг өөр аймаг руу шилжүүлэхгүй
+    if (
+      parsed.value.aimag !== undefined &&
+      parsed.value.aimag !== ASSET_AIMAG &&
+      !isAdminRole(result.caller.user?.role)
+    ) {
+      return badRequest("Эд хөрөнгө Магтаалын аймагт бүртгэлтэй байна.");
+    }
 
     if (Object.keys(parsed.value).length === 0) {
       return badRequest("Өөрчлөх талбар заагаагүй байна.");

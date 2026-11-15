@@ -72,6 +72,11 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
   // (жишээ нь Магтаалын аймаг) удирдана.
   const canManageMeta =
     isAdmin || (!!aimag && (user?.aimags ?? []).includes(aimag));
+  /**
+   * Бүртгэл нэмэх, засах, шалгалт бүртгэх — админ эсвэл тухайн аймгийн
+   * гишүүн (Магтаал). Устгах нь зөвхөн админд.
+   */
+  const canEdit = canManageMeta;
   /** Аймгийн хуудсанд аймаг нь тогтмол тул баганаар давтаж харуулах утгагүй */
   const columnCount = aimag ? 6 : 7;
 
@@ -341,7 +346,7 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
           </button>
         )}
 
-        {isAdmin && (
+        {canEdit && (
           <>
             <button
               type="button"
@@ -603,19 +608,22 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
                       <ClipboardCheck className="h-4 w-4" strokeWidth={1.8} />
                     </button>
 
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditing(asset);
+                          setFormOpen(true);
+                        }}
+                        aria-label={`${asset.name} засах`}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/5"
+                      >
+                        <Pencil className="h-4 w-4" strokeWidth={1.8} />
+                      </button>
+                    )}
+
                     {isAdmin && (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditing(asset);
-                            setFormOpen(true);
-                          }}
-                          aria-label={`${asset.name} засах`}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/5"
-                        >
-                          <Pencil className="h-4 w-4" strokeWidth={1.8} />
-                        </button>
                         <button
                           type="button"
                           disabled={removingId === asset.id}
@@ -658,7 +666,7 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
 
       <AssetCheckModal
         asset={checking}
-        canRecord={isAdmin}
+        canRecord={canEdit}
         onClose={() => setChecking(null)}
         onRecorded={load}
       />

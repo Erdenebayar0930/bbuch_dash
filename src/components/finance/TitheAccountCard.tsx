@@ -41,7 +41,7 @@ type CopyLineProps = {
 };
 
 /** Нэг утга ба түүнийг хуулах товч — нэг мөрөнд */
-function CopyLine({ hint, display, value, mono, copied, onCopy }: CopyLineProps) {
+export function CopyLine({ hint, display, value, mono, copied, onCopy }: CopyLineProps) {
   const text = value ?? display;
 
   return (

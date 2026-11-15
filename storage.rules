@@ -80,11 +80,21 @@ service firebase.storage {
     // бүртгэлд холбох /api/assets/[id]/images route нь аль хэдийн зөвхөн
     // админд нээлттэй байсан тул энэ дүрэм түүнтэй одоо тохирлоо.
     // ------------------------------------------------------------------
+    //
+    // Шинэчлэл: Магтаалын аймгийн гишүүд ч бүртгэл хөтөлдөг болсон. Аймгийг
+    // токен дотор хадгалдаггүй тул энд идэвхтэй хэрэглэгчид ШИНЭ файл үүсгэхийг
+    // л зөвшөөрнө (`resource == null` — бусдын файлыг дарж бичихгүй). Зургийг
+    // бүртгэлд холбох эсэхийг /api/assets/[id]/images (Магтаал/админ) шийднэ.
+    // Устгах нь зөвхөн админд хэвээр.
     match /assets/{assetId}/{fileName} {
       allow read: if signedIn();
-      allow write: if activeAdmin()
-                   && request.resource.size < 10 * 1024 * 1024
-                   && isImage();
+      allow create: if signedIn()
+                    && claim('status') == 'active'
+                    && request.resource.size < 10 * 1024 * 1024
+                    && isImage();
+      allow update: if activeAdmin()
+                    && request.resource.size < 10 * 1024 * 1024
+                    && isImage();
       allow delete: if activeAdmin();
     }
 

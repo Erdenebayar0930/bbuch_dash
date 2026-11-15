@@ -4,9 +4,9 @@ import { NextResponse } from "next/server";
 import {
   badRequest,
   requireActiveUser,
-  requireAdmin,
   serverError,
 } from "@/lib/api/auth";
+import { requireAssetEditor } from "@/lib/api/assetAccess";
 import { db } from "@/lib/db";
 import { assetChecks, assets, users } from "@/lib/db/schema";
 
@@ -62,10 +62,10 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(request);
-  if ("error" in result) return result.error;
-
   const { id } = await context.params;
+  // Админ эсвэл Магтаалын аймгийн гишүүн (тухайн хөрөнгө Магтаалынх байх)
+  const result = await requireAssetEditor(request, id);
+  if ("error" in result) return result.error;
 
   try {
     const body = (await request

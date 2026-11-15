@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Construction } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
+import GivingTracker from "@/components/finance/GivingTracker";
 import StatementImport from "@/components/finance/StatementImport";
 import TitheAccountCard from "@/components/finance/TitheAccountCard";
 import { isAdminRole } from "@/lib/permissions";
@@ -39,8 +40,9 @@ function Placeholder({ title, text }: { title: string; text: string }) {
  *
  * • …-ийн талаар — тайлбар мэдээлэл (агуулга нь хараахан тодорхойгүй)
  * • Өргөх заавар — өргөх данс ба гүйлгээний утгыг хуулах (бүгдэд)
- * • Өргөж буй байдал — зөвхөн админд. 1/10 ба өргөлд банкны хуулгыг уншиж
- *   1/10, өргөлийг ялгана (`StatementImport`); Газрын 1/10-д хараахан бэлэн биш.
+ * • Өргөж буй байдал — зөвхөн админд. Нэрс × сарууд, сар бүр өргөсөн эсэхийг
+ *   чагтална (`GivingTracker`, хуудас бүрт тусдаа жагсаалт). 1/10 ба өргөлд
+ *   доор нь банкны хуулга уншдаг хэсэг (`StatementImport`).
  */
 export default function TitheOfferingTabs({ variant = "tithe" }: TitheOfferingTabsProps) {
   const { user } = useUser();
@@ -92,14 +94,11 @@ export default function TitheOfferingTabs({ variant = "tithe" }: TitheOfferingTa
         {active === "guide" ? (
           <TitheAccountCard variant={variant} />
         ) : active === "giving" ? (
-          variant === "tithe" ? (
-            <StatementImport />
-          ) : (
-            <Placeholder
-              title="Өргөж буй байдал — бэлтгэгдэж байна"
-              text="Газрын 1/10-ийн орлогын бүртгэл энд орно."
-            />
-          )
+          // Сар бүр өргөсөн эсэхийн чагт; 1/10 дээр хуулга уншдаг хэсэг доор нь
+          <div className="flex flex-col gap-5">
+            <GivingTracker board={variant} />
+            {variant === "tithe" && <StatementImport />}
+          </div>
         ) : (
           <Placeholder
             title={`${names.about} — бэлтгэгдэж байна`}

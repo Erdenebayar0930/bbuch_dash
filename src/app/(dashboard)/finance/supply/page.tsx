@@ -1,13 +1,22 @@
 import { Metadata } from "next";
 
-import ComingSoon from "@/components/dashboard/ComingSoon";
+import SupplyTabs from "@/components/finance/SupplyTabs";
 
 export const metadata: Metadata = {
   title: "Хангамж | ББУЧ",
-  description: "Санхүүгийн хангамжийн бүртгэл",
+  description: "Чуулганы хангамж, төсөв",
 };
 
-/** Санхүү → Хангамж. Агуулга нь хараахан тодорхойгүй (цэс нь зөвхөн админд). */
+/**
+ * Санхүү → Хангамж. Табууд: «Хангамжийн талаар», «Чуулганы хангамж» (орж
+ * ирсэн мөнгө, эд зүйлсийн бүртгэл), «Чуулганы төсөв». Цэс нь зөвхөн админд.
+ */
 export default function FinanceSupplyPage() {
-  return <ComingSoon title="Хангамж" description="Санхүүгийн хангамжийн бүртгэл" />;
+  return (
+    <div className="flex flex-col gap-5">
+      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Хангамж</h1>
+
+      <SupplyTabs />
+    </div>
+  );
 }
