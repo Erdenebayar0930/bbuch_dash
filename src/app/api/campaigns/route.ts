@@ -75,6 +75,9 @@ export async function POST(request: NextRequest) {
     if (!parsed.ok) return badRequest(parsed.error);
 
     const board = isCampaignBoard(body?.board) ? body.board : "donation";
+    if (board === "alms" && !parsed.value.accountNumber) {
+      return badRequest("Дансны дугаараа оруулна уу.");
+    }
     // Өглөг нь үргэлж нэг удаагийнх
     const input = board === "alms" ? { ...parsed.value, kind: "once" as const } : parsed.value;
     const monthly = input.kind === "monthly";

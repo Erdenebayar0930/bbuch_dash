@@ -107,7 +107,7 @@ function gospelMenu(aimag: string): NavItem {
  * дараалал нь UI-д ямар эрэмбээр гарахыг тодорхойлдог.
  */
 export const navItems: NavItem[] = [
-  { name: "Үндсэн цэс", path: "/", icon: LayoutGrid },
+  { name: "Нүүр", path: "/", icon: LayoutGrid },
   {
     // Аймгуудын дээр. «1/10 ба өргөл» нь бүгдэд — гишүүд өргөх данс, гүйлгээний
     // утгаа эндээс хуулна (хуулга уншдаг таб нь хуудас дотроо зөвхөн админд).
@@ -283,7 +283,7 @@ export type Shortcut = NavItem & {
 /**
  * Үндсэн хуудсанд гаргах холбоосууд.
  *
- * Эцэг цэс өөрөө хуудасгүй тул хүүхдүүд нь орно. "Үндсэн цэс" өөрөө орохгүй.
+ * Эцэг цэс өөрөө хуудасгүй тул хүүхдүүд нь орно. "Нүүр" өөрөө орохгүй.
  * Нэг зам хоёр цэст орсон бол (жишээ нь /map) эхнийх нь ялна — картууд
  * давхардахгүй.
  */
@@ -371,5 +371,5 @@ export function getPageTitle(pathname: string): string {
     pathname.startsWith(path)
   );
 
-  return extra ? extraTitles[extra] : "Үндсэн цэс";
+  return extra ? extraTitles[extra] : "Нүүр";
 }

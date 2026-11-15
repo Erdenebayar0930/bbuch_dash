@@ -65,7 +65,7 @@ export default function TitheOfferingTabs({ variant = "tithe" }: TitheOfferingTa
       <div
         role="tablist"
         aria-label={names.title}
-        className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-white/10"
+        className="flex flex-wrap gap-x-1 border-b border-gray-200 dark:border-white/10"
       >
         {tabs.map((tab) => {
           const isSelected = tab.key === active;

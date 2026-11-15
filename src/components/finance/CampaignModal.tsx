@@ -37,6 +37,9 @@ const empty: CampaignInput = {
   purpose: "",
   targetAmount: null,
   memoPrefix: "",
+  accountBank: "",
+  accountNumber: "",
+  accountHolder: "",
   endsOn: "",
   active: true,
   notifyDay: 1,
@@ -94,6 +97,9 @@ export default function CampaignModal({
 
     if (!form.title.trim()) return setError(`${Genitive} зорилгоо оруулна уу.`);
     if (hasTarget && !form.targetAmount) return setError("Зорилтот дүнгээ оруулна уу.");
+    if (info.ownAccount && !form.accountNumber.trim()) {
+      return setError("Дансны дугаараа оруулна уу.");
+    }
 
     const input = { ...form, targetAmount: hasTarget ? form.targetAmount : null };
 
@@ -197,6 +203,59 @@ export default function CampaignModal({
               />
             )}
           </div>
+
+          {info.ownAccount && (
+            <>
+              <div>
+                <label htmlFor="campaign-bank" className={labelClass}>
+                  Банк
+                </label>
+                <input
+                  id="campaign-bank"
+                  list="campaign-bank-options"
+                  value={form.accountBank}
+                  onChange={(event) => set("accountBank", event.target.value)}
+                  maxLength={64}
+                  placeholder="Хаан банк"
+                  className={fieldClass}
+                />
+                <datalist id="campaign-bank-options">
+                  <option value="Хаан банк" />
+                  <option value="Төрийн банк" />
+                  <option value="Голомт банк" />
+                  <option value="Худалдаа хөгжлийн банк" />
+                  <option value="Хас банк" />
+                  <option value="Капитрон банк" />
+                </datalist>
+              </div>
+              <div>
+                <label htmlFor="campaign-holder" className={labelClass}>
+                  Данс эзэмшигч
+                </label>
+                <input
+                  id="campaign-holder"
+                  value={form.accountHolder}
+                  onChange={(event) => set("accountHolder", event.target.value)}
+                  maxLength={255}
+                  placeholder="Овог нэр"
+                  className={fieldClass}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="campaign-account" className={labelClass}>
+                  Дансны дугаар <span className="text-error-500">*</span>
+                </label>
+                <input
+                  id="campaign-account"
+                  value={form.accountNumber}
+                  onChange={(event) => set("accountNumber", event.target.value)}
+                  maxLength={64}
+                  placeholder="MN00 0000 0000 0000 0000"
+                  className={`${fieldClass} font-mono`}
+                />
+              </div>
+            </>
+          )}
 
           <div>
             <label htmlFor="campaign-memo" className={labelClass}>

@@ -23,6 +23,12 @@ export type CampaignBoardInfo = {
   cta: string;
   /** Зөвхөн нэг удаагийнх уу (Өглөг) */
   onceOnly: boolean;
+  /** Данс нь аян бүрд гараар оруулагдана уу (Өглөг) — үгүй бол `CAMPAIGN_ACCOUNT` */
+  ownAccount: boolean;
+  /** Нээлттэйн таб — Өглөг: «Өглөг цуглуулах» */
+  openLabel: string;
+  /** Хаагдсаны таб — Хандив: «Дууссан», Өглөг: «Өгсөн» */
+  closedLabel: string;
 };
 
 export const campaignBoards: Record<CampaignBoardKey, CampaignBoardInfo> = {
@@ -36,6 +42,9 @@ export const campaignBoards: Record<CampaignBoardKey, CampaignBoardInfo> = {
     create: "Хандив зарлах",
     cta: "Хандив өргөх",
     onceOnly: false,
+    ownAccount: false,
+    openLabel: "Нэг удаа",
+    closedLabel: "Дууссан",
   },
   alms: {
     noun: "өглөг",
@@ -47,6 +56,9 @@ export const campaignBoards: Record<CampaignBoardKey, CampaignBoardInfo> = {
     create: "Өглөг үүсгэх",
     cta: "Өглөг өгөх",
     onceOnly: true,
+    ownAccount: true,
+    openLabel: "Өглөг цуглуулах",
+    closedLabel: "Өгсөн",
   },
 };
 

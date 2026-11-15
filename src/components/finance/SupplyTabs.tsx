@@ -42,7 +42,7 @@ export default function SupplyTabs() {
       <div
         role="tablist"
         aria-label="Хангамж"
-        className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-white/10"
+        className="flex flex-wrap gap-x-1 border-b border-gray-200 dark:border-white/10"
       >
         {tabs.map((item) => {
           const selected = item.key === active;

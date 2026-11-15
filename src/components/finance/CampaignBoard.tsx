@@ -69,6 +69,8 @@ type CampaignBoardProps = {
 
 export default function CampaignBoard({ board = "donation" }: CampaignBoardProps) {
   const info = campaignBoards[board];
+  /** Хаах товчны нэр — Өглөг: «Өгсөн болгох» */
+  const closeLabel = info.ownAccount ? "Өгсөн болгох" : "Хаах";
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
   const name = systemName(user?.first_name, user?.last_name);
@@ -158,22 +160,24 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
     );
   }
 
-  const approved = campaigns.filter((c) => c.status === "approved");
-  const awaiting = campaigns.filter((c) => c.status !== "approved");
+  // Өглөг дээр зөвшөөрөгдөөгүй нь тусдаа «Хүлээгдэж буй» табд; Хандив дээр
+  // тийм таб байхгүй — төрлийнхөө табд «Зөвшөөрөл хүлээж буй» тэмдэгтэй
+  // харагдана (сервер зөвхөн админ, зөвшөөрөгчид л илгээнэ)
+  const reviewTab = info.onceOnly && (isAdmin || canApprove);
+  const listed = reviewTab ? campaigns.filter((c) => c.status === "approved") : campaigns;
   const tabs = [
     // Өглөг нь нэг удаагийнх тул «Сар бүр» табгүй, нээлттэй нь «Идэвхтэй»
     ...(info.onceOnly
       ? []
-      : [{ key: "monthly" as const, label: "Сар бүр", items: approved.filter((c) => c.active && c.kind === "monthly") }]),
+      : [{ key: "monthly" as const, label: "Сар бүр", items: listed.filter((c) => c.active && c.kind === "monthly") }]),
     {
       key: "once" as const,
-      label: info.onceOnly ? "Идэвхтэй" : "Нэг удаа",
-      items: approved.filter((c) => c.active && (info.onceOnly || c.kind === "once")),
+      label: info.openLabel,
+      items: listed.filter((c) => c.active && (info.onceOnly || c.kind === "once")),
     },
-    { key: "ended" as const, label: "Дууссан", items: approved.filter((c) => !c.active) },
-    // Зөвшөөрөгдөөгүй нь зөвхөн админ, зөвшөөрөгчид ирнэ
-    ...(isAdmin || canApprove
-      ? [{ key: "review" as const, label: "Хүлээгдэж буй", items: awaiting }]
+    { key: "ended" as const, label: info.closedLabel, items: listed.filter((c) => !c.active) },
+    ...(reviewTab
+      ? [{ key: "review" as const, label: "Хүлээгдэж буй", items: campaigns.filter((c) => c.status !== "approved") }]
       : []),
   ];
 
@@ -291,6 +295,16 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
 
   const renderCard = (campaign: Campaign) => {
     const memo = `${campaign.memoPrefix || campaign.title}-${name}`;
+    // Өглөг — өөрийн данс; Хандив — нэг нийтлэг данс
+    const account = info.ownAccount
+      ? {
+          number: campaign.accountNumber.replace(/\s+/g, ""),
+          hint: [campaign.accountBank, campaign.accountHolder].filter(Boolean).join(" · "),
+        }
+      : {
+          number: CAMPAIGN_ACCOUNT.number,
+          hint: `${bankLabel(CAMPAIGN_ACCOUNT.bank)} · ${CAMPAIGN_ACCOUNT.holder}`,
+        };
 
     return (
       <article
@@ -413,8 +427,8 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
               <button
                 type="button"
                 onClick={() => setActive(campaign, !campaign.active)}
-                aria-label={campaign.active ? "Хаах" : "Дахин нээх"}
-                title={campaign.active ? "Хаах" : "Дахин нээх"}
+                aria-label={campaign.active ? closeLabel : "Дахин нээх"}
+                title={campaign.active ? closeLabel : "Дахин нээх"}
                 className={iconButton}
               >
                 {campaign.active ? (
@@ -520,12 +534,18 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
         {/* Хандив өгөх алхмууд — данс, утга доор доороо (нээлттэйд л) */}
         {campaign.active ? (
         <div className="m-4 mt-3 flex flex-col gap-2.5 rounded-xl border border-white/60 bg-white/80 p-3 shadow-xs backdrop-blur dark:border-white/10 dark:bg-gray-900/60">
-          {step(
-            1,
-            "Дансны дугаар",
-            formatAccountNumber(CAMPAIGN_ACCOUNT.number),
-            CAMPAIGN_ACCOUNT.number,
-            `${bankLabel(CAMPAIGN_ACCOUNT.bank)} · ${CAMPAIGN_ACCOUNT.holder}`
+          {account.number ? (
+            step(
+              1,
+              "Дансны дугаар",
+              formatAccountNumber(account.number),
+              account.number,
+              account.hint || undefined
+            )
+          ) : (
+            <p className="text-theme-xs text-warning-700 dark:text-warning-400">
+              Дансны мэдээлэл оруулаагүй байна.
+            </p>
           )}
           {name ? (
             step(2, "Гүйлгээний утга", memo, memo)
@@ -596,7 +616,7 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
       <div
         role="tablist"
         aria-label={`${info.title} — ангилал`}
-        className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-white/10"
+        className="flex flex-wrap gap-x-1 border-b border-gray-200 dark:border-white/10"
       >
         {tabs.map((item) => {
           const selected = item.key === tab;
@@ -625,7 +645,7 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
       {!loading && visible.length === 0 && (
         <p className="surface px-4 py-10 text-center text-theme-sm text-gray-400">
           {tab === "ended"
-            ? `Дууссан ${info.noun} алга.`
+            ? `${info.closedLabel} ${info.noun} алга.`
             : tab === "review"
               ? `Зөвшөөрөл хүлээж буй ${info.noun} алга.`
               : `Одоогоор ${info.noun} алга.`}

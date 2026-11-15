@@ -871,6 +871,13 @@ export const donationCampaigns = pgTable(
     memoPrefix: varchar("memo_prefix", { length: 64 }).notNull().default(""),
     /** YYYY-MM-DD, хоосон бол заагаагүй */
     endsOn: varchar("ends_on", { length: 10 }).notNull().default(""),
+    /**
+     * Өглөгийн данс — өглөг бүрд гараар оруулна. Хандив нь бүгд нэг данс
+     * (`CAMPAIGN_ACCOUNT`) руу тул эдгээр нь хоосон.
+     */
+    accountBank: varchar("account_bank", { length: 64 }).notNull().default(""),
+    accountNumber: varchar("account_number", { length: 64 }).notNull().default(""),
+    accountHolder: varchar("account_holder", { length: 255 }).notNull().default(""),
     /** false бол дууссан — жагсаалтын доод хэсэгт */
     active: boolean("active").notNull().default(true),
     /**

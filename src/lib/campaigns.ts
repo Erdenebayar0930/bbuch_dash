@@ -39,6 +39,10 @@ export type Campaign = {
   targetAmount: number | null;
   /** Гүйлгээний утгын эхлэл — хоосон бол аяны нэр */
   memoPrefix: string;
+  /** Өглөгийн данс — гараар оруулсан (Хандивт хоосон) */
+  accountBank: string;
+  accountNumber: string;
+  accountHolder: string;
   /** YYYY-MM-DD, хоосон бол заагаагүй */
   endsOn: string;
   active: boolean;
@@ -72,6 +76,9 @@ const toCampaign = (row: CampaignRow): Campaign => ({
   featured: row.featured ?? false,
   purpose: row.purpose ?? "",
   memoPrefix: row.memoPrefix ?? "",
+  accountBank: row.accountBank ?? "",
+  accountNumber: row.accountNumber ?? "",
+  accountHolder: row.accountHolder ?? "",
   endsOn: row.endsOn ?? "",
   status: row.status === "pending" || row.status === "changes" ? row.status : "approved",
   reviewNote: row.reviewNote ?? "",

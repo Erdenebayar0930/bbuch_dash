@@ -10,6 +10,10 @@ export type CampaignInput = {
   targetAmount?: number | null;
   memoPrefix?: string;
   endsOn?: string;
+  /** Өглөгийн данс — гараар */
+  accountBank?: string;
+  accountNumber?: string;
+  accountHolder?: string;
   active?: boolean;
   position?: number;
   featured?: boolean;
@@ -23,7 +27,17 @@ export type CampaignInput = {
  * Засвар хийхэд зөвшөөрлийг дахин шаардах талбарууд — гишүүдэд харагдах
  * агуулга. Эрэмбэ, онцлох, нээх/хаах, сануулгын цаг нь хамаарахгүй.
  */
-export const CONTENT_FIELDS = ["title", "kind", "purpose", "targetAmount", "memoPrefix", "endsOn"] as const;
+export const CONTENT_FIELDS = [
+  "title",
+  "kind",
+  "purpose",
+  "targetAmount",
+  "memoPrefix",
+  "endsOn",
+  "accountBank",
+  "accountNumber",
+  "accountHolder",
+] as const;
 
 type Parsed = { ok: true; value: CampaignInput } | { ok: false; error: string };
 
@@ -61,6 +75,9 @@ export function readCampaign(body: unknown, partial: boolean): Parsed {
     ["title", 255, "Хандивын зорилго"],
     ["purpose", 5000, "Тайлбар"],
     ["memoPrefix", 64, "Гүйлгээний утга"],
+    ["accountBank", 64, "Банк"],
+    ["accountNumber", 64, "Дансны дугаар"],
+    ["accountHolder", 255, "Данс эзэмшигч"],
   ] as const) {
     const error = text(key, max, label);
     if (error) return { ok: false, error };
