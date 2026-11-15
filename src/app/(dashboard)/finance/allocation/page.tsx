@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "1/10 ба өргөлийн мэдээлэл, өргөж буй байдал",
 };
 
-/** Санхүү → 1/10 ба өргөл. Табууд: «1/10 ба өргөлийн талаар», «Өргөж буй байдал». */
+/** Санхүү → 1/10 ба өргөл. Табууд: «1/10 ба өргөлийн талаар», «Өргөх заавар», «Өргөж буй байдал». */
 export default function AllocationPage() {
   return (
     <div className="flex flex-col gap-5">

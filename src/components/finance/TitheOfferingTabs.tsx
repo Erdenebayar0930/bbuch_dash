@@ -1,16 +1,18 @@
 "use client";
 
 import React, { useState } from "react";
+import { Construction } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import StatementImport from "@/components/finance/StatementImport";
 import TitheAccountCard from "@/components/finance/TitheAccountCard";
 import { isAdminRole } from "@/lib/permissions";
 
-type TabKey = "about" | "giving";
+type TabKey = "about" | "guide" | "giving";
 
 const TABS: { key: TabKey; label: string; adminOnly?: boolean }[] = [
   { key: "about", label: "1/10 ба өргөлийн талаар" },
+  { key: "guide", label: "Өргөх заавар" },
   // Хуулгын API нь зөвхөн админд — бусдад таб нь ч гарахгүй
   { key: "giving", label: "Өргөж буй байдал", adminOnly: true },
 ];
@@ -18,7 +20,8 @@ const TABS: { key: TabKey; label: string; adminOnly?: boolean }[] = [
 /**
  * Санхүү → 1/10 ба өргөл хуудасны табууд.
  *
- * • 1/10 ба өргөлийн талаар — өргөх данс ба гүйлгээний утгыг хуулах (бүгдэд)
+ * • 1/10 ба өргөлийн талаар — тайлбар мэдээлэл (агуулга нь хараахан тодорхойгүй)
+ * • Өргөх заавар — өргөх данс ба гүйлгээний утгыг хуулах (бүгдэд)
  * • Өргөж буй байдал — банкны хуулгыг уншиж 1/10, өргөлийг ялгах
  *   (`StatementImport`, өмнөх «Хуваарилалт» хуудас) — зөвхөн админд
  */
@@ -62,7 +65,24 @@ export default function TitheOfferingTabs() {
       </div>
 
       <div role="tabpanel" id={`tithe-panel-${active}`} aria-labelledby={`tithe-tab-${active}`}>
-        {active === "giving" ? <StatementImport /> : <TitheAccountCard />}
+        {active === "giving" ? (
+          <StatementImport />
+        ) : active === "guide" ? (
+          <TitheAccountCard />
+        ) : (
+          <div className="surface flex min-h-[320px] flex-col items-center justify-center gap-3 p-10 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
+              <Construction className="h-6 w-6" strokeWidth={1.6} />
+            </span>
+            <p className="text-base font-medium text-gray-800 dark:text-white/90">
+              1/10 ба өргөлийн талаар — бэлтгэгдэж байна
+            </p>
+            <p className="max-w-sm text-theme-sm text-gray-500 dark:text-gray-400">
+              1/10 ба өргөлийн тухай тайлбар мэдээлэл энд орно. Дансны мэдээлэл
+              «Өргөх заавар» хэсэгт байна.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
