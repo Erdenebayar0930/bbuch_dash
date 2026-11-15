@@ -5,6 +5,7 @@ import {
   index,
   integer,
   jsonb,
+  pgSchema,
   pgTable,
   text,
   timestamp,
@@ -51,6 +52,17 @@ const jsonCol = <T>(name: string) => jsonb(name).$type<T>();
 
 /** UTC-гээр хадгалагдах, цагийн бүстэй timestamp */
 const utcTimestamp = (name: string) => timestamp(name, { withTimezone: true });
+
+/**
+ * «Тахилт» — Тахилтын цэсийн БҮХ өгөгдөл энэ Postgres schema дотор,
+ * бусад аймгийнхаас (`public`) тусдаа хадгалагдана: Илчлэл, Тушаал
+ * (даалгавартай), Халамж. Хэрэглэгчийн хүснэгт (`public.users`) нэг л байх
+ * тул FK нь schema хооронд холбогдоно.
+ *
+ * ⚠ Нөөцлөлт/сэргээлт ба `db:check` нь `public`, `tahilt` хоёуланг уншдаг
+ * (@see lib/backup/dump.ts). Шинэ schema нэмбэл тэнд ч нэмнэ.
+ */
+export const tahiltSchema = pgSchema("tahilt");
 
 /**
  * Хэрэглэгч. `uid` нь Firebase Auth-ийн UID — аутентикац Firebase дээр
@@ -460,6 +472,68 @@ export const tasks = pgTable(
 );
 
 /**
+ * Тахилтын «Тушаал» — бусад аймгийн Төлөвлөгөөнөөс (`projects`) ТУСДАА.
+ *
+ * Бүтэц нь `projects`-тэй ижил (дэд тушаал, эрэмбэ, архив) боловч аймгийн
+ * багана байхгүй: бүх мөр нь Тахилтынх, зөвхөн Тахилтын гишүүд ба админ
+ * хардаг. Эх устахад дэд тушаал нь (даалгавартайгаа) хамт устна.
+ */
+export const tahiltCommands = tahiltSchema.table(
+  "commands",
+  {
+    id: uuidPk(),
+    name: varchar("name", { length: 255 }).notNull(),
+    parentId: uuid("parent_id").references((): AnyPgColumn => tahiltCommands.id, {
+      onDelete: "cascade",
+    }),
+    description: bodyText("description"),
+    position: integer("position").notNull().default(0),
+    archived: boolean("archived").notNull().default(false),
+    createdBy: uidCol("created_by"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("tahilt_commands_parent_idx").on(table.parentId)]
+);
+
+/** Тахилтын тушаалын даалгавар — `tasks`-тэй ижил, аймгийн баганагүй. */
+export const tahiltTasks = tahiltSchema.table(
+  "tasks",
+  {
+    id: uuidPk(),
+    commandId: uuidRef("command_id")
+      .notNull()
+      .references(() => tahiltCommands.id, { onDelete: "cascade" }),
+    /** Хамтрагчид (uid) — ерөнхий хариуцагч нь `assignedTo` */
+    collaborators: jsonCol<string[]>("collaborators").notNull().default([]),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: bodyText("description"),
+    /** todo | in_progress | done */
+    status: varchar("status", { length: 32 }).notNull().default("todo"),
+    /** low | normal | high */
+    priority: varchar("priority", { length: 16 }).notNull().default("normal"),
+    assignedTo: uidCol("assigned_to").references(() => users.uid, {
+      onDelete: "set null",
+    }),
+    /** YYYY-MM-DD, эсвэл хоосон */
+    dueDate: varchar("due_date", { length: 10 }).notNull().default(""),
+    position: integer("position").notNull().default(0),
+    completedAt: utcTimestamp("completed_at"),
+    createdBy: uidCol("created_by"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("tahilt_tasks_command_status_idx").on(
+      table.commandId,
+      table.status,
+      table.position
+    ),
+    index("tahilt_tasks_assigned_idx").on(table.assignedTo),
+  ]
+);
+
+/**
  * Мэдэгдэл — хүлээн авагч тутамд НЭГ мөр (fan-out on write).
  *
  * Push нь зөвхөн мэдэгдүүлэг; жинхэнэ бүртгэл нь энэ хүснэгт. Тиймээс
@@ -781,25 +855,35 @@ export const donationAccounts = pgTable(
  * тусдаа хүснэгтэд. `active` нь өрх жагсаалтаас гарсан ч түүхийг устгалгүй
  * нуух боломж өгнө.
  */
+/** Халамжийн өрхийн баганууд — `public` ба `tahilt` хоёулаа ижил бүтэцтэй */
+const welfareHouseholdFields = () => ({
+  id: uuidPk(),
+  /** Өрхийн тэргүүн эсвэл холбоо барих хүний нэр */
+  name: varchar("name", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 32 }).notNull().default(""),
+  /** Гэр бүлийн гишүүдийн тоо */
+  familySize: integer("family_size").notNull().default(0),
+  /** Нөхцөл байдлын тайлбар */
+  note: bodyText("note"),
+  lat: doublePrecision("lat").notNull(),
+  lng: doublePrecision("lng").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdBy: uidCol("created_by"),
+  createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+});
+
 export const welfareHouseholds = pgTable(
   "welfare_households",
-  {
-    id: uuidPk(),
-    /** Өрхийн тэргүүн эсвэл холбоо барих хүний нэр */
-    name: varchar("name", { length: 255 }).notNull(),
-    phone: varchar("phone", { length: 32 }).notNull().default(""),
-    /** Гэр бүлийн гишүүдийн тоо */
-    familySize: integer("family_size").notNull().default(0),
-    /** Нөхцөл байдлын тайлбар */
-    note: bodyText("note"),
-    lat: doublePrecision("lat").notNull(),
-    lng: doublePrecision("lng").notNull(),
-    active: boolean("active").notNull().default(true),
-    createdBy: uidCol("created_by"),
-    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
-    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
-  },
+  welfareHouseholdFields(),
   (table) => [index("welfare_households_active_idx").on(table.active)]
+);
+
+/** Тахилтын Халамжийн өрх — бусад аймгийн Халамжаас тусдаа */
+export const tahiltWelfareHouseholds = tahiltSchema.table(
+  "welfare_households",
+  welfareHouseholdFields(),
+  (table) => [index("tahilt_welfare_households_active_idx").on(table.active)]
 );
 
 /**
@@ -808,23 +892,35 @@ export const welfareHouseholds = pgTable(
  * Мөр бүр нэг удаагийн тусламж: хэзээ, хэн, юу үзүүлсэн, ямар дүнтэй.
  * Хуучин бүртгэл хэзээ ч дарагдахгүй — тайлан гаргахад түүх бүрэн байх ёстой.
  */
+/** Халамжийн бүртгэлийн баганууд — өрхийн хүснэгтээ `household` -аар авна */
+const welfareAidFields = (household: () => AnyPgColumn) => ({
+  id: uuidPk(),
+  householdId: uuidRef("household_id")
+    .notNull()
+    .references(household, { onDelete: "cascade" }),
+  /** Юу үзүүлсэн — хүнс, түлш, эмчилгээний зардал гэх мэт */
+  description: varchar("description", { length: 512 }).notNull(),
+  /** Зарцуулсан дүн, ₮ — 0 бол мөнгөн бус тусламж */
+  amount: integer("amount").notNull().default(0),
+  note: bodyText("note"),
+  providedBy: uidCol("provided_by"),
+  providedAt: utcTimestamp("provided_at").notNull().defaultNow(),
+});
+
 export const welfareAids = pgTable(
   "welfare_aids",
-  {
-    id: uuidPk(),
-    householdId: uuidRef("household_id")
-      .notNull()
-      .references(() => welfareHouseholds.id, { onDelete: "cascade" }),
-    /** Юу үзүүлсэн — хүнс, түлш, эмчилгээний зардал гэх мэт */
-    description: varchar("description", { length: 512 }).notNull(),
-    /** Зарцуулсан дүн, ₮ — 0 бол мөнгөн бус тусламж */
-    amount: integer("amount").notNull().default(0),
-    note: bodyText("note"),
-    providedBy: uidCol("provided_by"),
-    providedAt: utcTimestamp("provided_at").notNull().defaultNow(),
-  },
+  welfareAidFields(() => welfareHouseholds.id),
   (table) => [
     index("welfare_aids_household_idx").on(table.householdId, table.providedAt),
+  ]
+);
+
+/** Тахилтын Халамжийн бүртгэл — бусад аймгийн Халамжаас тусдаа */
+export const tahiltWelfareAids = tahiltSchema.table(
+  "welfare_aids",
+  welfareAidFields(() => tahiltWelfareHouseholds.id),
+  (table) => [
+    index("tahilt_welfare_aids_household_idx").on(table.householdId, table.providedAt),
   ]
 );
 
@@ -980,6 +1076,38 @@ export const gospelContacts = pgTable(
 );
 
 /**
+ * «Илчлэл» — аймаг бүрийн нийтлэлийн самбар (Facebook-ийн нийтлэл шиг):
+ * бичвэр ба хэдэн зураг. Аймгийн гишүүд бичиж, тухайн аймгийнхан уншина.
+ * Бичсэн хүн устсан ч нийтлэл нь үлдэнэ.
+ */
+/** Илчлэлийн баганууд — `public` ба `tahilt` хоёулаа ижил бүтэцтэй */
+const revelationFields = () => ({
+  id: uuidPk(),
+  /** profileOptions.aimags доторх түлхүүр — `tahilt` schema-д үргэлж "tahilt" */
+  aimag: varchar("aimag", { length: 64 }).notNull(),
+  authorUid: uidCol("author_uid").references(() => users.uid, {
+    onDelete: "set null",
+  }),
+  body: bodyText("body"),
+  images: jsonCol<{ url: string; path: string }[]>("images")
+    .notNull()
+    .$defaultFn(() => []),
+  createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+});
+
+export const revelations = pgTable("revelations", revelationFields(), (table) => [
+  index("revelations_aimag_created_idx").on(table.aimag, table.createdAt),
+]);
+
+/** Тахилтын Илчлэл — бусад аймгийн илчлэлээс тусдаа */
+export const tahiltRevelations = tahiltSchema.table(
+  "revelations",
+  revelationFields(),
+  (table) => [index("tahilt_revelations_created_idx").on(table.createdAt)]
+);
+
+/**
  * FCM token — ТӨХӨӨРӨМЖ тутамд нэг мөр.
  *
  * ⚠ Урьд нь `uid` нь PRIMARY KEY байсан буюу хэрэглэгч тутамд ГАНЦ мөр.
@@ -1105,6 +1233,8 @@ export type AssetRow = typeof assets.$inferSelect;
 
 export type ProjectRow = typeof projects.$inferSelect;
 export type TaskRow = typeof tasks.$inferSelect;
+export type TahiltCommandRow = typeof tahiltCommands.$inferSelect;
+export type TahiltTaskRow = typeof tahiltTasks.$inferSelect;
 export type ScheduleShiftRow = typeof scheduleShifts.$inferSelect;
 export type PurchaseRequestRow = typeof purchaseRequests.$inferSelect;
 export type DonationBoxRow = typeof donationBoxes.$inferSelect;
@@ -1116,5 +1246,6 @@ export type HandbookDocumentRow = typeof handbookDocuments.$inferSelect;
 export type FeedbackRow = typeof feedback.$inferSelect;
 export type GospelContactRow = typeof gospelContacts.$inferSelect;
 export type GospelAreaRow = typeof gospelAreas.$inferSelect;
+export type RevelationRow = typeof revelations.$inferSelect;
 export type GuardPointRow = typeof guardPoints.$inferSelect;
 export type GuardPointVisitRow = typeof guardPointVisits.$inferSelect;

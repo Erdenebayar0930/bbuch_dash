@@ -154,6 +154,21 @@ service firebase.storage {
       allow delete: if signedIn() && (request.auth.uid == uid || activeAdmin());
     }
 
+    // ------------------------------------------------------------------
+    // «Илчлэл» нийтлэлийн зураг — идэвхтэй хэрэглэгч ӨӨРИЙН хавтас руу
+    // бичнэ, нэвтэрсэн хүн уншина. Аймгийн эрхийг /api/revelations шалгана.
+    // Устгах: эзэн нь эсвэл админ (нийтлэл устгах үед).
+    // ------------------------------------------------------------------
+    match /revelations/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.auth.uid == uid
+                   && claim('status') == 'active'
+                   && request.resource.size < 10 * 1024 * 1024
+                   && isImage();
+      allow delete: if signedIn() && (request.auth.uid == uid || activeAdmin());
+    }
+
     // Бусад бүх зам хаалттай.
     match /{allPaths=**} {
       allow read, write: if false;

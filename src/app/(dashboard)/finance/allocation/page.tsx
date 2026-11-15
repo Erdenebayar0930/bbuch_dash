@@ -1,19 +1,21 @@
-import StatementImport from "@/components/finance/StatementImport";
+import { Metadata } from "next";
 
+import TitheOfferingTabs from "@/components/finance/TitheOfferingTabs";
+
+export const metadata: Metadata = {
+  title: "1/10 ба өргөл | ББУЧ",
+  description: "1/10 ба өргөлийн мэдээлэл, өргөж буй байдал",
+};
+
+/** Санхүү → 1/10 ба өргөл. Табууд: «1/10 ба өргөлийн талаар», «Өргөж буй байдал». */
 export default function AllocationPage() {
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          Хуваарилалт
-        </h1>
-        <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          Хаанбанкны хуулгыг уншиж, гүйлгээний утгаар нь 1/10 ба өргөл гэж
-          ялгана
-        </p>
-      </div>
+      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+        1/10 ба өргөл
+      </h1>
 
-      <StatementImport />
+      <TitheOfferingTabs />
     </div>
   );
 }

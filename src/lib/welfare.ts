@@ -2,6 +2,14 @@
 
 import { apiFetch } from "./apiClient";
 
+/**
+ * Аль сан: `main` — бүх аймгийн нэгдсэн Халамж, `tahilt` — Тахилтын цэсийн
+ * тусдаа Халамж (`tahilt` schema). Хоёулаа ижил API-аар, `?board=`-оор ялгарна.
+ */
+export type WelfareBoard = "main" | "tahilt";
+
+const q = (board: WelfareBoard) => (board === "tahilt" ? "?board=tahilt" : "");
+
 /** Жагсаалтад харуулах хамгийн сүүлийн тусламжийн товч */
 export type LastAid = {
   description: string;
@@ -54,8 +62,10 @@ const toHousehold = (row: HouseholdRow): WelfareHousehold => ({
 });
 
 /** Бүх өрх — идэвхгүй болсныг нь ч оруулна. */
-export async function listHouseholds(): Promise<WelfareHousehold[]> {
-  const data = await apiFetch<{ households: HouseholdRow[] }>("/api/welfare");
+export async function listHouseholds(
+  board: WelfareBoard = "main"
+): Promise<WelfareHousehold[]> {
+  const data = await apiFetch<{ households: HouseholdRow[] }>(`/api/welfare${q(board)}`);
   return (data.households ?? []).map(toHousehold);
 }
 
@@ -71,9 +81,10 @@ export type HouseholdInput = {
 
 /** Шинэ өрх бүртгэнэ (зөвхөн админ). */
 export async function createHousehold(
-  input: HouseholdInput
+  input: HouseholdInput,
+  board: WelfareBoard = "main"
 ): Promise<WelfareHousehold> {
-  const data = await apiFetch<{ household: HouseholdRow }>("/api/welfare", {
+  const data = await apiFetch<{ household: HouseholdRow }>(`/api/welfare${q(board)}`, {
     method: "POST",
     body: input,
   });
@@ -83,18 +94,22 @@ export async function createHousehold(
 /** Өрхийн мэдээллийг засна (зөвхөн админ). */
 export async function updateHousehold(
   id: string,
-  patch: Partial<HouseholdInput>
+  patch: Partial<HouseholdInput>,
+  board: WelfareBoard = "main"
 ): Promise<WelfareHousehold> {
   const data = await apiFetch<{ household: HouseholdRow }>(
-    `/api/welfare/${id}`,
+    `/api/welfare/${id}${q(board)}`,
     { method: "PATCH", body: patch }
   );
   return toHousehold(data.household);
 }
 
 /** Өрхийг устгана (зөвхөн админ). Халамжийн түүх нь дагаж устана. */
-export async function deleteHousehold(id: string): Promise<void> {
-  await apiFetch(`/api/welfare/${id}`, { method: "DELETE" });
+export async function deleteHousehold(
+  id: string,
+  board: WelfareBoard = "main"
+): Promise<void> {
+  await apiFetch(`/api/welfare/${id}${q(board)}`, { method: "DELETE" });
 }
 
 /** Нэг удаагийн халамжийн бүртгэл */
@@ -121,9 +136,12 @@ type AidRow = {
 };
 
 /** Тухайн өрхөд үзүүлсэн халамжийн түүх — сүүлийнх нь эхэндээ. */
-export async function listAids(householdId: string): Promise<WelfareAid[]> {
+export async function listAids(
+  householdId: string,
+  board: WelfareBoard = "main"
+): Promise<WelfareAid[]> {
   const data = await apiFetch<{ aids: AidRow[] }>(
-    `/api/welfare/${householdId}/aids`
+    `/api/welfare/${householdId}/aids${q(board)}`
   );
 
   return (data.aids ?? []).map((row) => ({
@@ -141,9 +159,10 @@ export async function listAids(householdId: string): Promise<WelfareAid[]> {
 /** Шинэ халамжийн бүртгэл нэмнэ (зөвхөн админ). */
 export async function recordAid(
   householdId: string,
-  input: { description: string; amount: number; note: string }
+  input: { description: string; amount: number; note: string },
+  board: WelfareBoard = "main"
 ): Promise<void> {
-  await apiFetch(`/api/welfare/${householdId}/aids`, {
+  await apiFetch(`/api/welfare/${householdId}/aids${q(board)}`, {
     method: "POST",
     body: input,
   });

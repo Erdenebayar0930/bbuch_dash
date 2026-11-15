@@ -301,3 +301,38 @@ export async function deleteGospelPhoto(path: string): Promise<void> {
     console.warn("Сайн мэдээний зургийг устгаж чадсангүй:", error);
   }
 }
+
+// ---------------------------------------------------------------------------
+// «Илчлэл» нийтлэлийн зураг — бичсэн хүний хавтас руу
+// ---------------------------------------------------------------------------
+
+/** Нийтлэлийн зургийг `revelations/{uid}/` руу байршуулна. */
+export async function uploadRevelationImage(
+  uid: string,
+  file: File
+): Promise<UploadedImage> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Зөвхөн зураг оруулах боломжтой.");
+  }
+  if (file.size > MAX_FEEDBACK_IMAGE_BYTES) {
+    throw new Error("Зургийн хэмжээ 10MB-аас хэтэрч болохгүй.");
+  }
+
+  const path = `revelations/${uid}/${crypto.randomUUID()}.${extensionOf(file)}`;
+  const snapshot = await uploadBytes(ref(storage, path), file, {
+    contentType: file.type,
+    cacheControl: "public, max-age=31536000",
+  });
+
+  return { url: await getDownloadURL(snapshot.ref), path };
+}
+
+/** Нийтлэлийн зургийг устгана. Байхгүй/эрхгүй бол чимээгүй алгасна. */
+export async function deleteRevelationImage(path: string): Promise<void> {
+  if (!path) return;
+  try {
+    await deleteObject(ref(storage, path));
+  } catch (error) {
+    console.warn("Илчлэлийн зургийг устгаж чадсангүй:", error);
+  }
+}

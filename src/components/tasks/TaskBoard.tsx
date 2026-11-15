@@ -6,12 +6,9 @@ import {
   ClipboardList,
   FolderKanban,
   Plus,
-  RefreshCw,
-  User as UserIcon,
 } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
-import ExportButton from "@/components/common/ExportButton";
 import { labelOf, aimags } from "@/data/profileOptions";
 import {
   taskPriorityLabels,
@@ -29,6 +26,7 @@ import {
   listProjects,
   listTasks,
   updateTask,
+  type PlanBoard,
   type Project,
   type Task,
 } from "@/lib/tasks";
@@ -83,6 +81,12 @@ type TaskBoardProps = {
    * даалгавар тэр аймагт бэхлэгдэнэ. Заагаагүй = Харуулын нэгдсэн самбар.
    */
   aimagFilter?: string;
+  /**
+   * Аль самбар. `tahilt` — Тахилтын тусдаа «Тушаал» (өөрийн хүснэгттэй):
+   * Тахилтын гишүүд ба админ тушаал удирдаж, даалгавар үүсгэнэ, аймгийн
+   * сонголт гарахгүй.
+   */
+  board?: PlanBoard;
 };
 
 /**
@@ -92,17 +96,25 @@ type TaskBoardProps = {
  * Аймгийн гишүүд өөрийн аймагт харагдах тушаалд даалгавар үүсгэж, засна.
  * Гүйцэтгэгч өөрт оногдсон картаа багана хооронд чирж төлөвөө шинэчилнэ.
  */
-export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
+export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProps) {
   const { user } = useUser();
   const myUid = user?.uid ?? "";
   const role = user?.role;
   const myAimags = user?.aimags;
-  /** Тушаал үүсгэх/засах/устгах — Харуул ба админ */
-  const canManage = canManageProjects(role, myAimags);
+  const isTahiltBoard = board === "tahilt";
+  /**
+   * Тушаал үүсгэх/засах/устгах — Төлөвлөгөөнд Харуул ба админ, Тахилтын
+   * самбарт Тахилтын гишүүд ба админ
+   */
+  const canManage = isTahiltBoard
+    ? canWorkInAimag(role, myAimags, "tahilt")
+    : canManageProjects(role, myAimags);
   /** Энэ самбарт даалгавар үүсгэх эрх */
-  const canCreate = aimagFilter
-    ? canWorkInAimag(role, myAimags, aimagFilter)
-    : canManage;
+  const canCreate = isTahiltBoard
+    ? canManage
+    : aimagFilter
+      ? canWorkInAimag(role, myAimags, aimagFilter)
+      : canManage;
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -110,7 +122,6 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
   const [error, setError] = useState("");
 
   const [projectFilter, setProjectFilter] = useState(ALL);
-  const [onlyMine, setOnlyMine] = useState(false);
 
   const [isFormOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
@@ -122,8 +133,8 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
 
     try {
       const [projectRows, taskRows] = await Promise.all([
-        listProjects(),
-        listTasks(),
+        listProjects(board),
+        listTasks({}, board),
       ]);
       setProjects(projectRows);
       setTasks(taskRows);
@@ -133,7 +144,7 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [board]);
 
   useEffect(() => {
     load();
@@ -157,10 +168,20 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
   /** Тушаал ба дэд тушаалын мод — шүүлт, нэр, тоололд */
   const tree = useMemo(() => buildProjectTree(scopedProjects), [scopedProjects]);
 
+  /**
+   * Идэвхтэй тушаал. «Бүх тушаал» сонголт байхгүй тул самбар үргэлж нэг
+   * тушаалыг харуулна: сонгоогүй, эсвэл сонгосон нь устсан/харагдахгүй
+   * болсон бол эхний үндсэн тушаал. Тушаал огт байхгүй үед л `ALL`.
+   */
+  const activeFilter =
+    projectFilter !== ALL && scopedProjectIds.has(projectFilter)
+      ? projectFilter
+      : (tree.roots[0]?.id ?? ALL);
+
   /** Сонгосон тушаал ба түүний бүх дэд тушаал — эх тушаалыг сонговол бүгд гарна */
   const selectedIds = useMemo(
-    () => (projectFilter === ALL ? null : tree.subtreeIds(projectFilter)),
-    [tree, projectFilter]
+    () => (activeFilter === ALL ? null : tree.subtreeIds(activeFilter)),
+    [tree, activeFilter]
   );
 
   /** Дэд тушаалуудыг оруулсан дуусаагүй ажлын тоо */
@@ -181,16 +202,9 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
         return false;
       }
       if (selectedIds && !selectedIds.has(task.projectId)) return false;
-      if (
-        onlyMine &&
-        task.assignedTo !== myUid &&
-        !task.collaborators.includes(myUid)
-      ) {
-        return false;
-      }
       return true;
     });
-  }, [tasks, selectedIds, onlyMine, myUid, aimagFilter, scopedProjectIds]);
+  }, [tasks, selectedIds, aimagFilter, scopedProjectIds]);
 
   const today = todayIso();
 
@@ -223,7 +237,7 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
       );
 
       try {
-        const updated = await updateTask(task.id, { status });
+        const updated = await updateTask(task.id, { status }, board);
         setTasks((prev) =>
           prev.map((item) => (item.id === updated.id ? updated : item))
         );
@@ -235,7 +249,7 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
         load();
       }
     },
-    [canMove, load]
+    [canMove, load, board]
   );
 
   const {
@@ -262,9 +276,42 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Үйлдэл — гарчгийн шууд дор: Тушаалууд, Даалгавар үүсгэх */}
+      {(canManage || canCreate) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => setProjectsOpen(true)}
+              className={buttonClass}
+            >
+              <FolderKanban className="h-4 w-4" strokeWidth={1.8} />
+              Тушаалууд
+            </button>
+          )}
+
+          {canCreate && (
+            <button
+              type="button"
+              onClick={openNew}
+              disabled={scopedProjects.length === 0}
+              title={
+                scopedProjects.length === 0
+                  ? "Эхлээд тушаал үүсгэнэ үү"
+                  : "Шинэ даалгавар"
+              }
+              className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.2} />
+              Даалгавар үүсгэх
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Тушаалууд — үндсэн мөр, сонгосон тушаалын дэд тушаалууд доор нь шатлан */}
       {(() => {
-        const path = projectFilter === ALL ? [] : tree.pathOf(projectFilter);
+        const path = activeFilter === ALL ? [] : tree.pathOf(activeFilter);
         // Мөр бүр: үндэс, дараа нь зам дээрх тушаал бүрийн хүүхдүүд
         const levels = [
           tree.roots,
@@ -289,15 +336,7 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
                   depth > 0 ? "border-l-2 border-gray-100 pl-3 dark:border-white/10" : ""
                 }`}
               >
-                {depth === 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setProjectFilter(ALL)}
-                    className={chip(projectFilter === ALL, false)}
-                  >
-                    Бүх тушаал
-                  </button>
-                ) : (
+                {depth > 0 && (
                   <span className="text-theme-xs text-gray-400">Дэд тушаал:</span>
                 )}
 
@@ -331,65 +370,6 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
         );
       })()}
 
-      {/* Үйлдэл */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setOnlyMine((prev) => !prev)}
-          className={`flex h-10 items-center gap-2 rounded-lg border px-3.5 text-theme-sm font-medium transition-colors ${
-            onlyMine
-              ? "border-accent-500 bg-accent-50/60 text-accent-700 dark:border-accent-500 dark:bg-accent-500/10 dark:text-accent-400"
-              : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
-          }`}
-        >
-          <UserIcon className="h-4 w-4" strokeWidth={1.8} />
-          Надад хамаатай
-        </button>
-
-        <button
-          type="button"
-          onClick={load}
-          disabled={loading}
-          className={buttonClass}
-        >
-          <RefreshCw
-            className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-            strokeWidth={1.8}
-          />
-          Сэргээх
-        </button>
-
-        <ExportButton dataset="tasks" />
-
-        {canManage && (
-          <button
-            type="button"
-            onClick={() => setProjectsOpen(true)}
-            className={buttonClass}
-          >
-            <FolderKanban className="h-4 w-4" strokeWidth={1.8} />
-            Тушаалууд
-          </button>
-        )}
-
-        {canCreate && (
-            <button
-              type="button"
-              onClick={openNew}
-              disabled={scopedProjects.length === 0}
-              title={
-                scopedProjects.length === 0
-                  ? "Эхлээд тушаал үүсгэнэ үү"
-                  : "Шинэ даалгавар"
-              }
-              className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Plus className="h-4 w-4" strokeWidth={2.2} />
-              Даалгавар үүсгэх
-            </button>
-        )}
-      </div>
-
       {error && (
         <p className="rounded-lg bg-error-50 px-4 py-3 text-theme-sm text-error-600 dark:bg-error-500/10 dark:text-error-400">
           {error}
@@ -406,9 +386,11 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
             Тушаал байхгүй байна
           </p>
           <p className="max-w-sm text-theme-sm text-gray-500 dark:text-gray-400">
-            {canManage
-              ? "«Тушаалууд» цэснээс тушаал үүсгээд харагдах аймгуудыг сонгоорой."
-              : "Харуулын аймаг тушаал үүсгэж энэ аймагт нээсний дараа энд харагдана."}
+            {isTahiltBoard
+              ? "«Тушаалууд» товчоор эхний тушаалаа үүсгээрэй."
+              : canManage
+                ? "«Тушаалууд» цэснээс тушаал үүсгээд харагдах аймгуудыг сонгоорой."
+                : "Харуулын аймаг тушаал үүсгэж энэ аймагт нээсний дараа энд харагдана."}
           </p>
         </div>
       )}
@@ -489,12 +471,12 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
                           task.aimags.length > 0 &&
                           (!aimagFilter || task.aimags.length > 1);
                         return (
-                          task.projectId !== projectFilter || showAimags
+                          task.projectId !== activeFilter || showAimags
                         );
                       })() && (
                         <p className="mt-1 text-theme-xs text-gray-400">
                           {[
-                            task.projectId !== projectFilter
+                            task.projectId !== activeFilter
                               ? pathLabel(tree, task.projectId) || task.projectName
                               : "",
                             task.aimags.length > 0 &&
@@ -573,9 +555,10 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
         canEdit={editing ? canEditTask(editing) : canCreate}
         canMove={editing ? canMove(editing) : false}
         canDelete={editing ? canDeleteTask(editing) : false}
-        defaultProjectId={projectFilter === ALL ? "" : projectFilter}
+        defaultProjectId={activeFilter === ALL ? "" : activeFilter}
         onClose={() => setFormOpen(false)}
         onSaved={load}
+        board={board}
       />
 
       <ProjectManagerModal
@@ -583,6 +566,7 @@ export default function TaskBoard({ aimagFilter }: TaskBoardProps) {
         projects={projects}
         onClose={() => setProjectsOpen(false)}
         onChanged={load}
+        board={board}
       />
     </div>
   );

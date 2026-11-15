@@ -11,32 +11,10 @@ import {
   type DonationAccount,
 } from "@/data/donationAccounts";
 import { useDonationAccounts } from "@/hooks/useDonationAccounts";
+import { copyToClipboard } from "@/lib/clipboard";
 
 /** "Хуулагдлаа" тэмдэглэгээ хэдэн миллисекунд харагдах вэ */
 const COPIED_MS = 2000;
-
-async function copyToClipboard(value: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(value);
-    return true;
-  } catch {
-    // Clipboard API нь HTTPS биш орчинд ажиллахгүй — хуучин аргаар оролдоно
-    try {
-      const input = document.createElement("textarea");
-      input.value = value;
-      input.setAttribute("readonly", "");
-      input.style.position = "fixed";
-      input.style.opacity = "0";
-      document.body.appendChild(input);
-      input.select();
-      const ok = document.execCommand("copy");
-      document.body.removeChild(input);
-      return ok;
-    } catch {
-      return false;
-    }
-  }
-}
 
 export default function DonationAccounts() {
   const { accounts, loading } = useDonationAccounts();

@@ -11,6 +11,7 @@ import {
   createProject,
   deleteProject,
   updateProject,
+  type PlanBoard,
   type Project,
 } from "@/lib/tasks";
 
@@ -20,6 +21,8 @@ type ProjectManagerModalProps = {
   onClose: () => void;
   /** Аль нэг өөрчлөлт хийгдсэн — жагсаалтыг дахин татна */
   onChanged: () => void;
+  /** Аль самбар — Тахилтынх бол аймгийн сонголтгүй */
+  board?: PlanBoard;
 };
 
 const fieldClass =
@@ -109,7 +112,10 @@ export default function ProjectManagerModal({
   projects,
   onClose,
   onChanged,
+  board = "plan",
 }: ProjectManagerModalProps) {
+  /** Тахилтын тушаал аймаггүй — харагдах аймгийн сонголтыг нууна */
+  const hideAimags = board === "tahilt";
   const [name, setName] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -155,7 +161,7 @@ export default function ProjectManagerModal({
     if (!name.trim()) return;
 
     await run("create", async () => {
-      await createProject({ name: name.trim(), aimags: picked, description: "" });
+      await createProject({ name: name.trim(), aimags: picked, description: "" }, board);
       setName("");
       setPicked([]);
     });
@@ -177,7 +183,7 @@ export default function ProjectManagerModal({
         aimags: childAimags,
         parentId: childOf,
         description: "",
-      });
+      }, board);
       setChildOf(null);
       setChildName("");
       setChildAimags([]);
@@ -189,10 +195,13 @@ export default function ProjectManagerModal({
     if (!draft) return;
 
     return run(project.id, () =>
-      updateProject(project.id, {
-        name: draft.name.trim(),
-        aimags: draft.aimags,
-      })
+      updateProject(
+        project.id,
+        hideAimags
+          ? { name: draft.name.trim() }
+          : { name: draft.name.trim(), aimags: draft.aimags },
+        board
+      )
     );
   };
 
@@ -214,7 +223,7 @@ export default function ProjectManagerModal({
 
     if (!window.confirm(warning)) return;
 
-    return run(project.id, () => deleteProject(project.id));
+    return run(project.id, () => deleteProject(project.id, board));
   };
 
   return (
@@ -224,8 +233,9 @@ export default function ProjectManagerModal({
           Тушаалууд
         </h3>
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          Тушаал үүсгээд ямар аймгуудад харагдахыг сонгоно. Тушаал дотор дэд
-          тушаал, түүн дотор дахин дэд тушаал үүсгэж болно.
+          {hideAimags
+            ? "Тушаал үүсгэнэ. Тушаал дотор дэд тушаал, түүн дотор дахин дэд тушаал үүсгэж болно."
+            : "Тушаал үүсгээд ямар аймгуудад харагдахыг сонгоно. Тушаал дотор дэд тушаал, түүн дотор дахин дэд тушаал үүсгэж болно."}
         </p>
 
         {/* Шинэ үндсэн тушаал */}
@@ -254,12 +264,14 @@ export default function ProjectManagerModal({
               Нэмэх
             </button>
           </div>
-          <div>
-            <p className="mb-1.5 text-theme-xs text-gray-500 dark:text-gray-400">
-              Харагдах аймгууд
-            </p>
-            <AimagPicker value={picked} onChange={setPicked} />
-          </div>
+          {!hideAimags && (
+            <div>
+              <p className="mb-1.5 text-theme-xs text-gray-500 dark:text-gray-400">
+                Харагдах аймгууд
+              </p>
+              <AimagPicker value={picked} onChange={setPicked} />
+            </div>
+          )}
         </form>
 
         {error && (
@@ -358,17 +370,19 @@ export default function ProjectManagerModal({
                   </button>
                 </div>
 
-                <AimagPicker
-                  value={draft.aimags}
-                  allowed={parent?.aimags}
-                  disabled={busy !== null}
-                  onChange={(next) =>
-                    setDrafts((prev) => ({
-                      ...prev,
-                      [project.id]: { ...draft, aimags: next },
-                    }))
-                  }
-                />
+                {!hideAimags && (
+                  <AimagPicker
+                    value={draft.aimags}
+                    allowed={parent?.aimags}
+                    disabled={busy !== null}
+                    onChange={(next) =>
+                      setDrafts((prev) => ({
+                        ...prev,
+                        [project.id]: { ...draft, aimags: next },
+                      }))
+                    }
+                  />
+                )}
 
                 {childOf === project.id && (
                   <form
@@ -405,11 +419,13 @@ export default function ProjectManagerModal({
                         <X className="h-4 w-4" strokeWidth={2} />
                       </button>
                     </div>
-                    <AimagPicker
-                      value={childAimags}
-                      onChange={setChildAimags}
-                      allowed={project.aimags}
-                    />
+                    {!hideAimags && (
+                      <AimagPicker
+                        value={childAimags}
+                        onChange={setChildAimags}
+                        allowed={project.aimags}
+                      />
+                    )}
                   </form>
                 )}
               </div>

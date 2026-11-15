@@ -62,7 +62,7 @@ export const seedDonationAccounts = [
     title: "1/10 ба өргөл",
     number: "MN100005005312334127",
     bank: "khan",
-    holder: "Мөнгөнцэцэг",
+    holder: "Г.Мөнгөнцэцэг",
     // «1/10 ба өргөл» хуудас анхнаасаа ажиллахын тулд энэ данс тэмдэглэгдэнэ
     isTithe: true,
   },
@@ -70,28 +70,28 @@ export const seedDonationAccounts = [
     title: "Газар худалдаж авах",
     number: "MN530034106201877867",
     bank: "state",
-    holder: "Мөнгөнцэцэг",
+    holder: "Г.Мөнгөнцэцэг",
     isTithe: false,
   },
   {
     title: "Зорилтот хандив",
     number: "MN960034106201877869",
     bank: "state",
-    holder: "Мөнгөнцэцэг",
+    holder: "Г.Мөнгөнцэцэг",
     isTithe: false,
   },
   {
     title: "Илгээлтийн сан",
     number: "MN290034106201880239",
     bank: "state",
-    holder: "Мөнгөнцэцэг",
+    holder: "Г.Мөнгөнцэцэг",
     isTithe: false,
   },
   {
     title: "Тахилт заал барихад зориулсан данс",
     number: "MN140034106201880897",
     bank: "state",
-    holder: "Мөнгөнцэцэг",
+    holder: "Г.Мөнгөнцэцэг",
     isTithe: false,
   },
 ];
@@ -110,3 +110,21 @@ export const accountTitle = (
   accounts: Pick<DonationAccount, "number" | "title">[],
   value: string
 ) => accounts.find((item) => item.number === value)?.title ?? value;
+
+/**
+ * Банкны лого — `public/images/banks/` доторх файл. Файл байхгүй бол
+ * `BankLogo` нь банкны өнгөтэй товчилсон тэмдэг харуулна.
+ *
+ * ⚠ Албан ёсны логог тухайн банкнаас авч энд байршуулна — гараар зурсан
+ * хуулбар хэрэглэхгүй.
+ */
+export const bankLogos: Record<Bank, string> = {
+  khan: "/images/banks/khan-bank.png",
+  state: "/images/banks/state-bank.png",
+};
+
+/** Лого байхгүй үеийн тэмдэг: товчлол ба өнгө */
+export const bankBadges: Record<Bank, { short: string; color: string }> = {
+  khan: { short: "ХБ", color: "#00653E" },
+  state: { short: "ТБ", color: "#0D4C92" },
+};

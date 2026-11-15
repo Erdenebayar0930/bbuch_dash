@@ -12,6 +12,7 @@ import {
   deleteHousehold,
   listHouseholds,
   type WelfareHousehold,
+  type WelfareBoard,
 } from "@/lib/welfare";
 
 import WelfareAidModal from "./WelfareAidModal";
@@ -41,7 +42,12 @@ const LeafletMap = dynamic(() => import("./WelfareLeafletMap"), {
  * Уншихыг бүх хэрэглэгчид нээлттэй. Админ «Байршил нэмэх» горимд зураг дээр
  * дарж цэгээ сонгоод өрхийн мэдээллийг бөглөнө.
  */
-export default function WelfareMap() {
+type WelfareMapProps = {
+  /** `tahilt` — Тахилтын цэсийн тусдаа Халамж (`tahilt` schema) */
+  board?: WelfareBoard;
+};
+
+export default function WelfareMap({ board = "main" }: WelfareMapProps) {
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
 
@@ -72,14 +78,14 @@ export default function WelfareMap() {
     setError("");
 
     try {
-      setHouseholds(await listHouseholds());
+      setHouseholds(await listHouseholds(board));
     } catch (err) {
       console.error("Халамжийн бүртгэл ачаалж чадсангүй:", err);
       setError("Бүртгэлийг ачаалахад алдаа гарлаа.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [board]);
 
   useEffect(() => {
     load();
@@ -132,7 +138,7 @@ export default function WelfareMap() {
     setError("");
 
     try {
-      await deleteHousehold(household.id);
+      await deleteHousehold(household.id, board);
       setHouseholds((prev) => prev.filter((item) => item.id !== household.id));
     } catch (err) {
       console.error("Устгахад алдаа гарлаа:", err);
@@ -170,7 +176,7 @@ export default function WelfareMap() {
           Сэргээх
         </button>
 
-        <ExportButton dataset="welfare" />
+        {board === "main" && <ExportButton dataset="welfare" />}
 
         {/* Талбар дээрээс шууд бүртгэх зам — зургаас цэг хайхгүйгээр.
             Дэмжлэгийг рендерт шалгахгүй (hydration зөрнө) — дарсны дараа
@@ -326,6 +332,7 @@ export default function WelfareMap() {
         picked={picked}
         onClose={() => setFormOpen(false)}
         onSaved={load}
+        board={board}
       />
 
       <WelfareAidModal
@@ -333,6 +340,7 @@ export default function WelfareMap() {
         canRecord={isAdmin}
         onClose={() => setAiding(null)}
         onRecorded={load}
+        board={board}
       />
     </div>
   );

@@ -95,13 +95,47 @@ const SECRET_SETTING_KEYS = new Set([
   "backup_token",
 ]);
 
+/**
+ * Нөөцлөх Postgres schema-ууд. `tahilt` нь Тахилтын цэсийн өгөгдөл
+ * (@see lib/db/schema.ts → tahiltSchema). Шинэ schema нэмбэл ЭНД нэмнэ —
+ * эс бөгөөс түүний өгөгдөл нөөцлөгдөхгүй.
+ */
+export const BACKUP_SCHEMAS = ["public", "tahilt"] as const;
+
+/**
+ * Архив доторх хүснэгтийн нэр: `public`-ийнх нь хуучин шигээ зөвхөн нэр
+ * (`users`), бусад schema-гийнх `schema.нэр` (`tahilt.revelations`). Ингэснээр
+ * хуучин архив өөрчлөлтгүй сэргээгдэнэ.
+ */
+export const archiveName = (schema: string, table: string) =>
+  schema === "public" ? table : `${schema}.${table}`;
+
+/** Архивын нэрийг schema ба хүснэгт болгон задална */
+export function splitArchiveName(name: string): { schema: string; table: string } {
+  const dot = name.indexOf(".");
+  return dot === -1
+    ? { schema: "public", table: name }
+    : { schema: name.slice(0, dot), table: name.slice(dot + 1) };
+}
+
+/**
+ * SQL-д бичих хүснэгтийн нэр — `"users"` эсвэл `"tahilt"."revelations"`.
+ * Нэрс нь баазаас уншсан жагсаалттай тулгагдсан байх ёстой (дурын мөр биш).
+ */
+export function quoteTable(name: string): string {
+  const { schema, table } = splitArchiveName(name);
+  const quote = (value: string) => `"${value.replace(/"/g, '""')}"`;
+  return schema === "public" ? quote(table) : `${quote(schema)}.${quote(table)}`;
+}
+
 /** Санд БОДИТООР байгаа хүснэгтүүд — схемийн жагсаалтад найдахгүй */
-export async function listTables(pool: Pool): Promise<string[]> {
-  const { rows } = await pool.query<{ table_name: string }>(
-    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name"
+export async function listTables(pool: Pick<Pool, "query">): Promise<string[]> {
+  const { rows } = await pool.query<{ table_schema: string; table_name: string }>(
+    "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema = ANY($1) AND table_type = 'BASE TABLE'",
+    [BACKUP_SCHEMAS]
   );
 
-  return rows.map((row) => row.table_name).sort();
+  return rows.map((row) => archiveName(row.table_schema, row.table_name)).sort();
 }
 
 /**
@@ -141,7 +175,7 @@ export async function dumpDatabase(
 
       for (;;) {
         const { rows: batch } = await pool.query(
-          `select * from "${table}" order by 1 limit ${BATCH_SIZE} offset ${offset}`
+          `select * from ${quoteTable(table)} order by 1 limit ${BATCH_SIZE} offset ${offset}`
         );
 
         if (batch.length === 0) break;

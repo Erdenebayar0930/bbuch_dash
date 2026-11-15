@@ -9,8 +9,9 @@ import {
   requireAimag,
   serverError,
 } from "@/lib/api/auth";
+import { boardOf, welfareTables } from "@/lib/api/dataBoard";
 import { db } from "@/lib/db";
-import { users, welfareAids, welfareHouseholds } from "@/lib/db/schema";
+import { users } from "@/lib/db/schema";
 
 import type { NextRequest } from "next/server";
 
@@ -33,7 +34,9 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAimag(request, AIMAG);
+  const board = boardOf(request);
+  const { aids: welfareAids } = welfareTables(board);
+  const result = await requireAimag(request, board === "tahilt" ? "tahilt" : AIMAG);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;
@@ -70,6 +73,8 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const board = boardOf(request);
+  const { households: welfareHouseholds, aids: welfareAids } = welfareTables(board);
   const result = await requireAdmin(request);
   if ("error" in result) return result.error;
 

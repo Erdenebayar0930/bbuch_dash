@@ -10,8 +10,8 @@ import {
   serverError,
 } from "@/lib/api/auth";
 import { readWelfareHousehold } from "@/lib/api/welfareInput";
+import { boardOf, welfareTables } from "@/lib/api/dataBoard";
 import { db } from "@/lib/db";
-import { welfareHouseholds } from "@/lib/db/schema";
 
 import type { NextRequest } from "next/server";
 
@@ -27,7 +27,9 @@ const AIMAG = welfareAimags;
  * Идэвхгүй болсныг ч буцаана — админ дахин идэвхжүүлэх боломжтой байх ёстой.
  */
 export async function GET(request: NextRequest) {
-  const result = await requireAimag(request, AIMAG);
+  const board = boardOf(request);
+  const { households: welfareHouseholds, aids: welfareAids } = welfareTables(board);
+  const result = await requireAimag(request, board === "tahilt" ? "tahilt" : AIMAG);
   if ("error" in result) return result.error;
 
   try {
@@ -61,7 +63,7 @@ export async function GET(request: NextRequest) {
           row_number() over (
             partition by household_id order by provided_at desc
           ) as rn
-        from welfare_aids
+        from ${welfareAids}
       ) ranked
       where rn = 1
     `);
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest) {
         household_id,
         (coalesce(sum(amount), 0))::int as total,
         (count(*))::int as times
-      from welfare_aids
+      from ${welfareAids}
       group by household_id
     `);
 
@@ -113,6 +115,8 @@ export async function GET(request: NextRequest) {
 
 /** Шинэ өрх бүртгэнэ (зөвхөн админ). */
 export async function POST(request: NextRequest) {
+  const board = boardOf(request);
+  const { households: welfareHouseholds } = welfareTables(board);
   const result = await requireAdmin(request);
   if ("error" in result) return result.error;
 

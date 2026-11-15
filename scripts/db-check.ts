@@ -10,9 +10,11 @@
  * Шаардлагатай env (.env.local): DATABASE_URL
  */
 import { getTableName, is, Table } from "drizzle-orm";
+import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 
 import { createDbPool, resolveDatabaseUrl } from "../src/lib/db/createPool";
 import * as schema from "../src/lib/db/schema";
+import { listTables } from "../src/lib/backup/dump";
 
 type Status = "PASS" | "WARN" | "FAIL";
 
@@ -163,15 +165,17 @@ async function checkJsonRoundTrip() {
 
 /** 5. schema.ts дахь хүснэгтүүд бодит санд байгаа эсэх (drift илрүүлэлт) */
 async function checkTables() {
+  // `tahilt` schema-гийн хүснэгт `tahilt.нэр` гэж — нөөцлөлтийн нэртэй ижил
   const expected = Object.values(schema)
     .filter((value) => is(value, Table))
-    .map((value) => getTableName(value as unknown as Table))
+    .map((value) => {
+      const name = getTableName(value as unknown as Table);
+      const tableSchema = getTableConfig(value as unknown as PgTable).schema;
+      return tableSchema ? `${tableSchema}.${name}` : name;
+    })
     .sort();
 
-  const { rows } = await pool.query<{ name: string }>(
-    "SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
-  );
-  const actual = new Set(rows.map((r) => r.name));
+  const actual = new Set(await listTables(pool));
 
   const missing = expected.filter((name) => !actual.has(name));
   // website/ апп нь "site_" угтвартай хүснэгттэй — drizzle.config.ts үүнийг

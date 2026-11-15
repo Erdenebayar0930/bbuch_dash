@@ -39,4 +39,7 @@ export default defineConfig({
   // хуваалцах болвол эдгээрийг хасахгүй үед `drizzle-kit push` нь "схемд алга"
   // гэж үзээд DROP TABLE site_posts/site_categories үүсгэнэ.
   tablesFilter: ["!site_*"],
+  // Тахилтын цэсийн өгөгдөл `tahilt` schema-д — эс заавал drizzle-kit нь
+  // зөвхөн `public`-ийг хардаг тул tahilt-ийн хүснэгтийг үүсгэхгүй.
+  schemaFilter: ["public", "tahilt"],
 });

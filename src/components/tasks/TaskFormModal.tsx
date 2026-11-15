@@ -18,6 +18,7 @@ import {
   deleteTask,
   listPlanPeople,
   updateTask,
+  type PlanBoard,
   type PlanPerson,
   type Project,
   type Task,
@@ -43,6 +44,8 @@ type TaskFormModalProps = {
   defaultProjectId: string;
   onClose: () => void;
   onSaved: () => void;
+  /** Аль самбар — Тахилтынх бол аймгийн сонголтгүй */
+  board?: PlanBoard;
 };
 
 const fieldClass =
@@ -96,7 +99,10 @@ export default function TaskFormModal({
   defaultProjectId,
   onClose,
   onSaved,
+  board = "plan",
 }: TaskFormModalProps) {
+  /** Тахилтын самбарт аймаг сонгохгүй — бүх даалгавар Тахилтынх */
+  const hideAimags = board === "tahilt";
   const [form, setForm] = useState<TaskInput>(
     emptyInput(defaultProjectId, defaultAimags)
   );
@@ -211,12 +217,12 @@ export default function TaskFormModal({
 
     try {
       if (!task) {
-        await createTask(form);
+        await createTask(form, board);
       } else if (canEdit) {
-        await updateTask(task.id, form);
+        await updateTask(task.id, form, board);
       } else {
         // Хариуцагч/хамтрагчийн эрхээр зөвхөн төлөв явуулна
-        await updateTask(task.id, { status: form.status });
+        await updateTask(task.id, { status: form.status }, board);
       }
 
       onSaved();
@@ -236,7 +242,7 @@ export default function TaskFormModal({
     setError(null);
 
     try {
-      await deleteTask(task.id);
+      await deleteTask(task.id, board);
       onSaved();
       onClose();
     } catch (err) {
@@ -283,12 +289,13 @@ export default function TaskFormModal({
               {/* Модны дарааллаар — дэд тушаал эхийнхээ доор догол мөртэй */}
               {tree.flat.map(({ project, depth }) => (
                 <option key={project.id} value={project.id}>
-                  {`${"  ".repeat(depth)}${depth > 0 ? "└ " : ""}${project.name} · ${aimagsLabel(project)}`}
+                  {`${"  ".repeat(depth)}${depth > 0 ? "└ " : ""}${project.name}${hideAimags ? "" : ` · ${aimagsLabel(project)}`}`}
                 </option>
               ))}
             </select>
           </div>
 
+          {!hideAimags && (
           <div>
             <span className={labelClass}>
               Аймгууд
@@ -336,6 +343,7 @@ export default function TaskFormModal({
                 ))}
             </div>
           </div>
+          )}
 
           <div>
             <label htmlFor="task-title" className={labelClass}>

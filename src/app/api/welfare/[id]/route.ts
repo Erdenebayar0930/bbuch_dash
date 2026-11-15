@@ -7,8 +7,8 @@ import {
   serverError,
 } from "@/lib/api/auth";
 import { readWelfareHousehold } from "@/lib/api/welfareInput";
+import { boardOf, welfareTables } from "@/lib/api/dataBoard";
 import { db } from "@/lib/db";
-import { welfareHouseholds } from "@/lib/db/schema";
 
 import type { NextRequest } from "next/server";
 
@@ -22,6 +22,8 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const board = boardOf(request);
+  const { households: welfareHouseholds } = welfareTables(board);
   const result = await requireAdmin(request);
   if ("error" in result) return result.error;
 
@@ -69,6 +71,8 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const board = boardOf(request);
+  const { households: welfareHouseholds } = welfareTables(board);
   const result = await requireAdmin(request);
   if ("error" in result) return result.error;
 

@@ -10,6 +10,7 @@ import {
   updateHousehold,
   type HouseholdInput,
   type WelfareHousehold,
+  type WelfareBoard,
 } from "@/lib/welfare";
 
 type WelfareHouseholdModalProps = {
@@ -20,6 +21,7 @@ type WelfareHouseholdModalProps = {
   picked: { lat: number; lng: number } | null;
   onClose: () => void;
   onSaved: () => void;
+  board?: WelfareBoard;
 };
 
 const fieldClass =
@@ -44,6 +46,7 @@ export default function WelfareHouseholdModal({
   picked,
   onClose,
   onSaved,
+  board = "main",
 }: WelfareHouseholdModalProps) {
   const [form, setForm] = useState<HouseholdInput>(emptyInput);
   const [saving, setSaving] = useState(false);
@@ -104,9 +107,9 @@ export default function WelfareHouseholdModal({
 
     try {
       if (household) {
-        await updateHousehold(household.id, form);
+        await updateHousehold(household.id, form, board);
       } else {
-        await createHousehold(form);
+        await createHousehold(form, board);
       }
       onSaved();
       onClose();

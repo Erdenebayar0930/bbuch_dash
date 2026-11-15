@@ -6,6 +6,18 @@ import type { TaskPriority, TaskStatus } from "@/data/taskOptions";
 
 export type { TaskPriority, TaskStatus };
 
+/**
+ * Аль самбар: `plan` — аймгуудын Төлөвлөгөө (`projects`, `tasks`),
+ * `tahilt` — Тахилтын тусдаа «Тушаал» (`tahilt_commands`, `tahilt_tasks`).
+ * Хоёулаа ижил хэлбэрийн хариу буцаадаг тул нэг UI хоёуланд ажиллана.
+ */
+export type PlanBoard = "plan" | "tahilt";
+
+const endpoints = (board: PlanBoard) =>
+  board === "tahilt"
+    ? { projects: "/api/tahilt/commands", tasks: "/api/tahilt/tasks" }
+    : { projects: "/api/projects", tasks: "/api/tasks" };
+
 /** Ажлын даалгаврыг бүлэглэх нэгж */
 export type Project = {
   id: string;
@@ -113,8 +125,8 @@ const toTask = (row: TaskRow): Task => ({
 });
 
 /** Бүх тушаал — даалгаврын тоотой. */
-export async function listProjects(): Promise<Project[]> {
-  const data = await apiFetch<{ projects: ProjectRow[] }>("/api/projects");
+export async function listProjects(board: PlanBoard = "plan"): Promise<Project[]> {
+  const data = await apiFetch<{ projects: ProjectRow[] }>(endpoints(board).projects);
   return (data.projects ?? []).map(toProject);
 }
 
@@ -128,8 +140,11 @@ export type ProjectInput = {
 };
 
 /** Шинэ тушаал үүсгэнэ (Харуулын аймаг, админ). */
-export async function createProject(input: ProjectInput): Promise<Project> {
-  const data = await apiFetch<{ project: ProjectRow }>("/api/projects", {
+export async function createProject(
+  input: ProjectInput,
+  board: PlanBoard = "plan"
+): Promise<Project> {
+  const data = await apiFetch<{ project: ProjectRow }>(endpoints(board).projects, {
     method: "POST",
     body: input,
   });
@@ -139,19 +154,21 @@ export async function createProject(input: ProjectInput): Promise<Project> {
 /** Тушаалыг засна (Харуулын аймаг, админ). */
 export async function updateProject(
   id: string,
-  patch: Partial<Omit<ProjectInput, "parentId"> & { archived: boolean }>
+  patch: Partial<Omit<ProjectInput, "parentId"> & { archived: boolean }>,
+  board: PlanBoard = "plan"
 ): Promise<void> {
-  await apiFetch(`/api/projects/${id}`, { method: "PATCH", body: patch });
+  await apiFetch(`${endpoints(board).projects}/${id}`, { method: "PATCH", body: patch });
 }
 
 /** Тушаалыг доторх даалгаврын хамт устгана (Харуулын аймаг, админ). */
-export async function deleteProject(id: string): Promise<void> {
-  await apiFetch(`/api/projects/${id}`, { method: "DELETE" });
+export async function deleteProject(id: string, board: PlanBoard = "plan"): Promise<void> {
+  await apiFetch(`${endpoints(board).projects}/${id}`, { method: "DELETE" });
 }
 
 /** Даалгаврууд — тушаалаар эсвэл зөвхөн өөрт оногдсоноор шүүнэ. */
 export async function listTasks(
-  filter: { projectId?: string; mine?: boolean } = {}
+  filter: { projectId?: string; mine?: boolean } = {},
+  board: PlanBoard = "plan"
 ): Promise<Task[]> {
   const params = new URLSearchParams();
   if (filter.projectId) params.set("projectId", filter.projectId);
@@ -159,7 +176,7 @@ export async function listTasks(
 
   const query = params.toString();
   const data = await apiFetch<{ tasks: TaskRow[] }>(
-    query ? `/api/tasks?${query}` : "/api/tasks"
+    query ? `${endpoints(board).tasks}?${query}` : endpoints(board).tasks
   );
 
   return (data.tasks ?? []).map(toTask);
@@ -182,8 +199,11 @@ export type TaskInput = {
 };
 
 /** Шинэ даалгавар үүсгэнэ — сонгосон аймгийн гишүүн эсвэл Харуул/админ. */
-export async function createTask(input: TaskInput): Promise<Task> {
-  const data = await apiFetch<{ task: TaskRow }>("/api/tasks", {
+export async function createTask(
+  input: TaskInput,
+  board: PlanBoard = "plan"
+): Promise<Task> {
+  const data = await apiFetch<{ task: TaskRow }>(endpoints(board).tasks, {
     method: "POST",
     body: input,
   });
@@ -196,9 +216,10 @@ export async function createTask(input: TaskInput): Promise<Task> {
  */
 export async function updateTask(
   id: string,
-  patch: Partial<TaskInput>
+  patch: Partial<TaskInput>,
+  board: PlanBoard = "plan"
 ): Promise<Task> {
-  const data = await apiFetch<{ task: TaskRow }>(`/api/tasks/${id}`, {
+  const data = await apiFetch<{ task: TaskRow }>(`${endpoints(board).tasks}/${id}`, {
     method: "PATCH",
     body: patch,
   });
@@ -206,8 +227,8 @@ export async function updateTask(
 }
 
 /** Даалгаврыг устгана — үүсгэсэн хүн эсвэл Харуул/админ. */
-export async function deleteTask(id: string): Promise<void> {
-  await apiFetch(`/api/tasks/${id}`, { method: "DELETE" });
+export async function deleteTask(id: string, board: PlanBoard = "plan"): Promise<void> {
+  await apiFetch(`${endpoints(board).tasks}/${id}`, { method: "DELETE" });
 }
 
 /** Гүйцэтгэгч сонгох жагсаалтын нэг хүн */

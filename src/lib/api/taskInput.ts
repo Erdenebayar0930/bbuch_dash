@@ -117,7 +117,19 @@ export type TaskPatch = {
  */
 export async function readTask(
   body: unknown,
-  partial: boolean
+  partial: boolean,
+  /**
+   * Тушаал байгаа эсэх — анхдагч нь `projects`. Тахилтын самбар өөрийн
+   * `tahilt_commands` хүснэгтээр шалгана.
+   */
+  projectExists: (id: string) => Promise<boolean> = async (id) => {
+    const [found] = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.id, id))
+      .limit(1);
+    return !!found;
+  }
 ): Promise<Parsed<TaskPatch>> {
   if (typeof body !== "object" || body === null) {
     return invalid("Өгөгдөл буруу байна.");
@@ -195,14 +207,7 @@ export async function readTask(
     const projectId =
       typeof input.projectId === "string" ? input.projectId : "";
     if (!projectId) return invalid("Тушаалыг сонгоно уу.");
-
-    const [found] = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(eq(projects.id, projectId))
-      .limit(1);
-
-    if (!found) return invalid("Тушаал олдсонгүй.");
+    if (!(await projectExists(projectId))) return invalid("Тушаал олдсонгүй.");
     patch.projectId = projectId;
   }
 

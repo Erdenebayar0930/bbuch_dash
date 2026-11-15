@@ -21,7 +21,7 @@ export default function WelfarePage() {
       </div>
 
       <AimagGuard aimag="tahilt">
-        <WelfareMap />
+        <WelfareMap board="tahilt" />
       </AimagGuard>
     </div>
   );

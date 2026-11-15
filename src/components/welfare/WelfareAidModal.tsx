@@ -9,6 +9,7 @@ import {
   recordAid,
   type WelfareAid,
   type WelfareHousehold,
+  type WelfareBoard,
 } from "@/lib/welfare";
 
 type WelfareAidModalProps = {
@@ -19,6 +20,7 @@ type WelfareAidModalProps = {
   onClose: () => void;
   /** Бүртгэсний дараа жагсаалтыг шинэчлэхэд */
   onRecorded: () => void;
+  board?: WelfareBoard;
 };
 
 const money = new Intl.NumberFormat("mn-MN");
@@ -47,6 +49,7 @@ export default function WelfareAidModal({
   canRecord,
   onClose,
   onRecorded,
+  board = "main",
 }: WelfareAidModalProps) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState(0);
@@ -64,14 +67,14 @@ export default function WelfareAidModal({
 
     setLoading(true);
     try {
-      setAids(await listAids(householdId));
+      setAids(await listAids(householdId, board));
     } catch (err) {
       console.error("Халамжийн түүх ачаалж чадсангүй:", err);
       setError("Түүхийг ачаалахад алдаа гарлаа.");
     } finally {
       setLoading(false);
     }
-  }, [householdId]);
+  }, [householdId, board]);
 
   // Цонх нээгдэх бүрд маягтыг цэвэрлээд түүхийг татна
   useEffect(() => {
@@ -91,7 +94,7 @@ export default function WelfareAidModal({
     setError(null);
 
     try {
-      await recordAid(household.id, { description, amount, note });
+      await recordAid(household.id, { description, amount, note }, board);
       await loadHistory();
       onRecorded();
       setDescription("");

@@ -22,7 +22,12 @@ import { createGunzip } from "node:zlib";
 import { Readable } from "node:stream";
 
 import { createDbPool, resolveDatabaseUrl } from "../src/lib/db/createPool";
-import { decodeValue } from "../src/lib/backup/dump";
+import {
+  decodeValue,
+  listTables,
+  quoteTable,
+  splitArchiveName,
+} from "../src/lib/backup/dump";
 
 import type { PoolClient } from "pg";
 
@@ -122,12 +127,8 @@ async function main() {
     const skipped: string[] = [];
 
     /** Баазад БОДИТООР байгаа хүснэгтүүд — архивт байгаа ч энд байхгүй байж болно */
-    const { rows: existingRows } = await connection.query(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
-    );
-    const existing = new Set(
-      (existingRows as { table_name: string }[]).map((row) => row.table_name)
-    );
+    // `public` ба `tahilt` schema — архивын нэрийн хэлбэрээр (`tahilt.revelations`)
+    const existing = new Set(await listTables(connection));
 
     /**
      * Хүснэгт бүрийн БОДИТ баганууд.
@@ -146,9 +147,10 @@ async function main() {
      */
     const columnsOf = new Map<string, Set<string>>();
     for (const table of existing) {
+      const { schema: tableSchema, table: tableName } = splitArchiveName(table);
       const { rows: cols } = await connection.query(
-        "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1",
-        [table]
+        "SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2",
+        [tableSchema, tableName]
       );
       columnsOf.set(
         table,
@@ -221,7 +223,7 @@ async function main() {
           continue;
         }
 
-        await connection.query(`delete from "${table}"`);
+        await connection.query(`delete from ${quoteTable(table)}`);
       }
     };
 
@@ -257,7 +259,7 @@ async function main() {
           .join(",");
 
         await connection.query(
-          `insert into "${table}" (${columns
+          `insert into ${quoteTable(table)} (${columns
             .map((column) => `"${column}"`)
             .join(",")}) values ${placeholders}`,
           values

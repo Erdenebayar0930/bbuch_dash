@@ -3,11 +3,14 @@ import {
   Bell,
   BookOpen,
   Boxes,
+  Church,
+  Coins,
   CalendarClock,
   ClipboardList,
   DatabaseBackup,
   Gavel,
   Gift,
+  GraduationCap,
   HandCoins,
   HandHeart,
   HeartHandshake,
@@ -15,10 +18,14 @@ import {
   LayoutGrid,
   MapPin,
   MessageSquarePlus,
+  Megaphone,
   Music2,
   Package,
   Shield,
   Users,
+  UsersRound,
+  Wallet,
+  Wheat,
   type LucideIcon,
 } from "lucide-react";
 
@@ -69,6 +76,14 @@ function tahiltMenu(aimag: string): NavItem {
 }
 
 /**
+ * Аймаг бүрийн "Илчлэл" цэс — аймгийн цэсийн ХАМГИЙН ЭХЭНД (Төлөвлөгөөний
+ * өмнө). Нийтлэл нь аймаг бүрт тусдаа; Facebook-ийн нийтлэл шиг бичнэ.
+ */
+function revelationMenu(aimag: string): NavItem {
+  return { name: "Илчлэл", path: `/aimag/${aimag}/revelation`, icon: Megaphone };
+}
+
+/**
  * Аймаг бүрийн "Төлөвлөгөө" цэс — үргэлж аймгийн цэсийн ЭХЭНД байрлана.
  * Тушаал, даалгавар нь нэг сан; аймаг бүр өөрийнхөө тушаалыг л харна, харин
  * Харуулын аймгийнх бүх аймгийн төлөвлөгөөг харна (`canSeeAllPlans`).
@@ -94,11 +109,27 @@ function gospelMenu(aimag: string): NavItem {
 export const navItems: NavItem[] = [
   { name: "Үндсэн цэс", path: "/", icon: LayoutGrid },
   {
+    // Аймгуудын дээр. «1/10 ба өргөл» нь бүгдэд — гишүүд өргөх данс, гүйлгээний
+    // утгаа эндээс хуулна (хуулга уншдаг таб нь хуудас дотроо зөвхөн админд).
+    // Бусад нь агуулга нь тодорхой болтол зөвхөн админд.
+    name: "Санхүү",
+    path: "/finance",
+    icon: Wallet,
+    children: [
+      { name: "1/10 ба өргөл", path: "/finance/allocation", icon: Coins },
+      { name: "Газрын 1/10", path: "/finance/land-tithe", icon: Wheat, adminOnly: true },
+      { name: "Хангамж", path: "/finance/supply", icon: Package, adminOnly: true },
+      { name: "Хандив", path: "/finance/donations", icon: Gift, adminOnly: true },
+      { name: "Өглөг", path: "/finance/alms", icon: HandHeart, adminOnly: true },
+    ],
+  },
+  {
     name: "Харуулын аймаг",
     path: "/aimag/guard",
     icon: Shield,
     aimag: "guard",
     children: [
+      revelationMenu("guard"),
       planMenu("guard"),
       { name: "Газрын зураг", path: "/aimag/guard/map", icon: MapPin },
       gospelMenu("guard"),
@@ -111,6 +142,7 @@ export const navItems: NavItem[] = [
     icon: Music2,
     aimag: "praise",
     children: [
+      revelationMenu("praise"),
       planMenu("praise"),
       {
         name: "Эд хөрөнгө бүртгэл",
@@ -127,6 +159,7 @@ export const navItems: NavItem[] = [
     icon: Package,
     aimag: "supply",
     children: [
+      revelationMenu("supply"),
       planMenu("supply"),
       tahiltMenu("supply"),
     ],
@@ -137,6 +170,7 @@ export const navItems: NavItem[] = [
     icon: Gavel,
     aimag: "commission",
     children: [
+      revelationMenu("commission"),
       planMenu("commission"),
       {
         name: "Хуваарь",
@@ -153,6 +187,7 @@ export const navItems: NavItem[] = [
     icon: HeartHandshake,
     aimag: "service",
     children: [
+      revelationMenu("service"),
       planMenu("service"),
       {
         name: "Хандивын хайрцаг",
@@ -171,8 +206,22 @@ export const navItems: NavItem[] = [
     icon: HandCoins,
     aimag: "tahilt",
     children: [
-      { name: "Төлөвлөгөө", path: "/tahilt/plan", icon: ClipboardList },
+      { name: "Илчлэл", path: "/tahilt/revelation", icon: Megaphone },
+      {
+        name: "Тахилт дахь чуулган",
+        path: "/tahilt/church",
+        icon: Church,
+        children: [
+          // Сургаал, Амралтын өдрийн үйлчлэл, Үйл явдал нь хуудас доторх таб
+          { name: "Цуглаан", path: "/tahilt/church/gathering", icon: UsersRound },
+          // Насанд хүрэгсэд, Өсвөр, Хүүхэд нь хуудас доторх таб
+          { name: "Итгэгчид", path: "/tahilt/church/believers", icon: Users },
+        ],
+      },
+      // Бусад аймгийн Төлөвлөгөөнөөс тусдаа — өөрийн хүснэгттэй (tahilt_commands)
+      { name: "Тушаал", path: "/tahilt/commands", icon: ClipboardList },
       { name: "Халамж", path: "/tahilt/welfare", icon: HandHeart },
+      { name: "Сургалт", path: "/tahilt/training", icon: GraduationCap },
     ],
   },
   { name: "Мэдэгдэл илгээх", path: "/admin/notifications", icon: Bell, notifierOnly: true },
