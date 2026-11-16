@@ -4,15 +4,20 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
 
 import {
+  DEFAULT_REVELATION_SOURCE,
   MAX_REVELATION_IMAGES,
   MAX_REVELATION_IMAGE_BYTES,
   MAX_REVELATION_LENGTH,
+  MAX_REVELATION_SOURCE_LENGTH,
+  ablative,
 } from "@/data/revelationOptions";
 import type { RevelationImage } from "@/lib/revelations";
 
 type RevelationComposerProps = {
   /** Засах үед одоогийн бичвэр ба зургууд */
   initialBody?: string;
+  /** Илчлэл авсан хүн — хоосон бол тогтмол нэр */
+  initialReceivedBy?: string;
   initialImages?: RevelationImage[];
   submitLabel: string;
   placeholder?: string;
@@ -21,6 +26,7 @@ type RevelationComposerProps = {
   /** Амжилттай бол true — маягт цэвэрлэгдэнэ */
   onSubmit: (input: {
     body: string;
+    receivedBy: string;
     keep: RevelationImage[];
     files: File[];
   }) => Promise<boolean>;
@@ -32,6 +38,7 @@ type RevelationComposerProps = {
  */
 export default function RevelationComposer({
   initialBody = "",
+  initialReceivedBy = DEFAULT_REVELATION_SOURCE,
   initialImages = [],
   submitLabel,
   placeholder = "Илчлэлээ бичнэ үү...",
@@ -39,6 +46,7 @@ export default function RevelationComposer({
   onSubmit,
 }: RevelationComposerProps) {
   const [body, setBody] = useState(initialBody);
+  const [receivedBy, setReceivedBy] = useState(initialReceivedBy);
   const [keep, setKeep] = useState<RevelationImage[]>(initialImages);
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -92,9 +100,15 @@ export default function RevelationComposer({
     setError(null);
 
     try {
-      const ok = await onSubmit({ body: body.trim(), keep, files });
+      const ok = await onSubmit({
+        body: body.trim(),
+        receivedBy: receivedBy.trim() || DEFAULT_REVELATION_SOURCE,
+        keep,
+        files,
+      });
       if (ok && !onCancel) {
         setBody("");
+        setReceivedBy(DEFAULT_REVELATION_SOURCE);
         setKeep([]);
         setFiles([]);
       }
@@ -129,6 +143,23 @@ export default function RevelationComposer({
         rows={3}
         className="min-h-[88px] w-full resize-none rounded-lg border border-gray-200 bg-white px-3.5 py-3 text-theme-sm leading-relaxed text-gray-800 placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30"
       />
+
+      <label className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="text-theme-sm font-medium text-gray-600 dark:text-gray-300">
+          Илчлэл авсан
+        </span>
+        <input
+          type="text"
+          value={receivedBy}
+          onChange={(event) => setReceivedBy(event.target.value)}
+          placeholder={DEFAULT_REVELATION_SOURCE}
+          maxLength={MAX_REVELATION_SOURCE_LENGTH}
+          className="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 text-theme-sm text-gray-800 placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 sm:max-w-xs dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90"
+        />
+        <span className="text-theme-xs text-gray-400">
+          Доор нь «{ablative(receivedBy.trim() || DEFAULT_REVELATION_SOURCE)}» гэж гарна
+        </span>
+      </label>
 
       {thumbs.length > 0 && (
         <ul className="flex flex-wrap gap-2">

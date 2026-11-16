@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_REVELATION_SOURCE } from "@/data/revelationOptions";
+
 import { apiFetch } from "./apiClient";
 
 export type RevelationImage = { url: string; path: string };
@@ -11,6 +13,8 @@ export type Revelation = {
   authorName: string;
   authorPhotoUrl: string;
   body: string;
+  /** Илчлэл авсан хүн — нийтлэгчээс өөр байж болно */
+  receivedBy: string;
   images: RevelationImage[];
   createdAt: Date;
   /** Засагдсан бол — `createdAt`-аас ялгаатай */
@@ -25,6 +29,7 @@ type RevelationRow = {
   authorLastName: string | null;
   authorPhotoUrl: string | null;
   body: string | null;
+  receivedBy: string | null;
   images: RevelationImage[] | null;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +48,7 @@ const toRevelation = (row: RevelationRow): Revelation => {
       "Нэргүй хэрэглэгч",
     authorPhotoUrl: row.authorPhotoUrl ?? "",
     body: row.body ?? "",
+    receivedBy: row.receivedBy || DEFAULT_REVELATION_SOURCE,
     images: row.images ?? [],
     createdAt,
     // Үүсгэх үед хоёр огноо хэдэн мс зөрж болно — минутаас их бол засагдсан
@@ -64,7 +70,7 @@ export async function listRevelations(aimag: string): Promise<Revelation[]> {
 export async function createRevelation(
   uid: string,
   aimag: string,
-  input: { body: string; files: File[] }
+  input: { body: string; receivedBy: string; files: File[] }
 ): Promise<Revelation> {
   const { uploadRevelationImage, deleteRevelationImage } = await import("./storage");
   const images: RevelationImage[] = [];
@@ -76,7 +82,7 @@ export async function createRevelation(
 
     const data = await apiFetch<{ revelation: RevelationRow }>(
       `/api/revelations?aimag=${encodeURIComponent(aimag)}`,
-      { method: "POST", body: { body: input.body, images } }
+      { method: "POST", body: { body: input.body, receivedBy: input.receivedBy, images } }
     );
     return toRevelation(data.revelation);
   } catch (error) {
@@ -92,7 +98,7 @@ export async function createRevelation(
 export async function updateRevelation(
   uid: string,
   revelation: Revelation,
-  input: { body: string; keep: RevelationImage[]; files: File[] }
+  input: { body: string; receivedBy: string; keep: RevelationImage[]; files: File[] }
 ): Promise<Revelation> {
   const { uploadRevelationImage, deleteRevelationImage } = await import("./storage");
   const uploaded: RevelationImage[] = [];
@@ -104,7 +110,14 @@ export async function updateRevelation(
 
     const data = await apiFetch<{ revelation: RevelationRow }>(
       `/api/revelations/${revelation.id}?aimag=${encodeURIComponent(revelation.aimag)}`,
-      { method: "PATCH", body: { body: input.body, images: [...input.keep, ...uploaded] } }
+      {
+        method: "PATCH",
+        body: {
+          body: input.body,
+          receivedBy: input.receivedBy,
+          images: [...input.keep, ...uploaded],
+        },
+      }
     );
 
     const kept = new Set(input.keep.map((image) => image.path));

@@ -55,7 +55,7 @@ export default function RevelationFeed({ aimag }: RevelationFeedProps) {
     load();
   }, [load]);
 
-  const publish = async (input: { body: string; files: File[] }) => {
+  const publish = async (input: { body: string; receivedBy: string; files: File[] }) => {
     if (!user?.uid) throw new Error("Нэвтэрсэн байх шаардлагатай.");
 
     const created = await createRevelation(user.uid, aimag, input);
@@ -65,7 +65,7 @@ export default function RevelationFeed({ aimag }: RevelationFeedProps) {
 
   const saveEdit = async (
     revelation: Revelation,
-    input: { body: string; keep: Revelation["images"]; files: File[] }
+    input: { body: string; receivedBy: string; keep: Revelation["images"]; files: File[] }
   ) => {
     if (!user?.uid) throw new Error("Нэвтэрсэн байх шаардлагатай.");
 
@@ -130,6 +130,7 @@ export default function RevelationFeed({ aimag }: RevelationFeedProps) {
           <div key={revelation.id} className="surface p-4">
             <RevelationComposer
               initialBody={revelation.body}
+              initialReceivedBy={revelation.receivedBy}
               initialImages={revelation.images}
               submitLabel="Хадгалах"
               onCancel={() => setEditingId(null)}

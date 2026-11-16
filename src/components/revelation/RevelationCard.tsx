@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
+import { ablative } from "@/data/revelationOptions";
 import type { Revelation } from "@/lib/revelations";
 
 type RevelationCardProps = {
@@ -17,47 +18,18 @@ type RevelationCardProps = {
 /** Үүнээс урт бичвэрийг эхлээд хураангуйлж «Цааш унших» гаргана */
 const COLLAPSE_AT = 600;
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+/**
+ * «2026 оны 11-р сарын 16» — илчлэлийн доорх жижиг мөрөнд. Intl-ийн `long`
+ * сар нь «арван нэгдүгээр сарын» гэж хэт урт гардаг тул гараар бүрдүүлнэ.
+ */
+const formatDate = (date: Date) =>
+  `${date.getFullYear()} оны ${date.getMonth() + 1}-р сарын ${date.getDate()}`;
 
-const timeFormatter = new Intl.DateTimeFormat("mn-MN", {
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-/** «5 минутын өмнө», «Өчигдөр 14:20» гэх мэт */
-function relativeTime(date: Date, now = new Date()): string {
-  const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000);
-
-  if (minutes < 1) return "Дөнгөж сая";
-  if (minutes < 60) return `${minutes} минутын өмнө`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} цагийн өмнө`;
-
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) {
-    return `Өчигдөр ${timeFormatter.format(date)}`;
-  }
-
-  return dateFormatter.format(date);
-}
-
-const initialsOf = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-
-/** Facebook-ийн нийтлэл шиг: толгой, бичвэр, зургийн тор. */
+/**
+ * Илчлэл нь өөрөө гол — нийтэлсэн хүн харагдахгүй. Бичвэр голлон томоор,
+ * зураг нь доор, хамгийн доор жижгээр огноо ба илчлэл авсан хүн
+ * («2026 оны 11-р сарын 16 · Г.Мөнгөнцэцэгээс»).
+ */
 export default function RevelationCard({
   revelation,
   canEdit,
@@ -86,33 +58,7 @@ export default function RevelationCard({
 
   return (
     <article className="surface overflow-hidden">
-      <header className="flex items-center gap-3 px-4 pt-4">
-        {revelation.authorPhotoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- Firebase Storage URL
-          <img
-            src={revelation.authorPhotoUrl}
-            alt=""
-            className="h-10 w-10 shrink-0 rounded-full object-cover"
-          />
-        ) : (
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-50 text-theme-sm font-semibold text-accent-700 dark:bg-accent-500/15 dark:text-accent-300">
-            {initialsOf(revelation.authorName) || "?"}
-          </span>
-        )}
-
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-theme-sm font-semibold text-gray-900 dark:text-white">
-            {revelation.authorName}
-          </p>
-          <p
-            className="text-theme-xs text-gray-500 dark:text-gray-400"
-            title={dateFormatter.format(revelation.createdAt)}
-          >
-            {relativeTime(revelation.createdAt)}
-            {revelation.edited && " · Засагдсан"}
-          </p>
-        </div>
-
+      <header className="flex min-h-4 justify-end px-2 pt-2">
         {(canEdit || canDelete) && (
           <div ref={menuRef} className="relative">
             <button
@@ -160,15 +106,15 @@ export default function RevelationCard({
       </header>
 
       {body && (
-        <div className="px-4 pt-3">
-          <p className="whitespace-pre-line break-words text-theme-sm leading-relaxed text-gray-800 dark:text-gray-200">
+        <div className={`px-5 text-center sm:px-10 ${canEdit || canDelete ? "pt-1" : "pt-6"}`}>
+          <p className="whitespace-pre-line break-words text-lg leading-relaxed text-gray-900 dark:text-white/90 sm:text-xl">
             {shownBody}
           </p>
           {long && (
             <button
               type="button"
               onClick={() => setExpanded((open) => !open)}
-              className="mt-1 text-theme-sm font-medium text-gray-500 hover:underline dark:text-gray-400"
+              className="mt-2 text-theme-sm font-medium text-gray-500 hover:underline dark:text-gray-400"
             >
               {expanded ? "Хураах" : "Цааш унших"}
             </button>
@@ -176,11 +122,15 @@ export default function RevelationCard({
         </div>
       )}
 
-      {images.length > 0 ? (
+      {images.length > 0 && (
         <ImageGrid images={images.map((image) => image.url)} onOpen={onOpenImage} />
-      ) : (
-        <div className="h-4" />
       )}
+
+      <footer className="px-5 pb-4 pt-4 text-center text-theme-xs text-gray-400 dark:text-gray-500">
+        {formatDate(revelation.createdAt)}
+        {" · "}
+        {ablative(revelation.receivedBy)}
+      </footer>
     </article>
   );
 }

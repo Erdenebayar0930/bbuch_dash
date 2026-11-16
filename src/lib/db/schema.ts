@@ -1242,6 +1242,8 @@ const revelationFields = () => ({
     onDelete: "set null",
   }),
   body: bodyText("body"),
+  /** Илчлэл авсан хүн — нийтлэлийн доор «…аас» гэж гарна (нийтлэгч биш) */
+  receivedBy: varchar("received_by", { length: 120 }).notNull().default("Г.Мөнгөнцэцэг"),
   images: jsonCol<{ url: string; path: string }[]>("images")
     .notNull()
     .$defaultFn(() => []),

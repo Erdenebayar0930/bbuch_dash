@@ -2,7 +2,12 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
-import { MAX_REVELATION_IMAGES, MAX_REVELATION_LENGTH } from "@/data/revelationOptions";
+import {
+  DEFAULT_REVELATION_SOURCE,
+  MAX_REVELATION_IMAGES,
+  MAX_REVELATION_LENGTH,
+  MAX_REVELATION_SOURCE_LENGTH,
+} from "@/data/revelationOptions";
 import { db } from "@/lib/db";
 import { revelations, users } from "@/lib/db/schema";
 
@@ -23,7 +28,7 @@ function isStorageUrl(value: string) {
 }
 
 type Parsed =
-  | { ok: true; value: { body: string; images: RevelationImage[] } }
+  | { ok: true; value: { body: string; receivedBy: string; images: RevelationImage[] } }
   | { ok: false; error: string };
 
 /**
@@ -45,11 +50,21 @@ export function readRevelation(
   const raw = input as Record<string, unknown>;
   const body = typeof raw.body === "string" ? raw.body.trim() : "";
   const rawImages: unknown[] = Array.isArray(raw.images) ? raw.images : [];
+  // Хоосон бол тогтмол нэр — «Илчлэл авсан» хэзээ ч хоосон гарахгүй
+  const receivedBy =
+    (typeof raw.receivedBy === "string" ? raw.receivedBy.trim() : "") ||
+    DEFAULT_REVELATION_SOURCE;
 
   if (body.length > MAX_REVELATION_LENGTH) {
     return {
       ok: false,
       error: `Нийтлэл ${MAX_REVELATION_LENGTH} тэмдэгтээс урт байж болохгүй.`,
+    };
+  }
+  if (receivedBy.length > MAX_REVELATION_SOURCE_LENGTH) {
+    return {
+      ok: false,
+      error: `Илчлэл авсан хүний нэр ${MAX_REVELATION_SOURCE_LENGTH} тэмдэгтээс урт байж болохгүй.`,
     };
   }
   if (rawImages.length > MAX_REVELATION_IMAGES) {
@@ -79,7 +94,7 @@ export function readRevelation(
     return { ok: false, error: "Бичвэр эсвэл зураг оруулна уу." };
   }
 
-  return { ok: true, value: { body, images } };
+  return { ok: true, value: { body, receivedBy, images } };
 }
 
 /** Илчлэлийн хүснэгт — `public.revelations` эсвэл `tahilt.revelations` */
@@ -95,6 +110,7 @@ export const revelationColumns = (table: RevelationTable) =>
     authorLastName: users.lastName,
     authorPhotoUrl: users.photoUrl,
     body: table.body,
+    receivedBy: table.receivedBy,
     images: table.images,
     createdAt: table.createdAt,
     updatedAt: table.updatedAt,
