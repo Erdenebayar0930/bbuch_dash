@@ -7,6 +7,8 @@ import {
   MAX_REVELATION_IMAGES,
   MAX_REVELATION_LENGTH,
   MAX_REVELATION_SOURCE_LENGTH,
+  isIsoDate,
+  todayIso,
 } from "@/data/revelationOptions";
 import { db } from "@/lib/db";
 import { revelations, users } from "@/lib/db/schema";
@@ -28,7 +30,10 @@ function isStorageUrl(value: string) {
 }
 
 type Parsed =
-  | { ok: true; value: { body: string; receivedBy: string; images: RevelationImage[] } }
+  | {
+      ok: true;
+      value: { body: string; receivedBy: string; revealedOn: string; images: RevelationImage[] };
+    }
   | { ok: false; error: string };
 
 /**
@@ -54,12 +59,20 @@ export function readRevelation(
   const receivedBy =
     (typeof raw.receivedBy === "string" ? raw.receivedBy.trim() : "") ||
     DEFAULT_REVELATION_SOURCE;
+  // Хоосон бол өнөөдөр; нөхөж оруулахад өнгөрсөн өдөр байж болно
+  const revealedOn = typeof raw.revealedOn === "string" && raw.revealedOn ? raw.revealedOn : todayIso();
 
   if (body.length > MAX_REVELATION_LENGTH) {
     return {
       ok: false,
       error: `Нийтлэл ${MAX_REVELATION_LENGTH} тэмдэгтээс урт байж болохгүй.`,
     };
+  }
+  if (!isIsoDate(revealedOn)) {
+    return { ok: false, error: "Огноо YYYY-MM-DD хэлбэртэй байна." };
+  }
+  if (revealedOn > todayIso()) {
+    return { ok: false, error: "Ирээдүйн огноо оруулах боломжгүй." };
   }
   if (receivedBy.length > MAX_REVELATION_SOURCE_LENGTH) {
     return {
@@ -94,7 +107,7 @@ export function readRevelation(
     return { ok: false, error: "Бичвэр эсвэл зураг оруулна уу." };
   }
 
-  return { ok: true, value: { body, receivedBy, images } };
+  return { ok: true, value: { body, receivedBy, revealedOn, images } };
 }
 
 /** Илчлэлийн хүснэгт — `public.revelations` эсвэл `tahilt.revelations` */
@@ -111,6 +124,7 @@ export const revelationColumns = (table: RevelationTable) =>
     authorPhotoUrl: users.photoUrl,
     body: table.body,
     receivedBy: table.receivedBy,
+    revealedOn: table.revealedOn,
     images: table.images,
     createdAt: table.createdAt,
     updatedAt: table.updatedAt,

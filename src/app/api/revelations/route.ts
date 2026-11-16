@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
       .from(revelations)
       .leftJoin(users, eq(revelations.authorUid, users.uid))
       .where(eq(revelations.aimag, aimag))
-      .orderBy(desc(revelations.createdAt))
+      // Илчлэл ирсэн өдрөөр — нөхөж оруулсан нь өөрийн байрандаа орно
+      .orderBy(desc(revelations.revealedOn), desc(revelations.createdAt))
       .limit(PAGE_SIZE);
 
     return NextResponse.json({ revelations: rows });

@@ -15,6 +15,8 @@ export type Revelation = {
   body: string;
   /** Илчлэл авсан хүн — нийтлэгчээс өөр байж болно */
   receivedBy: string;
+  /** Илчлэл ирсэн өдөр «YYYY-MM-DD» — нөхөж оруулж болно */
+  revealedOn: string;
   images: RevelationImage[];
   createdAt: Date;
   /** Засагдсан бол — `createdAt`-аас ялгаатай */
@@ -30,6 +32,7 @@ type RevelationRow = {
   authorPhotoUrl: string | null;
   body: string | null;
   receivedBy: string | null;
+  revealedOn: string | null;
   images: RevelationImage[] | null;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +52,7 @@ const toRevelation = (row: RevelationRow): Revelation => {
     authorPhotoUrl: row.authorPhotoUrl ?? "",
     body: row.body ?? "",
     receivedBy: row.receivedBy || DEFAULT_REVELATION_SOURCE,
+    revealedOn: row.revealedOn || row.createdAt.slice(0, 10),
     images: row.images ?? [],
     createdAt,
     // Үүсгэх үед хоёр огноо хэдэн мс зөрж болно — минутаас их бол засагдсан
@@ -70,7 +74,7 @@ export async function listRevelations(aimag: string): Promise<Revelation[]> {
 export async function createRevelation(
   uid: string,
   aimag: string,
-  input: { body: string; receivedBy: string; files: File[] }
+  input: { body: string; receivedBy: string; revealedOn: string; files: File[] }
 ): Promise<Revelation> {
   const { uploadRevelationImage, deleteRevelationImage } = await import("./storage");
   const images: RevelationImage[] = [];
@@ -82,7 +86,15 @@ export async function createRevelation(
 
     const data = await apiFetch<{ revelation: RevelationRow }>(
       `/api/revelations?aimag=${encodeURIComponent(aimag)}`,
-      { method: "POST", body: { body: input.body, receivedBy: input.receivedBy, images } }
+      {
+        method: "POST",
+        body: {
+          body: input.body,
+          receivedBy: input.receivedBy,
+          revealedOn: input.revealedOn,
+          images,
+        },
+      }
     );
     return toRevelation(data.revelation);
   } catch (error) {
@@ -98,7 +110,13 @@ export async function createRevelation(
 export async function updateRevelation(
   uid: string,
   revelation: Revelation,
-  input: { body: string; receivedBy: string; keep: RevelationImage[]; files: File[] }
+  input: {
+    body: string;
+    receivedBy: string;
+    revealedOn: string;
+    keep: RevelationImage[];
+    files: File[];
+  }
 ): Promise<Revelation> {
   const { uploadRevelationImage, deleteRevelationImage } = await import("./storage");
   const uploaded: RevelationImage[] = [];
@@ -115,6 +133,7 @@ export async function updateRevelation(
         body: {
           body: input.body,
           receivedBy: input.receivedBy,
+          revealedOn: input.revealedOn,
           images: [...input.keep, ...uploaded],
         },
       }

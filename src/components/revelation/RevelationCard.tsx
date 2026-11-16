@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
-import { ablative } from "@/data/revelationOptions";
+import { formatRevelationDate } from "@/data/revelationOptions";
 import type { Revelation } from "@/lib/revelations";
 
 type RevelationCardProps = {
@@ -19,16 +19,10 @@ type RevelationCardProps = {
 const COLLAPSE_AT = 600;
 
 /**
- * «2026 оны 11-р сарын 16» — илчлэлийн доорх жижиг мөрөнд. Intl-ийн `long`
- * сар нь «арван нэгдүгээр сарын» гэж хэт урт гардаг тул гараар бүрдүүлнэ.
- */
-const formatDate = (date: Date) =>
-  `${date.getFullYear()} оны ${date.getMonth() + 1}-р сарын ${date.getDate()}`;
-
-/**
  * Илчлэл нь өөрөө гол — нийтэлсэн хүн харагдахгүй. Бичвэр голлон томоор,
  * зураг нь доор, хамгийн доор жижгээр огноо ба илчлэл авсан хүн
- * («2026 оны 11-р сарын 16 · Г.Мөнгөнцэцэгээс»).
+ * («2026 оны 11-р сарын 16 · Г.Мөнгөнцэцэг»). Огноо нь илчлэл ирсэн өдөр
+ * (`revealedOn`) — нийтэлсэн цаг биш, нөхөж оруулж болно.
  */
 export default function RevelationCard({
   revelation,
@@ -127,9 +121,9 @@ export default function RevelationCard({
       )}
 
       <footer className="px-5 pb-4 pt-4 text-center text-theme-xs text-gray-400 dark:text-gray-500">
-        {formatDate(revelation.createdAt)}
+        {formatRevelationDate(revelation.revealedOn)}
         {" · "}
-        {ablative(revelation.receivedBy)}
+        {revelation.receivedBy}
       </footer>
     </article>
   );

@@ -1242,8 +1242,13 @@ const revelationFields = () => ({
     onDelete: "set null",
   }),
   body: bodyText("body"),
-  /** Илчлэл авсан хүн — нийтлэлийн доор «…аас» гэж гарна (нийтлэгч биш) */
+  /** Илчлэл авсан хүн — нийтлэлийн доор нэрээр нь гарна (нийтлэгч биш) */
   receivedBy: varchar("received_by", { length: 120 }).notNull().default("Г.Мөнгөнцэцэг"),
+  /**
+   * Илчлэл ирсэн өдөр, «YYYY-MM-DD» — нөхөж оруулж болох тул `createdAt`-аас
+   * ялгаатай. Жагсаалт энэ өдрөөр эрэмбэлэгдэнэ.
+   */
+  revealedOn: varchar("revealed_on", { length: 10 }).notNull(),
   images: jsonCol<{ url: string; path: string }[]>("images")
     .notNull()
     .$defaultFn(() => []),

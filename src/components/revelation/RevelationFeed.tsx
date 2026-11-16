@@ -16,6 +16,10 @@ import {
   type Revelation,
 } from "@/lib/revelations";
 
+/** Илчлэл ирсэн өдрөөр, дараа нь нийтэлсэн цагаар — API-тай ижил дараалал */
+const byRevealed = (a: Revelation, b: Revelation) =>
+  b.revealedOn.localeCompare(a.revealedOn) || b.createdAt.getTime() - a.createdAt.getTime();
+
 type RevelationFeedProps = {
   /** profileOptions.aimags доторх түлхүүр */
   aimag: string;
@@ -55,22 +59,35 @@ export default function RevelationFeed({ aimag }: RevelationFeedProps) {
     load();
   }, [load]);
 
-  const publish = async (input: { body: string; receivedBy: string; files: File[] }) => {
+  const publish = async (input: {
+    body: string;
+    receivedBy: string;
+    revealedOn: string;
+    files: File[];
+  }) => {
     if (!user?.uid) throw new Error("Нэвтэрсэн байх шаардлагатай.");
 
     const created = await createRevelation(user.uid, aimag, input);
-    setItems((prev) => [created, ...prev]);
+    setItems((prev) => [created, ...prev].sort(byRevealed));
     return true;
   };
 
   const saveEdit = async (
     revelation: Revelation,
-    input: { body: string; receivedBy: string; keep: Revelation["images"]; files: File[] }
+    input: {
+      body: string;
+      receivedBy: string;
+      revealedOn: string;
+      keep: Revelation["images"];
+      files: File[];
+    }
   ) => {
     if (!user?.uid) throw new Error("Нэвтэрсэн байх шаардлагатай.");
 
     const updated = await updateRevelation(user.uid, revelation, input);
-    setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    setItems((prev) =>
+      prev.map((item) => (item.id === updated.id ? updated : item)).sort(byRevealed)
+    );
     setEditingId(null);
     return true;
   };
@@ -131,6 +148,7 @@ export default function RevelationFeed({ aimag }: RevelationFeedProps) {
             <RevelationComposer
               initialBody={revelation.body}
               initialReceivedBy={revelation.receivedBy}
+              initialRevealedOn={revelation.revealedOn}
               initialImages={revelation.images}
               submitLabel="Хадгалах"
               onCancel={() => setEditingId(null)}

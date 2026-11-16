@@ -9,7 +9,7 @@ import {
   MAX_REVELATION_IMAGE_BYTES,
   MAX_REVELATION_LENGTH,
   MAX_REVELATION_SOURCE_LENGTH,
-  ablative,
+  todayIso,
 } from "@/data/revelationOptions";
 import type { RevelationImage } from "@/lib/revelations";
 
@@ -18,6 +18,8 @@ type RevelationComposerProps = {
   initialBody?: string;
   /** Илчлэл авсан хүн — хоосон бол тогтмол нэр */
   initialReceivedBy?: string;
+  /** Илчлэл ирсэн өдөр — хоосон бол өнөөдөр */
+  initialRevealedOn?: string;
   initialImages?: RevelationImage[];
   submitLabel: string;
   placeholder?: string;
@@ -27,6 +29,7 @@ type RevelationComposerProps = {
   onSubmit: (input: {
     body: string;
     receivedBy: string;
+    revealedOn: string;
     keep: RevelationImage[];
     files: File[];
   }) => Promise<boolean>;
@@ -39,6 +42,7 @@ type RevelationComposerProps = {
 export default function RevelationComposer({
   initialBody = "",
   initialReceivedBy = DEFAULT_REVELATION_SOURCE,
+  initialRevealedOn,
   initialImages = [],
   submitLabel,
   placeholder = "Илчлэлээ бичнэ үү...",
@@ -47,6 +51,7 @@ export default function RevelationComposer({
 }: RevelationComposerProps) {
   const [body, setBody] = useState(initialBody);
   const [receivedBy, setReceivedBy] = useState(initialReceivedBy);
+  const [revealedOn, setRevealedOn] = useState(initialRevealedOn ?? todayIso());
   const [keep, setKeep] = useState<RevelationImage[]>(initialImages);
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -103,12 +108,14 @@ export default function RevelationComposer({
       const ok = await onSubmit({
         body: body.trim(),
         receivedBy: receivedBy.trim() || DEFAULT_REVELATION_SOURCE,
+        revealedOn: revealedOn || todayIso(),
         keep,
         files,
       });
       if (ok && !onCancel) {
         setBody("");
         setReceivedBy(DEFAULT_REVELATION_SOURCE);
+        setRevealedOn(todayIso());
         setKeep([]);
         setFiles([]);
       }
@@ -144,22 +151,31 @@ export default function RevelationComposer({
         className="min-h-[88px] w-full resize-none rounded-lg border border-gray-200 bg-white px-3.5 py-3 text-theme-sm leading-relaxed text-gray-800 placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30"
       />
 
-      <label className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="text-theme-sm font-medium text-gray-600 dark:text-gray-300">
-          Илчлэл авсан
-        </span>
-        <input
-          type="text"
-          value={receivedBy}
-          onChange={(event) => setReceivedBy(event.target.value)}
-          placeholder={DEFAULT_REVELATION_SOURCE}
-          maxLength={MAX_REVELATION_SOURCE_LENGTH}
-          className="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 text-theme-sm text-gray-800 placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 sm:max-w-xs dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90"
-        />
-        <span className="text-theme-xs text-gray-400">
-          Доор нь «{ablative(receivedBy.trim() || DEFAULT_REVELATION_SOURCE)}» гэж гарна
-        </span>
-      </label>
+      <div className="flex flex-wrap gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">Огноо</span>
+          <input
+            type="date"
+            value={revealedOn}
+            max={todayIso()}
+            onChange={(event) => setRevealedOn(event.target.value)}
+            className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-theme-sm text-gray-800 placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90"
+          />
+        </label>
+        <label className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:max-w-xs">
+          <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
+            Илчлэл авсан
+          </span>
+          <input
+            type="text"
+            value={receivedBy}
+            onChange={(event) => setReceivedBy(event.target.value)}
+            placeholder={DEFAULT_REVELATION_SOURCE}
+            maxLength={MAX_REVELATION_SOURCE_LENGTH}
+            className="w-full h-9 rounded-lg border border-gray-200 bg-white px-3 text-theme-sm text-gray-800 placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90"
+          />
+        </label>
+      </div>
 
       {thumbs.length > 0 && (
         <ul className="flex flex-wrap gap-2">
