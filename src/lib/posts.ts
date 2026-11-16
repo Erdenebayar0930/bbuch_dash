@@ -14,7 +14,7 @@ export type Post = {
   body: string;
   media: PostMedia[];
   videoLink: string;
-  /** `YYYY-MM` — аль он сарын мэдээлэл вэ, хоосон бол нийтэлсэн огноо */
+  /** `YYYY-MM-DD` — аль өдрийн мэдээлэл вэ, хоосон бол нийтэлсэн огноо */
   period: string;
   /** pending — зөвшөөрөл хүлээж буй, approved — бүгдэд, rejected — буцаасан */
   status: "pending" | "approved" | "rejected";
@@ -44,7 +44,7 @@ type PostRow = {
 export type PostInput = {
   body: string;
   videoLink: string;
-  /** `YYYY-MM` — хоосон бол одоо */
+  /** `YYYY-MM-DD` — хоосон бол одоо */
   period: string;
   /** Засварт үлдээх хуучин файлууд */
   keep: PostMedia[];

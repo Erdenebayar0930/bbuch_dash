@@ -62,16 +62,18 @@ export function parseVideoLink(value: string): VideoEmbed | null {
   return null;
 }
 
-/** `YYYY-MM` хэлбэр — нийтлэлийн он сар */
-export const POST_PERIOD = /^(\d{4})-(0[1-9]|1[0-2])$/;
+/** Нийтлэлийн огноо — `YYYY-MM-DD` (өмнөх хувилбарын `YYYY-MM` ч хүчинтэй) */
+export const POST_PERIOD = /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$/;
 
 /** Он сар сонгох доод хязгаар */
 export const POST_PERIOD_MIN_YEAR = 2000;
 
-/** `2025-03` → «2025 оны 3-р сар» */
+/** `2025-03-14` → «2025 оны 3-р сарын 14», `2025-03` → «2025 оны 3-р сар» */
 export function formatPostPeriod(period: string): string {
   const match = POST_PERIOD.exec(period);
-  return match ? `${match[1]} оны ${Number(match[2])}-р сар` : "";
+  if (!match) return "";
+  const month = `${match[1]} оны ${Number(match[2])}-р сар`;
+  return match[3] ? `${month}ын ${Number(match[3])}` : month;
 }
 
 /** «5 минутын өмнө», «2026 оны 11-р сарын 16 14:05» г.м. */

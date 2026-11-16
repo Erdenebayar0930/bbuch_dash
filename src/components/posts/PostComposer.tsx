@@ -17,7 +17,7 @@ import type { PostInput, PostMedia } from "@/lib/posts";
 type PostComposerProps = {
   initialBody?: string;
   initialVideoLink?: string;
-  /** `YYYY-MM` — хоосон бол нийтэлсэн огноо */
+  /** `YYYY-MM-DD` — хоосон бол нийтэлсэн огноо */
   initialPeriod?: string;
   initialMedia?: PostMedia[];
   submitLabel: string;
@@ -46,8 +46,10 @@ export default function PostComposer({
   const [body, setBody] = useState(initialBody);
   const [videoLink, setVideoLink] = useState(initialVideoLink);
   const [showLink, setShowLink] = useState(!!initialVideoLink);
-  const [periodYear, setPeriodYear] = useState(initialPeriod.slice(0, 4));
-  const [periodMonth, setPeriodMonth] = useState(initialPeriod.slice(5, 7));
+  // Хуучин `YYYY-MM` утгыг тухайн сарын 1-ний өдөр гэж харуулна
+  const [periodDay, setPeriodDay] = useState(
+    initialPeriod.length === 7 ? `${initialPeriod}-01` : initialPeriod
+  );
   const [showPeriod, setShowPeriod] = useState(!!initialPeriod);
   const [keep, setKeep] = useState<PostMedia[]>(initialMedia);
   const [files, setFiles] = useState<File[]>([]);
@@ -73,16 +75,11 @@ export default function PostComposer({
   const linkTrimmed = videoLink.trim();
   const linkInvalid = linkTrimmed.length > 0 && !parseVideoLink(linkTrimmed);
 
-  // Он сар — ирээдүйн сар сонгогдохгүй
+  // Огноо — ирээдүйн өдөр сонгогдохгүй (хөтчийн орон нутгийн цагаар)
   const now = new Date();
-  const thisYear = now.getFullYear();
-  const thisMonth = now.getMonth() + 1;
-  const years = Array.from({ length: thisYear - POST_PERIOD_MIN_YEAR + 1 }, (_, i) => String(thisYear - i));
-  const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).filter(
-    (month) => periodYear !== String(thisYear) || Number(month) <= thisMonth
-  );
-  const period = showPeriod && periodYear && periodMonth ? `${periodYear}-${periodMonth}` : "";
-  const periodIncomplete = showPeriod && Boolean(periodYear) !== Boolean(periodMonth);
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const period = showPeriod && periodDay ? periodDay : "";
+  const periodIncomplete = !!period && (period > today || period < `${POST_PERIOD_MIN_YEAR}-01-01`);
 
   const pickFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(event.target.files ?? []);
@@ -132,8 +129,7 @@ export default function PostComposer({
         setVideoLink("");
         setShowLink(false);
         setShowPeriod(false);
-        setPeriodYear("");
-        setPeriodMonth("");
+        setPeriodDay("");
         setKeep([]);
         setFiles([]);
       }
@@ -192,42 +188,19 @@ export default function PostComposer({
 
       {showPeriod && (
         <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-theme-sm text-gray-600 dark:text-gray-300">Он сар:</span>
-            <select
-              value={periodYear}
-              onChange={(event) => {
-                const year = event.target.value;
-                setPeriodYear(year);
-                // Энэ онд хараахан болоогүй сар сонгогдсон бол цэвэрлэнэ
-                if (year === String(thisYear) && Number(periodMonth) > thisMonth) setPeriodMonth("");
-              }}
-              aria-label="Он"
-              className={`${fieldClass} h-10 w-auto pr-8`}
-            >
-              <option value="">Он</option>
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year} он
-                </option>
-              ))}
-            </select>
-            <select
-              value={periodMonth}
-              onChange={(event) => setPeriodMonth(event.target.value)}
-              aria-label="Сар"
-              className={`${fieldClass} h-10 w-auto pr-8`}
-            >
-              <option value="">Сар</option>
-              {months.map((month) => (
-                <option key={month} value={month}>
-                  {Number(month)}-р сар
-                </option>
-              ))}
-            </select>
-          </div>
+          <label className="flex flex-wrap items-center gap-2">
+            <span className="text-theme-sm text-gray-600 dark:text-gray-300">Огноо:</span>
+            <input
+              type="date"
+              value={periodDay}
+              min={`${POST_PERIOD_MIN_YEAR}-01-01`}
+              max={today}
+              onChange={(event) => setPeriodDay(event.target.value)}
+              className={`${fieldClass} h-10 w-auto`}
+            />
+          </label>
           <span className="text-theme-xs text-gray-400">
-            Хуучин мэдээллийг нөхөж оруулахад — нийтлэл тэр сарынхаа байранд эрэмбэлэгдэнэ.
+            Хуучин мэдээллийг нөхөж оруулахад — нийтлэл тэр өдрийнхөө байранд эрэмбэлэгдэнэ.
           </span>
         </div>
       )}
@@ -324,7 +297,7 @@ export default function PostComposer({
           className={toolClass}
         >
           <CalendarDays className="h-5 w-5 text-warning-500" strokeWidth={1.8} />
-          Он сар
+          Огноо
         </button>
         {total > 0 && (
           <span className="text-theme-xs text-gray-400">

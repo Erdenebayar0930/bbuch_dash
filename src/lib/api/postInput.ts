@@ -20,12 +20,13 @@ export type PostMedia = { kind: "image" | "video"; url: string; path: string };
 const isStorageUrl = isStoredFileUrl;
 
 /**
- * Он сарын нийтлэлийн `created_at` — тухайн сарын 15-ны 12:00 (Улаанбаатар),
- * гэхдээ одооноос хойш биш. Ингэж жагсаалтад он сараараа эрэмбэлэгдэнэ.
+ * Огноотой нийтлэлийн `created_at` — тухайн өдрийн 12:00 (Улаанбаатар; зөвхөн
+ * он сар бол 15-ны өдөр), гэхдээ одооноос хойш биш. Ингэж жагсаалтад
+ * огноогоороо эрэмбэлэгдэнэ.
  */
 export function periodDate(period: string, now = new Date()): Date {
-  const [year, month] = period.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, 15, 4, 0, 0));
+  const [year, month, day = 15] = period.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 4, 0, 0));
   return date.getTime() > now.getTime() ? now : date;
 }
 
@@ -53,10 +54,12 @@ export function readPost(input: unknown, uid: string, keepPaths: readonly string
 
   if (period) {
     const match = POST_PERIOD.exec(period);
-    const now = new Date();
-    const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    if (!match || Number(match[1]) < POST_PERIOD_MIN_YEAR || period > current) {
-      return { ok: false, error: "Он сар буруу байна — ирээдүйн сар сонгож болохгүй." };
+    // Улаанбаатарын өнөөдөр (UTC+8) — хэрэглэгчийн хөтөчтэй таарна
+    const today = new Date(Date.now() + 8 * 3_600_000).toISOString().slice(0, 10);
+    const [year, month, day] = period.split("-").map(Number);
+    const real = !match?.[3] || new Date(Date.UTC(year, month - 1, day)).getUTCDate() === day;
+    if (!match || !real || year < POST_PERIOD_MIN_YEAR || period > today) {
+      return { ok: false, error: "Огноо буруу байна — ирээдүйн өдөр сонгож болохгүй." };
     }
   }
 
