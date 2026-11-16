@@ -4,31 +4,28 @@ import React, { useState } from "react";
 import { Construction } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
-import DisciplinePanel from "@/components/finance/DisciplinePanel";
 import SupplyLedger from "@/components/finance/SupplyLedger";
 import { isAdminRole } from "@/lib/permissions";
 
-type TabKey = "about" | "church-supply" | "church-budget" | "discipline";
+type TabKey = "about" | "church-supply" | "church-budget";
 
 /**
  * `access` — хэн харах вэ (админ, супер админ бүгдийг харна):
  * - all: бүх хэрэглэгч
  * - aimag: аль нэг аймгийн гишүүн (`/api/supplies` GET нь `requireAimag`)
- * - supply: зөвхөн Хангамжийн аймгийн гишүүн
- *   (`/api/discipline` нь `requireAimag("supply")`)
+ *
+ * Сахилгажуулалт нь Хангамжийн аймаг → Сахилгажуулалтын төлбөр
+ * (`/aimag/supply/discipline`) рүү шилжсэн.
  */
-type TabAccess = "all" | "aimag" | "supply";
+type TabAccess = "all" | "aimag";
 
 const TABS: { key: TabKey; label: string; access: TabAccess }[] = [
   { key: "about", label: "Хангамжийн талаар", access: "all" },
   { key: "church-supply", label: "Чуулганы хангамж", access: "aimag" },
   { key: "church-budget", label: "Чуулганы төсөв", access: "aimag" },
-  { key: "discipline", label: "Сахилгажуулалт", access: "supply" },
 ];
 
-const SUPPLY_AIMAG = "supply";
-
-const PLACEHOLDER: Record<Exclude<TabKey, "church-supply" | "discipline">, string> = {
+const PLACEHOLDER: Record<Exclude<TabKey, "church-supply">, string> = {
   about: "Хангамжийн тухай тайлбар мэдээлэл энд орно.",
   "church-budget": "Чуулганы төсвийн мэдээлэл энд орно.",
 };
@@ -43,12 +40,10 @@ export default function SupplyTabs() {
   const isAdmin = isAdminRole(user?.role);
   const userAimags = user?.aimags ?? [];
   const inAnyAimag = isAdmin || userAimags.length > 0;
-  const inSupply = isAdmin || userAimags.includes(SUPPLY_AIMAG);
   const tabs = TABS.filter(
     (item) =>
       item.access === "all" ||
-      (item.access === "aimag" && inAnyAimag) ||
-      (item.access === "supply" && inSupply)
+      (item.access === "aimag" && inAnyAimag)
   );
   const [picked, setPicked] = useState<TabKey>("about");
   const active = tabs.some((item) => item.key === picked) ? picked : tabs[0].key;
@@ -88,8 +83,6 @@ export default function SupplyTabs() {
       <div role="tabpanel" id={`supply-panel-${active}`} aria-labelledby={`supply-tab-${active}`}>
         {active === "church-supply" ? (
           <SupplyLedger canEdit={isAdmin} />
-        ) : active === "discipline" ? (
-          <DisciplinePanel />
         ) : (
           <div className="surface flex min-h-[320px] flex-col items-center justify-center gap-3 p-10 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">

@@ -21,6 +21,7 @@ import {
   Megaphone,
   Music2,
   Package,
+  Scale,
   Shield,
   Users,
   UsersRound,
@@ -120,8 +121,8 @@ export const navItems: NavItem[] = [
       { name: "1/10 ба өргөл", path: "/finance/allocation", icon: Coins },
       { name: "Газрын 1/10", path: "/finance/land-tithe", icon: Wheat },
       // Цэс нь бүгдэд. Хуудас доторх табууд (@see SupplyTabs): Хангамжийн талаар —
-      // бүгдэд, Чуулганы хангамж/төсөв — аймгийн гишүүдэд, Сахилгажуулалт —
-      // Хангамжийн аймагт (админ бүгдийг)
+      // бүгдэд, Чуулганы хангамж/төсөв — аймгийн гишүүдэд (админ бүгдийг).
+      // Сахилгажуулалт нь Хангамжийн аймаг → Сахилгажуулалтын төлбөр рүү шилжсэн.
       { name: "Хангамж", path: "/finance/supply", icon: Package },
       { name: "Хандив", path: "/finance/donations", icon: Gift },
       { name: "Өглөг", path: "/finance/alms", icon: HandHeart },
@@ -165,6 +166,11 @@ export const navItems: NavItem[] = [
     children: [
       revelationMenu("supply"),
       planMenu("supply"),
+      {
+        name: "Сахилгажуулалтын төлбөр",
+        path: "/aimag/supply/discipline",
+        icon: Scale,
+      },
       tahiltMenu("supply"),
     ],
   },
