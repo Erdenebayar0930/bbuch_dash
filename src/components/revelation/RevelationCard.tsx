@@ -5,6 +5,7 @@ import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
 import { formatRevelationDate } from "@/data/revelationOptions";
 import type { Revelation } from "@/lib/revelations";
+import { revelationFontClass, useRevelationFontSize } from "@/lib/revelationFontSize";
 
 type RevelationCardProps = {
   revelation: Revelation;
@@ -32,6 +33,7 @@ export default function RevelationCard({
   onDelete,
   onOpenImage,
 }: RevelationCardProps) {
+  const { size: fontSize } = useRevelationFontSize();
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -101,7 +103,9 @@ export default function RevelationCard({
 
       {body && (
         <div className={`px-5 text-center sm:px-10 ${canEdit || canDelete ? "pt-1" : "pt-6"}`}>
-          <p className="whitespace-pre-line break-words text-lg leading-relaxed text-gray-900 dark:text-white/90 sm:text-xl">
+          <p
+            className={`whitespace-pre-line break-words leading-relaxed text-gray-900 dark:text-white/90 ${revelationFontClass(fontSize)}`}
+          >
             {shownBody}
           </p>
           {long && (

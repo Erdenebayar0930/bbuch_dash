@@ -4,6 +4,11 @@ import React from "react";
 import { Check, Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 
 import { useTheme, type ThemePreference } from "@/context/ThemeContext";
+import {
+  REVELATION_FONT_SIZES,
+  revelationFontClass,
+  useRevelationFontSize,
+} from "@/lib/revelationFontSize";
 
 type Option = {
   key: ThemePreference;
@@ -144,6 +149,57 @@ export default function AppearanceSettings() {
           горимд байна. Төхөөрөмжийн тохиргоо солигдоход апп шууд дагана.
         </p>
       )}
+
+      <RevelationFontSizeSetting />
+    </div>
+  );
+}
+
+function RevelationFontSizeSetting() {
+  const { size, setSize } = useRevelationFontSize();
+
+  return (
+    <div className="flex flex-col gap-4 border-t border-gray-100 pt-6 dark:border-white/5">
+      <div>
+        <h2 className="text-base font-medium text-gray-800 dark:text-white/90">
+          Илчлэлийн үсгийн хэмжээ
+        </h2>
+        <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
+          Илчлэлийн бичвэр ямар томоор харагдахыг сонгоно. Энэ төхөөрөмж дээр
+          хадгалагдана.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {REVELATION_FONT_SIZES.map((option) => {
+          const isActive = option.key === size;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => setSize(option.key)}
+              aria-pressed={isActive}
+              className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-theme-sm font-medium transition-colors ${
+                isActive
+                  ? "border-accent-500 bg-accent-50/60 text-accent-700 dark:border-accent-500 dark:bg-accent-500/10 dark:text-accent-300"
+                  : "border-gray-200 bg-white text-gray-800 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 dark:hover:bg-white/[0.06]"
+              }`}
+            >
+              {option.name}
+              {isActive && <Check className="h-3.5 w-3.5" strokeWidth={2.4} />}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Урьдчилсан харагдац */}
+      <div className="rounded-xl border border-gray-200 bg-white px-5 py-6 text-center dark:border-white/10 dark:bg-white/[0.03]">
+        <p
+          className={`leading-relaxed text-gray-900 dark:text-white/90 ${revelationFontClass(size)}`}
+        >
+          Жишээ бичвэр — илчлэл ингэж харагдана.
+        </p>
+      </div>
     </div>
   );
 }
