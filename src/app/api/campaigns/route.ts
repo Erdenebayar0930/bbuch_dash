@@ -1,13 +1,7 @@
 import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import {
-  badRequest,
-  isAdminRole,
-  requireActiveUser,
-  requireAdmin,
-  serverError,
-} from "@/lib/api/auth";
+import { badRequest, isAdminRole, requireActiveUser, serverError } from "@/lib/api/auth";
 import { isCampaignBoard } from "@/data/campaignBoards";
 import { readCampaign } from "@/lib/api/campaignInput";
 import { canApprove, notifyApprovers, readApprovers } from "@/lib/api/campaignReview";
@@ -26,7 +20,8 @@ export const dynamic = "force-dynamic";
  * Эрэмбэ: онцлох → админы эрэмбэ → шинэ нь.
  *
  * Гишүүд зөвхөн зөвшөөрсөн, өөрт нь хамаатай (бүгдэд эсвэл өөрийн аймагт
- * зарласан) хандивыг харна; админ ба зөвшөөрөгч бүгдийг.
+ * зарласан) хандивыг харна — мөн өөрийн зарласныг (хүлээгдэж буй, буцаагдсан
+ * ч) харж засна. Админ ба зөвшөөрөгч бүгдийг.
  * `canApprove` нь дуудагч зөвшөөрөх товч харах эсэх.
  */
 export async function GET(request: NextRequest) {
@@ -59,8 +54,12 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(donationCampaigns.board, board),
-          seesAll ? undefined : eq(donationCampaigns.status, "approved"),
-          seesAll ? undefined : forMe
+          seesAll
+            ? undefined
+            : or(
+                and(eq(donationCampaigns.status, "approved"), forMe),
+                eq(donationCampaigns.createdBy, result.caller.uid)
+              )
         )
       )
       .orderBy(
@@ -75,9 +74,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Шинэ хандивын аян — зөвхөн админ. */
+/**
+ * Шинэ хандивын аян — аль ч идэвхтэй гишүүн зарлана. Зөвшөөрөгч зөвшөөртөл
+ * бусдад харагдахгүй тул энэ нь хяналтаа хадгална. Онцлох, эрэмбэ нь админых.
+ */
 export async function POST(request: NextRequest) {
-  const result = await requireAdmin(request);
+  const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
 
   try {
@@ -89,8 +91,12 @@ export async function POST(request: NextRequest) {
     if (board === "alms" && !parsed.value.accountNumber) {
       return badRequest("Дансны дугаараа оруулна уу.");
     }
+    // Онцлох, эрэмбэ нь зөвхөн админых — бусдынхыг үл тооно
+    const isAdmin = isAdminRole(result.caller.user?.role);
+    const { position, featured, ...rest } = parsed.value;
+    const own = isAdmin ? { ...rest, position, featured } : rest;
     // Өглөг нь үргэлж нэг удаагийнх
-    const input = board === "alms" ? { ...parsed.value, kind: "once" as const } : parsed.value;
+    const input = board === "alms" ? { ...own, kind: "once" as const } : own;
     const monthly = input.kind === "monthly";
 
     // Шинэ нь жагсаалтын төгсгөлд

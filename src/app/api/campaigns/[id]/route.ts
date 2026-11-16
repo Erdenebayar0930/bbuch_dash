@@ -1,13 +1,21 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
+import {
+  badRequest,
+  forbidden,
+  isAdminRole,
+  requireActiveUser,
+  serverError,
+} from "@/lib/api/auth";
 import { CONTENT_FIELDS, readCampaign } from "@/lib/api/campaignInput";
 import { announceCampaign, campaignAudience, notifyApprovers } from "@/lib/api/campaignReview";
 import { currentPeriod } from "@/lib/api/campaignRollover";
 import { db } from "@/lib/db";
 import { donationCampaigns } from "@/lib/db/schema";
 
+import type { Caller } from "@/lib/api/auth";
+import type { DonationCampaignRow } from "@/lib/db/schema";
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
@@ -15,12 +23,19 @@ export const dynamic = "force-dynamic";
 
 const notFound = () => NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
 
-/** Аяныг засна, хаана (`active: false`) эсвэл дахин нээнэ — зөвхөн админ. */
+/** Админ эсвэл тухайн хандивыг зарласан хүн */
+const canManage = (caller: Caller, campaign: DonationCampaignRow) =>
+  isAdminRole(caller.user?.role) || (!!campaign.createdBy && campaign.createdBy === caller.uid);
+
+/**
+ * Аяныг засна, хаана (`active: false`) эсвэл дахин нээнэ — админ эсвэл
+ * зарласан хүн. Онцлох, эрэмбийг зөвхөн админ өөрчилнө.
+ */
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(request);
+  const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;
@@ -28,6 +43,11 @@ export async function PATCH(
   try {
     const parsed = readCampaign(await request.json().catch(() => ({})), true);
     if (!parsed.ok) return badRequest(parsed.error);
+    if (!isAdminRole(result.caller.user?.role)) {
+      // Маягт эдгээрийг ижил утгаар нь буцааж илгээдэг тул алдаа биш, үл тооно
+      delete parsed.value.position;
+      delete parsed.value.featured;
+    }
     if (Object.keys(parsed.value).length === 0) {
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
@@ -42,6 +62,9 @@ export async function PATCH(
       .where(eq(donationCampaigns.id, id))
       .limit(1);
     if (!current) return notFound();
+    if (!canManage(result.caller, current)) {
+      return forbidden("Зөвхөн өөрийн зарласан хандивыг засна.");
+    }
     if (current.board === "alms" && parsed.value.kind === "monthly") {
       return badRequest("Өглөг нь нэг удаагийнх байна.");
     }
@@ -93,17 +116,35 @@ export async function PATCH(
   }
 }
 
-/** Аяныг устгана — зөвхөн админ. */
+/**
+ * Аяныг устгана — админ, эсвэл зарласан хүн зөвшөөрөгдөхөөс өмнө. Зөвшөөрөгдсөн
+ * (гишүүдэд зарлагдсан) хандивыг зарласан хүн хаана, устгахгүй.
+ */
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAdmin(request);
+  const result = await requireActiveUser(request);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;
 
   try {
+    const [current] = await db
+      .select()
+      .from(donationCampaigns)
+      .where(eq(donationCampaigns.id, id))
+      .limit(1);
+    if (!current) return notFound();
+    if (!isAdminRole(result.caller.user?.role)) {
+      if (!canManage(result.caller, current)) {
+        return forbidden("Зөвхөн өөрийн зарласан хандивыг устгана.");
+      }
+      if (current.status === "approved") {
+        return forbidden("Зарлагдсан хандивыг устгахгүй — хаана уу.");
+      }
+    }
+
     const deleted = await db
       .delete(donationCampaigns)
       .where(eq(donationCampaigns.id, id))

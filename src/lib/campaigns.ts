@@ -56,12 +56,14 @@ export type Campaign = {
   notifyDay: number;
   /** Сар бүрийнх: сануулах цаг HH:mm */
   notifyTime: string;
+  /** Зарласан хүний uid — тэр хүн засаж, хааж чадна */
+  createdBy: string | null;
   createdAt: Date;
 };
 
 export type CampaignInput = Omit<
   Campaign,
-  "id" | "createdAt" | "period" | "status" | "reviewNote"
+  "id" | "createdAt" | "period" | "status" | "reviewNote" | "createdBy"
 >;
 
 type CampaignRow = Omit<Campaign, "createdAt" | "kind" | "status"> & {
@@ -87,6 +89,7 @@ const toCampaign = (row: CampaignRow): Campaign => ({
   reviewNote: row.reviewNote ?? "",
   notifyDay: row.notifyDay ?? 1,
   notifyTime: row.notifyTime ?? "09:00",
+  createdBy: row.createdBy ?? null,
   createdAt: new Date(row.createdAt),
 });
 

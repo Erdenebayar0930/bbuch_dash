@@ -137,7 +137,8 @@ export const packages: UseCasePackage[] = [
       { label: "Хандив өргөснөө илгээх", actors: ["member"] },
       { label: "Өглөг цуглуулах / өгсөн", actors: ["member"] },
       { label: "Хандив батлах, мэдэгдэх", actors: ["admin", "external"] },
-      { label: "Аян үүсгэх, онцлох, эрэмбэлэх", actors: ["admin"] },
+      { label: "Хандив зарлах (аймаг сонгох)", actors: ["member"] },
+      { label: "Аяныг онцлох, эрэмбэлэх", actors: ["admin"] },
     ],
   },
   {

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "Тухайн үед зарласан хандивын аянууд",
 };
 
-/** Санхүү → Хандив. Тухайн үед зарласан хандивууд — бүгдэд, зарлах нь админд. */
+/** Санхүү → Хандив. Тухайн үед зарласан хандивууд — бүгд харж, бүгд зарлана (зөвшөөрөлтэй). */
 export default function FinanceDonationsPage() {
   return (
     <div className="flex flex-col gap-5">

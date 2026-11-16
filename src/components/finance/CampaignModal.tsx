@@ -58,7 +58,7 @@ const chipClass = (selected: boolean) =>
 
 const DAYS = Array.from({ length: 28 }, (_, index) => index + 1);
 
-/** Хандивын аян нээх / засах цонх — зөвхөн админ. */
+/** Хандивын аян нээх / засах цонх — аль ч гишүүн зарлана, өөрийнхөө засна. */
 export default function CampaignModal({
   isOpen,
   campaign,
@@ -84,8 +84,10 @@ export default function CampaignModal({
         period: _period,
         status: _status,
         reviewNote: _reviewNote,
+        createdBy: _createdBy,
         ...rest
       } = campaign;
+      void _createdBy;
       void _id;
       void _createdAt;
       void _period;

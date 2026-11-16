@@ -62,7 +62,9 @@ const COPIED_MS = 2000;
  * Санхүү → Хандив. Тухайн үед зарласан хандивын аянууд — зорилго, тайлбар,
  * гүйлгээний утга (нэг дарж хуулна), зорилтот дүн (заавал биш). Бүх хандив
  * нэг данс руу (`CAMPAIGN_ACCOUNT`) — данс нь хуудасны дээд хэсэгт нэг удаа.
- * Админ аян зарлаж, засаж, хааж, устгана; гишүүд нээлттэйг нь харна.
+ * Аль ч гишүүн зарлана (зөвшөөрөгч зөвшөөртөл бусдад харагдахгүй), өөрийнхөө
+ * засаж, хааж, зөвшөөрөгдөхөөс өмнө устгана. Онцлох, эрэмбэ, зөвшөөрөгч
+ * сонгох нь админых.
  */
 type CampaignBoardProps = {
   /** Хандив (анхдагч) эсвэл Өглөг — Өглөг нь нэг удаагийнх, табууд нь Идэвхтэй | Дууссан */
@@ -296,6 +298,10 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
   };
 
   const renderCard = (campaign: Campaign) => {
+    const own = !!user?.uid && campaign.createdBy === user.uid;
+    const canManage = isAdmin || own;
+    // Зарласан хүн зөвшөөрөгдсөнийг устгахгүй — хаана
+    const canDelete = isAdmin || (own && campaign.status !== "approved");
     const memo = `${campaign.memoPrefix || campaign.title}-${name}`;
     // Өглөг — өөрийн данс; Хандив — нэг нийтлэг данс
     const account = info.ownAccount
@@ -394,38 +400,42 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
             </div>
           </div>
 
-          {isAdmin && (
+          {canManage && (
             <div className="order-first flex w-full justify-end gap-0.5 border-b border-gray-100 pb-2 sm:order-none sm:w-auto sm:border-0 sm:pb-0 dark:border-white/5">
-              <button
-                type="button"
-                onClick={() => toggleFeatured(campaign)}
-                aria-label={campaign.featured ? "Онцлохоос хасах" : "Онцлох болгох"}
-                title={campaign.featured ? "Онцлохоос хасах" : "Онцлох болгох"}
-                className={`${iconButton} ${campaign.featured ? "text-warning-500" : ""}`}
-              >
-                <Star
-                  className={`h-3.5 w-3.5 ${campaign.featured ? "fill-current" : ""}`}
-                  strokeWidth={1.8}
-                />
-              </button>
-              <button
-                type="button"
-                onClick={() => move(campaign, -1)}
-                aria-label="Дээш"
-                title="Дээш"
-                className={iconButton}
-              >
-                <ArrowUp className="h-3.5 w-3.5" strokeWidth={1.8} />
-              </button>
-              <button
-                type="button"
-                onClick={() => move(campaign, 1)}
-                aria-label="Доош"
-                title="Доош"
-                className={iconButton}
-              >
-                <ArrowDown className="h-3.5 w-3.5" strokeWidth={1.8} />
-              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => toggleFeatured(campaign)}
+                    aria-label={campaign.featured ? "Онцлохоос хасах" : "Онцлох болгох"}
+                    title={campaign.featured ? "Онцлохоос хасах" : "Онцлох болгох"}
+                    className={`${iconButton} ${campaign.featured ? "text-warning-500" : ""}`}
+                  >
+                    <Star
+                      className={`h-3.5 w-3.5 ${campaign.featured ? "fill-current" : ""}`}
+                      strokeWidth={1.8}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => move(campaign, -1)}
+                    aria-label="Дээш"
+                    title="Дээш"
+                    className={iconButton}
+                  >
+                    <ArrowUp className="h-3.5 w-3.5" strokeWidth={1.8} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => move(campaign, 1)}
+                    aria-label="Доош"
+                    title="Доош"
+                    className={iconButton}
+                  >
+                    <ArrowDown className="h-3.5 w-3.5" strokeWidth={1.8} />
+                  </button>
+              </>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -451,15 +461,17 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
                   <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.8} />
                 )}
               </button>
-              <button
-                type="button"
-                onClick={() => remove(campaign)}
-                aria-label="Устгах"
-                title="Устгах"
-                className={`${iconButton} hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10`}
-              >
-                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
-              </button>
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={() => remove(campaign)}
+                  aria-label="Устгах"
+                  title="Устгах"
+                  className={`${iconButton} hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -592,8 +604,8 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
 
   return (
     <div className="flex flex-col gap-4">
-      {isAdmin && (
-        <div className="flex flex-wrap justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
+        {isAdmin && (
           <button
             type="button"
             onClick={() => setApproversOpen(true)}
@@ -602,19 +614,19 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
             <UserCog className="h-4 w-4" strokeWidth={1.8} />
             Зөвшөөрөгчид
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setEditing(null);
-              setModalOpen(true);
-            }}
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.2} />
-            {info.create}
-          </button>
-        </div>
-      )}
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setEditing(null);
+            setModalOpen(true);
+          }}
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
+        >
+          <Plus className="h-4 w-4" strokeWidth={2.2} />
+          {info.create}
+        </button>
+      </div>
 
       {error && (
         <p className="rounded-lg bg-error-50 px-4 py-3 text-theme-sm text-error-600 dark:bg-error-500/10 dark:text-error-400">
@@ -672,15 +684,13 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
         <CampaignApproversModal isOpen={approversOpen} onClose={() => setApproversOpen(false)} />
       )}
 
-      {isAdmin && (
-        <CampaignModal
-          isOpen={modalOpen}
-          campaign={editing}
-          onClose={() => setModalOpen(false)}
-          onSaved={saved}
-          board={board}
-        />
-      )}
+      <CampaignModal
+        isOpen={modalOpen}
+        campaign={editing}
+        onClose={() => setModalOpen(false)}
+        onSaved={saved}
+        board={board}
+      />
     </div>
   );
 }
