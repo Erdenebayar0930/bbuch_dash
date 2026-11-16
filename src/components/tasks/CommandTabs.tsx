@@ -9,7 +9,7 @@ type TabKey = "general" | "named" | "progress";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "general", label: "Ерөнхий тушаалууд" },
   { key: "named", label: "Нэр цохож хэлсэн тушаал" },
-  { key: "progress", label: "Хэрэгжилт" },
+  { key: "progress", label: "Төлөвлөгөө" },
 ];
 
 /**
@@ -18,7 +18,7 @@ const TABS: { key: TabKey; label: string }[] = [
  * • Ерөнхий тушаалууд, Нэр цохож хэлсэн тушаал — Илчлэлийн загвартай
  *   (бичвэр, огноо, зураг, «Тушаал авсан»), тус бүр өөрийн бүртгэлтэй
  *   (`revelations.kind`, @see data/revelationOptions.ts)
- * • Хэрэгжилт — тушаал, даалгаврын ажлын самбар (`progress`-оор дамжуулна)
+ * • Төлөвлөгөө — тушаал, төлөвлөгөөний ажлын самбар (`progress`-оор дамжуулна)
  */
 export default function CommandTabs({ aimag, progress }: { aimag: string; progress: React.ReactNode }) {
   const [active, setActive] = useState<TabKey>("general");

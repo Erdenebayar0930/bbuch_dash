@@ -296,12 +296,15 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
               title={
                 scopedProjects.length === 0
                   ? "Эхлээд тушаал үүсгэнэ үү"
-                  : "Шинэ даалгавар"
+                  : isTahiltBoard
+                    ? "Шинэ даалгавар"
+                    : "Шинэ төлөвлөгөө"
               }
               className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Plus className="h-4 w-4" strokeWidth={2.2} />
-              Даалгавар үүсгэх
+              {/* Аймгийн «Тушаал → Төлөвлөгөө» табд «Төлөвлөгөө үүсгэх», Тахилтад хэвээр */}
+              {isTahiltBoard ? "Даалгавар үүсгэх" : "Төлөвлөгөө үүсгэх"}
             </button>
           )}
         </div>
