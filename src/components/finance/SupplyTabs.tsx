@@ -11,18 +11,18 @@ import { isAdminRole } from "@/lib/permissions";
 type TabKey = "about" | "church-supply" | "church-budget" | "discipline";
 
 /**
- * `access` — хэн харах вэ:
+ * `access` — хэн харах вэ (админ, супер админ бүгдийг харна):
  * - all: бүх хэрэглэгч
- * - admin: админ, супер админ (`/api/supplies` нь `requireAdmin`)
- * - supply: админ, супер админ ба Хангамжийн аймгийн гишүүн
+ * - aimag: аль нэг аймгийн гишүүн (`/api/supplies` GET нь `requireAimag`)
+ * - supply: зөвхөн Хангамжийн аймгийн гишүүн
  *   (`/api/discipline` нь `requireAimag("supply")`)
  */
-type TabAccess = "all" | "admin" | "supply";
+type TabAccess = "all" | "aimag" | "supply";
 
 const TABS: { key: TabKey; label: string; access: TabAccess }[] = [
   { key: "about", label: "Хангамжийн талаар", access: "all" },
-  { key: "church-supply", label: "Чуулганы хангамж", access: "admin" },
-  { key: "church-budget", label: "Чуулганы төсөв", access: "all" },
+  { key: "church-supply", label: "Чуулганы хангамж", access: "aimag" },
+  { key: "church-budget", label: "Чуулганы төсөв", access: "aimag" },
   { key: "discipline", label: "Сахилгажуулалт", access: "supply" },
 ];
 
@@ -41,11 +41,13 @@ const PLACEHOLDER: Record<Exclude<TabKey, "church-supply" | "discipline">, strin
 export default function SupplyTabs() {
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
-  const inSupply = isAdmin || (user?.aimags ?? []).includes(SUPPLY_AIMAG);
+  const userAimags = user?.aimags ?? [];
+  const inAnyAimag = isAdmin || userAimags.length > 0;
+  const inSupply = isAdmin || userAimags.includes(SUPPLY_AIMAG);
   const tabs = TABS.filter(
     (item) =>
       item.access === "all" ||
-      (item.access === "admin" && isAdmin) ||
+      (item.access === "aimag" && inAnyAimag) ||
       (item.access === "supply" && inSupply)
   );
   const [picked, setPicked] = useState<TabKey>("about");
@@ -85,7 +87,7 @@ export default function SupplyTabs() {
 
       <div role="tabpanel" id={`supply-panel-${active}`} aria-labelledby={`supply-tab-${active}`}>
         {active === "church-supply" ? (
-          <SupplyLedger />
+          <SupplyLedger canEdit={isAdmin} />
         ) : active === "discipline" ? (
           <DisciplinePanel />
         ) : (

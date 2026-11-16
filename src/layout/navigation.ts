@@ -119,8 +119,9 @@ export const navItems: NavItem[] = [
     children: [
       { name: "1/10 ба өргөл", path: "/finance/allocation", icon: Coins },
       { name: "Газрын 1/10", path: "/finance/land-tithe", icon: Wheat },
-      // Цэс нь бүгдэд; Сахилгажуулалт таб нь хуудас дотроо админ ба Хангамжийн
-      // аймагт, Чуулганы хангамж таб нь админд (@see SupplyTabs)
+      // Цэс нь бүгдэд. Хуудас доторх табууд (@see SupplyTabs): Хангамжийн талаар —
+      // бүгдэд, Чуулганы хангамж/төсөв — аймгийн гишүүдэд, Сахилгажуулалт —
+      // Хангамжийн аймагт (админ бүгдийг)
       { name: "Хангамж", path: "/finance/supply", icon: Package },
       { name: "Хандив", path: "/finance/donations", icon: Gift },
       { name: "Өглөг", path: "/finance/alms", icon: HandHeart },

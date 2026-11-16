@@ -1,8 +1,9 @@
 import { desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
+import { badRequest, requireAdmin, requireAimag, serverError } from "@/lib/api/auth";
 import { readSupply } from "@/lib/api/supplyInput";
+import { aimags } from "@/data/profileOptions";
 import { db } from "@/lib/db";
 import { churchSupplies } from "@/lib/db/schema";
 
@@ -11,9 +12,15 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Чуулганы хангамжийн бүх бүртгэл — шинээс хуучин руу. Зөвхөн админ. */
+/** Аль ч аймгийн гишүүн үзнэ (Санхүү → Хангамж → Чуулганы хангамж) */
+const VIEWER_AIMAGS = aimags.map((item) => item.value);
+
+/**
+ * Чуулганы хангамжийн бүх бүртгэл — шинээс хуучин руу. Аль ч аймгийн гишүүн
+ * ба админ уншина; бичих (POST, PATCH, DELETE) нь зөвхөн админ.
+ */
 export async function GET(request: NextRequest) {
-  const result = await requireAdmin(request);
+  const result = await requireAimag(request, VIEWER_AIMAGS);
   if ("error" in result) return result.error;
 
   try {

@@ -23,9 +23,10 @@ const ALL = "";
 
 /**
  * Санхүү → Хангамж → Чуулганы хангамж. Орж ирсэн мөнгө, эд зүйлсийн бүртгэл.
- * Жилээр, зориулалтаар шүүж нийт дүнг харуулна. Зөвхөн админ (API ч).
+ * Жилээр, зориулалтаар шүүж нийт дүнг харуулна. Аль ч аймгийн гишүүн үзнэ;
+ * бүртгэх, засах, устгах нь зөвхөн админ (`canEdit`, API ч мөн адил).
  */
-export default function SupplyLedger() {
+export default function SupplyLedger({ canEdit = false }: { canEdit?: boolean }) {
   const [supplies, setSupplies] = useState<Supply[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -176,17 +177,19 @@ export default function SupplyLedger() {
             ))}
           </select>
 
-          <button
-            type="button"
-            onClick={() => {
-              setEditing(null);
-              setModalOpen(true);
-            }}
-            className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.2} />
-            Бүртгэх
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(null);
+                setModalOpen(true);
+              }}
+              className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-4 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.2} />
+              Бүртгэх
+            </button>
+          )}
         </div>
 
         {error && (
@@ -200,7 +203,9 @@ export default function SupplyLedger() {
         ) : visible.length === 0 ? (
           <p className="rounded-lg border border-dashed border-gray-200 px-4 py-8 text-center text-theme-sm text-gray-400 dark:border-white/10">
             {supplies.length === 0
-              ? "Одоогоор бүртгэл алга. «Бүртгэх» товчоор орж ирсэн мөнгө, эд зүйлээ нэмнэ үү."
+              ? canEdit
+                ? "Одоогоор бүртгэл алга. «Бүртгэх» товчоор орж ирсэн мөнгө, эд зүйлээ нэмнэ үү."
+                : "Одоогоор бүртгэл алга."
               : "Шүүлтэд тохирох бүртгэл алга."}
           </p>
         ) : (
@@ -249,40 +254,44 @@ export default function SupplyLedger() {
                   )}
                 </div>
 
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditing(item);
-                      setModalOpen(true);
-                    }}
-                    aria-label={`«${item.title}»-ийг засах`}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-white/5"
-                  >
-                    <Pencil className="h-4 w-4" strokeWidth={1.8} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => remove(item)}
-                    aria-label={`«${item.title}»-ийг устгах`}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10"
-                  >
-                    <Trash2 className="h-4 w-4" strokeWidth={1.8} />
-                  </button>
-                </div>
+                {canEdit && (
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditing(item);
+                        setModalOpen(true);
+                      }}
+                      aria-label={`«${item.title}»-ийг засах`}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-white/5"
+                    >
+                      <Pencil className="h-4 w-4" strokeWidth={1.8} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => remove(item)}
+                      aria-label={`«${item.title}»-ийг устгах`}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10"
+                    >
+                      <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+                    </button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      <SupplyModal
-        isOpen={modalOpen}
-        supply={editing}
-        purposes={purposes}
-        onClose={() => setModalOpen(false)}
-        onSaved={saved}
-      />
+      {canEdit && (
+        <SupplyModal
+          isOpen={modalOpen}
+          supply={editing}
+          purposes={purposes}
+          onClose={() => setModalOpen(false)}
+          onSaved={saved}
+        />
+      )}
     </div>
   );
 }

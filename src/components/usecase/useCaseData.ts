@@ -174,6 +174,8 @@ export const packages: UseCasePackage[] = [
     id: "supply",
     title: "8. Хангамж",
     cases: [
+      { label: "Хангамжийн талаар унших", actors: ["member"] },
+      { label: "Чуулганы хангамж, төсөв харах", actors: ["aimag", "guard"] },
       { label: "Хангамж, төсөв бүртгэх", actors: ["admin"] },
       { label: "Нөөцийн орлого, зарлага", actors: ["admin"] },
       { label: "Сахилгажуулалт хөтлөх", actors: ["aimag", "admin"] },
