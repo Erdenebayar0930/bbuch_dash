@@ -31,6 +31,8 @@ export type Campaign = {
   position: number;
   /** Онцлох — хамгийн дээр */
   featured: boolean;
+  /** Хандив өгөх аймгууд — хоосон бол бүх гишүүн */
+  aimags: string[];
   /** Хандивын зорилго */
   title: string;
   /** Тайлбар */
@@ -74,6 +76,7 @@ const toCampaign = (row: CampaignRow): Campaign => ({
   period: row.period ?? "",
   position: row.position ?? 0,
   featured: row.featured ?? false,
+  aimags: Array.isArray(row.aimags) ? row.aimags : [],
   purpose: row.purpose ?? "",
   memoPrefix: row.memoPrefix ?? "",
   accountBank: row.accountBank ?? "",

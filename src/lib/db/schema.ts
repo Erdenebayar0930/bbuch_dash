@@ -863,6 +863,12 @@ export const donationCampaigns = pgTable(
     position: integer("position").notNull().default(0),
     /** Онцлох — жагсаалтын хамгийн дээр, тодорхой харагдана */
     featured: boolean("featured").notNull().default(false),
+    /**
+     * Хэнээс хандив авах вэ — profileOptions.aimags-ийн түлхүүрүүд. Хоосон бол
+     * бүх гишүүнээс. Харагдах байдал, зарлах мэдэгдэл, сарын сануулга бүгд
+     * үүгээр шүүгдэнэ (@see lib/api/campaignReview.ts).
+     */
+    aimags: jsonCol<string[]>("aimags").notNull().default([]),
     /** Тайлбар */
     purpose: bodyText("purpose"),
     /** Зорилтот дүн, ₮ — хоосон бол тогтсон дүнгүй */

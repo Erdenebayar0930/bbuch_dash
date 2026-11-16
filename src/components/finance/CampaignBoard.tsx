@@ -2,29 +2,31 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  CalendarClock,
-  Check,
-  Copy,
-  HeartHandshake,
-  Pencil,
-  Plus,
-  RotateCcw,
-  Target,
-  Trash2,
-  XCircle,
   ArrowDown,
   ArrowUp,
   Bell,
+  CalendarClock,
+  Check,
   CheckCircle2,
   Clock,
+  Copy,
+  HeartHandshake,
   MessageSquareWarning,
+  Pencil,
+  Plus,
+  RotateCcw,
   Star,
+  Target,
+  Trash2,
   UserCog,
+  UsersRound,
+  XCircle,
 } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import CampaignApproversModal from "@/components/finance/CampaignApproversModal";
 import CampaignModal from "@/components/finance/CampaignModal";
+import { aimags as aimagOptions } from "@/data/profileOptions";
 import { systemName } from "@/components/finance/TitheAccountCard";
 import { campaignBoards, type CampaignBoardKey } from "@/data/campaignBoards";
 import { CAMPAIGN_ACCOUNT, bankLabel, formatAccountNumber } from "@/data/donationAccounts";
@@ -332,6 +334,18 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
                 <span className="inline-flex items-center gap-1 rounded-full bg-warning-500 px-2 py-0.5 text-theme-xs font-bold text-white">
                   <Star className="h-3 w-3 fill-current" strokeWidth={2} />
                   Онцлох
+                </span>
+              )}
+              {campaign.aimags.length > 0 && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-theme-xs font-medium text-gray-700 dark:bg-white/10 dark:text-gray-200"
+                  title="Хандив өгөх аймгууд"
+                >
+                  <UsersRound className="h-3 w-3" strokeWidth={2} />
+                  {aimagOptions
+                    .filter((option) => campaign.aimags.includes(option.value))
+                    .map((option) => option.label.replace(/ аймаг$/, ""))
+                    .join(", ")}
                 </span>
               )}
               <span className="rounded-full bg-gray-900 px-2 py-0.5 text-theme-xs font-semibold text-white dark:bg-white dark:text-gray-900">

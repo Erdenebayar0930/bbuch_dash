@@ -1,5 +1,7 @@
 import "server-only";
 
+import { aimags as aimagOptions, isValidOption } from "@/data/profileOptions";
+
 /** Хандивын төрөл */
 export const CAMPAIGN_KINDS = ["monthly", "once"] as const;
 
@@ -21,6 +23,8 @@ export type CampaignInput = {
   notifyDay?: number;
   /** Сар бүрийнх: сануулах цаг HH:mm */
   notifyTime?: string;
+  /** Хандив өгөх аймгууд — хоосон бол бүх гишүүн */
+  aimags?: string[];
 };
 
 /**
@@ -140,6 +144,18 @@ export function readCampaign(body: unknown, partial: boolean): Parsed {
       return { ok: false, error: "Сануулах цаг HH:mm хэлбэртэй байна." };
     }
     value.notifyTime = input.notifyTime;
+  }
+
+  if (input.aimags !== undefined) {
+    const list = input.aimags;
+    if (
+      !Array.isArray(list) ||
+      !list.every((item) => typeof item === "string" && item && isValidOption(aimagOptions, item))
+    ) {
+      return { ok: false, error: "Аймгийн сонголт буруу байна." };
+    }
+    // profileOptions-ийн дарааллаар, давхардалгүй — харьцуулахад тогтвортой
+    value.aimags = aimagOptions.map((o) => o.value).filter((key) => list.includes(key));
   }
 
   if (input.active !== undefined) {

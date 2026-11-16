@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import { campaignBoards, type CampaignBoardKey } from "@/data/campaignBoards";
+import { aimags as aimagOptions } from "@/data/profileOptions";
 import {
   createCampaign,
   updateCampaign,
@@ -33,6 +34,7 @@ const empty: CampaignInput = {
   kind: "monthly",
   position: 0,
   featured: false,
+  aimags: [],
   title: "",
   purpose: "",
   targetAmount: null,
@@ -45,6 +47,14 @@ const empty: CampaignInput = {
   notifyDay: 1,
   notifyTime: "09:00",
 };
+
+/** «Хэнээс» сонголтын товч */
+const chipClass = (selected: boolean) =>
+  `rounded-lg border px-3 py-2 text-theme-sm font-medium transition-colors ${
+    selected
+      ? "border-accent-500 bg-accent-50 text-accent-700 dark:bg-accent-500/15 dark:text-accent-300"
+      : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/5"
+  }`;
 
 const DAYS = Array.from({ length: 28 }, (_, index) => index + 1);
 
@@ -91,6 +101,23 @@ export default function CampaignModal({
 
   const set = <K extends keyof CampaignInput>(key: K, value: CampaignInput[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const toggleAimag = (key: string) =>
+    setForm((prev) => ({
+      ...prev,
+      aimags: prev.aimags.includes(key)
+        ? prev.aimags.filter((item) => item !== key)
+        : [...prev.aimags, key],
+    }));
+
+  /** «бүх гишүүнд» эсвэл «Харуулын аймаг, Магтаалын аймгийн гишүүдэд» */
+  const audienceText =
+    form.aimags.length === 0
+      ? "бүх гишүүнд"
+      : `${aimagOptions
+          .filter((option) => form.aimags.includes(option.value))
+          .map((option) => option.label)
+          .join(", ")}-ийн гишүүдэд`;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -161,6 +188,34 @@ export default function CampaignModal({
               placeholder="Зорилго"
               className={fieldClass}
             />
+          </div>
+
+          <div className="sm:col-span-2">
+            <p className={labelClass}>Хэнээс</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Хэнээс хандив авах">
+              <button
+                type="button"
+                onClick={() => set("aimags", [])}
+                aria-pressed={form.aimags.length === 0}
+                className={chipClass(form.aimags.length === 0)}
+              >
+                Хүн бүрээс
+              </button>
+              {aimagOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => toggleAimag(option.value)}
+                  aria-pressed={form.aimags.includes(option.value)}
+                  className={chipClass(form.aimags.includes(option.value))}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-theme-xs text-gray-400">
+              Сонгосон хүмүүст л харагдаж, мэдэгдэл очно. Аймаг сонгоогүй бол бүх гишүүнд.
+            </p>
           </div>
 
           <div className="sm:col-span-2">
@@ -314,7 +369,7 @@ export default function CampaignModal({
                   aria-label="Сануулах цаг"
                   className={`${fieldClass} w-32`}
                 />
-                цагт бүх гишүүнд мэдэгдэл очно
+                цагт {audienceText} мэдэгдэл очно
               </div>
             </div>
           )}
@@ -323,7 +378,7 @@ export default function CampaignModal({
         <p className="mt-4 rounded-lg bg-gray-50 px-4 py-3 text-theme-xs text-gray-500 dark:bg-white/5 dark:text-gray-400">
           {campaign
             ? "Зорилго, тайлбар, дүн зэргийг өөрчилбөл дахин зөвшөөрөл хүлээнэ."
-            : "Зөвшөөрөгч зөвшөөрсний дараа гишүүдэд харагдаж, бүгдэд мэдэгдэл очно."}
+            : `Зөвшөөрөгч зөвшөөрсний дараа ${audienceText} харагдаж, мэдэгдэл очно.`}
         </p>
 
         {error && (

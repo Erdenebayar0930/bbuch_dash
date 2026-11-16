@@ -57,6 +57,7 @@ export async function rollOverMonthlyCampaigns(): Promise<void> {
           seriesId: row.seriesId ?? row.id,
           position: row.position,
           featured: row.featured,
+          aimags: row.aimags,
           // Цуврал нэг удаа зөвшөөрөгдсөн бол дараагийн сар дахин хүлээхгүй;
           // зарласан мэдэгдэл ч дахин явахгүй — зөвхөн сарын сануулга
           status: row.status,

@@ -106,9 +106,26 @@ export async function notifyChangesRequested(campaign: DonationCampaignRow, by: 
   );
 }
 
-/** Бүх идэвхтэй гишүүнд — шинэ хандив зарлагдлаа */
-export async function announceCampaign(campaign: DonationCampaignRow, by: string) {
-  const uids = await resolveNotifyTargets({ type: "all" });
+/**
+ * Хандивын хамааралтай гишүүд — `aimags` хоосон бол бүх идэвхтэй гишүүн,
+ * эс бөгөөс сонгосон аймгуудын аль нэгэнд харьяалагдах идэвхтэй гишүүд.
+ */
+export function campaignAudience(aimags: readonly string[]): Promise<string[]> {
+  return resolveNotifyTargets(
+    aimags.length > 0 ? { type: "aimag", aimags: [...aimags] } : { type: "all" }
+  );
+}
+
+/**
+ * Хамааралтай гишүүдэд — шинэ хандив зарлагдлаа. `onlyUids` өгвөл зөвхөн
+ * тэдэнд (зөвшөөрөгдсөн хандивын хүрээг тэлэхэд шинээр орсон хүмүүст).
+ */
+export async function announceCampaign(
+  campaign: DonationCampaignRow,
+  by: string,
+  onlyUids?: string[]
+) {
+  const uids = onlyUids ?? (await campaignAudience(campaign.aimags));
   const board = boardOf(campaign);
   await notifyUsers(
     uids,
@@ -132,7 +149,7 @@ function ulaanbaatarClock() {
  *
  * Зөвшөөрсөн, нээлттэй сар бүрийн хандив бүрд тухайн сарын `notifyDay`
  * өдрийн `notifyTime` болсон (эсвэл өнгөрсөн — cron алгассан ч гүйцээнэ)
- * бөгөөд энэ сард хараахан явуулаагүй бол бүх гишүүнд нэг удаа илгээнэ.
+ * бөгөөд энэ сард хараахан явуулаагүй бол хамааралтай гишүүдэд нэг удаа илгээнэ.
  */
 export async function sendCampaignReminders(): Promise<{ id: string; title: string }[]> {
   await rollOverMonthlyCampaigns();
@@ -159,7 +176,6 @@ export async function sendCampaignReminders(): Promise<{ id: string; title: stri
   );
   if (due.length === 0) return [];
 
-  const uids = await resolveNotifyTargets({ type: "all" });
   const [, month] = period.split("-").map(Number);
   const sent: { id: string; title: string }[] = [];
 
@@ -174,8 +190,9 @@ export async function sendCampaignReminders(): Promise<{ id: string; title: stri
       .returning({ id: donationCampaigns.id });
     if (claimed.length === 0) continue;
 
+    // Хандив бүр өөрийн хүрээтэй — сонгосон аймгуудад эсвэл бүгдэд
     await notifyUsers(
-      uids,
+      await campaignAudience(row.aimags),
       {
         title: `Сар бүрийн хандив: ${row.title}`,
         body: `${month}-р сарын хандивын сануулга.${row.purpose ? ` ${snippet(row.purpose, 100)}` : ""}`,

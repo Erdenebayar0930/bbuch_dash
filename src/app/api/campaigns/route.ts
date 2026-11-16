@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
@@ -25,7 +25,8 @@ export const dynamic = "force-dynamic";
  * харна). Өмнөх сарын сар бүрийн хандивыг эхлээд шинэ сар руу шилжүүлнэ.
  * Эрэмбэ: онцлох → админы эрэмбэ → шинэ нь.
  *
- * Гишүүд зөвхөн зөвшөөрсөн хандивыг харна; админ ба зөвшөөрөгч бүгдийг.
+ * Гишүүд зөвхөн зөвшөөрсөн, өөрт нь хамаатай (бүгдэд эсвэл өөрийн аймагт
+ * зарласан) хандивыг харна; админ ба зөвшөөрөгч бүгдийг.
  * `canApprove` нь дуудагч зөвшөөрөх товч харах эсэх.
  */
 export async function GET(request: NextRequest) {
@@ -42,6 +43,15 @@ export async function GET(request: NextRequest) {
     const approvers = await readApprovers();
     const approver = canApprove(result.caller, approvers);
     const seesAll = approver || isAdminRole(result.caller.user?.role);
+    const myAimags = result.caller.user?.aimags ?? [];
+
+    // Хоосон `aimags` = бүгдэд; эс бөгөөс аль нэг аймаг нь таарвал
+    const forMe = or(
+      sql`jsonb_array_length(${donationCampaigns.aimags}) = 0`,
+      ...myAimags.map(
+        (aimag) => sql`${donationCampaigns.aimags} @> ${JSON.stringify([aimag])}::jsonb`
+      )
+    );
 
     const rows = await db
       .select()
@@ -49,7 +59,8 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(donationCampaigns.board, board),
-          seesAll ? undefined : eq(donationCampaigns.status, "approved")
+          seesAll ? undefined : eq(donationCampaigns.status, "approved"),
+          seesAll ? undefined : forMe
         )
       )
       .orderBy(

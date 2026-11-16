@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { badRequest, requireAdmin, serverError } from "@/lib/api/auth";
 import { CONTENT_FIELDS, readCampaign } from "@/lib/api/campaignInput";
-import { notifyApprovers } from "@/lib/api/campaignReview";
+import { announceCampaign, campaignAudience, notifyApprovers } from "@/lib/api/campaignReview";
 import { currentPeriod } from "@/lib/api/campaignRollover";
 import { db } from "@/lib/db";
 import { donationCampaigns } from "@/lib/db/schema";
@@ -53,6 +53,20 @@ export async function PATCH(
     const needsReview = contentChanged && current.status !== "pending";
     if (needsReview) patch.status = "pending";
 
+    // Зарлагдсан хандивын хүрээ тэлбэл шинээр орсон хүмүүст л мэдэгдэнэ
+    const audienceChanged =
+      parsed.value.aimags !== undefined &&
+      JSON.stringify(parsed.value.aimags) !== JSON.stringify(current.aimags);
+    const newcomers =
+      audienceChanged && !needsReview && current.status === "approved" && current.active
+        ? await (async () => {
+            const before = new Set(await campaignAudience(current.aimags));
+            return (await campaignAudience(parsed.value.aimags ?? [])).filter(
+              (uid) => !before.has(uid)
+            );
+          })()
+        : [];
+
     if (parsed.value.kind === "monthly") {
       if (!current.period) {
         patch.period = currentPeriod();
@@ -72,6 +86,7 @@ export async function PATCH(
 
     if (!updated) return notFound();
     if (needsReview) await notifyApprovers(updated, true);
+    if (newcomers.length > 0) await announceCampaign(updated, result.caller.uid, newcomers);
     return NextResponse.json({ campaign: updated });
   } catch (error) {
     return serverError(error, "Хандив засахад алдаа гарлаа");
