@@ -23,6 +23,9 @@ import {
   type PostInput,
 } from "@/lib/posts";
 
+/** Нийтлэлүүдийг сайтын мэдээ шиг эгнээгээр — дэлгэцийн өргөнөөс хамаарч 1–4 багана */
+const GRID = "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
+
 const newestFirst = (a: Post, b: Post) => b.createdAt.getTime() - a.createdAt.getTime();
 
 /**
@@ -136,7 +139,7 @@ export default function PostFeed({ board = "home" }: { board?: PostBoard }) {
     const own = !!user?.uid && post.authorUid === user.uid;
 
     return editingId === post.id ? (
-      <div key={post.id} className="surface p-4">
+      <div key={post.id} className="surface col-span-full p-4">
         <PostComposer
           initialBody={post.body}
           initialVideoLink={post.videoLink}
@@ -166,8 +169,8 @@ export default function PostFeed({ board = "home" }: { board?: PostBoard }) {
     [user?.last_name, user?.first_name].filter(Boolean).join(" ") || user?.email || "";
 
   return (
-    <section className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-      <div className="surface flex gap-3 p-4">
+    <section className="flex w-full flex-col gap-4">
+      <div className="surface mx-auto flex w-full max-w-3xl gap-3 p-4">
         <PostAvatar name={authorName} photoUrl={user?.photoURL} />
         <div className="min-w-0 flex-1">
           <PostComposer submitLabel="Нийтлэх" onSubmit={publish} />
@@ -181,7 +184,7 @@ export default function PostFeed({ board = "home" }: { board?: PostBoard }) {
               ? `Зөвшөөрөл хүлээж буй${pendingCount ? ` (${pendingCount})` : ""}`
               : "Таны зөвшөөрөгдөөгүй нийтлэл"}
           </p>
-          {queue.map(renderPost)}
+          <div className={GRID}>{queue.map(renderPost)}</div>
         </div>
       )}
 
@@ -225,7 +228,7 @@ export default function PostFeed({ board = "home" }: { board?: PostBoard }) {
         </p>
       )}
 
-      {items.map(renderPost)}
+      {items.length > 0 && <div className={GRID}>{items.map(renderPost)}</div>}
 
       {hasMore && (
         <button
