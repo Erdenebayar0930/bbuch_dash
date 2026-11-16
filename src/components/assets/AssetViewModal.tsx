@@ -13,6 +13,7 @@ import {
   type AssetCheck,
   type CheckStatus,
 } from "@/lib/assets";
+import { dateFormat, dateTimeFormat } from "@/lib/dateFormat";
 
 type AssetViewModalProps = {
   /** null бол цонх хаалттай */
@@ -29,20 +30,10 @@ const statusStyles: Record<CheckStatus, string> = {
   missing: "bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-400",
 };
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+const dateFormatter = dateFormat;
 
 /** Түүхэнд цаг минут нь ялгах чухал үүрэгтэй — нэг өдөр олон шалгалт байж болно */
-const dateTimeFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const dateTimeFormatter = dateTimeFormat;
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (

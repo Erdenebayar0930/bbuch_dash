@@ -11,16 +11,11 @@ import {
   markRead,
   type InboxNotification,
 } from "@/lib/inbox";
+import { dateTimeFormat } from "@/lib/dateFormat";
 
 type Filter = "all" | "unread";
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const dateFormatter = dateTimeFormat;
 
 export default function NotificationList() {
   const router = useRouter();

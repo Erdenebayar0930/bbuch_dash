@@ -4,12 +4,9 @@ import PointPickerMap, { shieldGlyph } from "@/components/map/PointPickerMap";
 import { guardVisitStatusLabels } from "@/data/guardOptions";
 
 import type { GuardPoint } from "@/lib/guardPoints";
+import { dateFormat } from "@/lib/dateFormat";
 
-const shortDate = new Intl.DateTimeFormat("mn-MN", {
-  year: "2-digit",
-  month: "2-digit",
-  day: "2-digit",
-});
+const shortDate = dateFormat;
 
 type GuardPointLeafletMapProps = {
   points: GuardPoint[];

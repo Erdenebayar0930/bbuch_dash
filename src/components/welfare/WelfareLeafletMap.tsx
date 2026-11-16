@@ -3,14 +3,11 @@
 import PointPickerMap, { homeGlyph } from "@/components/map/PointPickerMap";
 
 import type { WelfareHousehold } from "@/lib/welfare";
+import { dateFormat } from "@/lib/dateFormat";
 
 const money = new Intl.NumberFormat("mn-MN");
 
-const shortDate = new Intl.DateTimeFormat("mn-MN", {
-  year: "2-digit",
-  month: "2-digit",
-  day: "2-digit",
-});
+const shortDate = dateFormat;
 
 type WelfareLeafletMapProps = {
   households: WelfareHousehold[];

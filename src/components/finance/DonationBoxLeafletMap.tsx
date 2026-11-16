@@ -4,12 +4,9 @@ import PointPickerMap, { boxGlyph } from "@/components/map/PointPickerMap";
 import { visitStatusLabels } from "@/data/donationBoxOptions";
 
 import type { DonationBox } from "@/lib/donationBoxes";
+import { dateFormat } from "@/lib/dateFormat";
 
-const shortDate = new Intl.DateTimeFormat("mn-MN", {
-  year: "2-digit",
-  month: "2-digit",
-  day: "2-digit",
-});
+const shortDate = dateFormat;
 
 type DonationBoxLeafletMapProps = {
   boxes: DonationBox[];

@@ -15,12 +15,9 @@ import { isAdminRole } from "@/lib/permissions";
 
 import GuardPointModal from "./GuardPointModal";
 import GuardPointVisitModal from "./GuardPointVisitModal";
+import { dateFormat } from "@/lib/dateFormat";
 
-const shortDate = new Intl.DateTimeFormat("mn-MN", {
-  year: "2-digit",
-  month: "2-digit",
-  day: "2-digit",
-});
+const shortDate = dateFormat;
 
 // Leaflet нь window-д шууд ханддаг тул зөвхөн browser дээр ачаална
 const LeafletMap = dynamic(() => import("./GuardPointLeafletMap"), {

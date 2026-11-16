@@ -41,14 +41,11 @@ import {
 } from "@/lib/campaigns";
 import { copyToClipboard } from "@/lib/clipboard";
 import { isAdminRole } from "@/lib/permissions";
+import { dateFormat } from "@/lib/dateFormat";
 
 const money = new Intl.NumberFormat("mn-MN");
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
+const dateFormatter = dateFormat;
 
 /** YYYY-MM-DD → уншигдах огноо (цагийн бүсээс хамаарахгүйгээр) */
 const formatDate = (value: string) => {
@@ -243,8 +240,9 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
   };
 
   const periodLabel = (period: string) => {
+    // `2026-11` — огнооны нэг формат (@see lib/dateFormat.ts)
     const [year, month] = period.split("-").map(Number);
-    return year ? `${year} оны ${month}-р сар` : "";
+    return year && month ? `${year}-${String(month).padStart(2, "0")}` : "";
   };
 
   const iconButton =

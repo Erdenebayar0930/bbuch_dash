@@ -39,6 +39,7 @@ import {
   type UserRole,
   type UserStatus,
 } from "@/lib/users";
+import { dateFormat } from "@/lib/dateFormat";
 
 type Filter = "all" | UserStatus;
 
@@ -64,11 +65,7 @@ const roleStyles: Record<UserRole, string> = {
   user: "bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-400",
 };
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+const dateFormatter = dateFormat;
 
 /** Хориглосон бол эхний шалтгааныг, зөвшөөрсөн бол undefined буцаана. */
 const reasonOf = (...checks: Permission[]): string | undefined => {

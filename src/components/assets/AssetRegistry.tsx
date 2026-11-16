@@ -37,6 +37,7 @@ import AssetCheckModal from "./AssetCheckModal";
 import AssetFormModal from "./AssetFormModal";
 import AssetViewModal from "./AssetViewModal";
 import MetaManagerModal from "./MetaManagerModal";
+import { dateFormat } from "@/lib/dateFormat";
 
 const checkStyles: Record<CheckStatus, string> = {
   ok: "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400",
@@ -47,11 +48,7 @@ const checkStyles: Record<CheckStatus, string> = {
   missing: "bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-400",
 };
 
-const shortDate = new Intl.DateTimeFormat("mn-MN", {
-  year: "2-digit",
-  month: "2-digit",
-  day: "2-digit",
-});
+const shortDate = dateFormat;
 
 /** "Бүгд" сонголтын түлхүүр — хоосон мөр нь "оноогоогүй"-г заана */
 const ALL = "__all__";

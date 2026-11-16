@@ -16,6 +16,7 @@ import {
   type GuardPoint,
   type GuardVisit,
 } from "@/lib/guardPoints";
+import { dateTimeFormat } from "@/lib/dateFormat";
 
 type GuardPointVisitModalProps = {
   /** null бол цонх хаалттай */
@@ -27,13 +28,7 @@ type GuardPointVisitModalProps = {
   onRecorded: () => void;
 };
 
-const dateTime = new Intl.DateTimeFormat("mn-MN", {
-  year: "2-digit",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const dateTime = dateTimeFormat;
 
 const statusStyles: Record<GuardVisitStatus, string> = {
   ok: "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400",

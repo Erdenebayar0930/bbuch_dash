@@ -25,6 +25,7 @@ import {
 } from "@/lib/gospel";
 import { isAdminRole } from "@/lib/permissions";
 import { deleteGospelPhoto } from "@/lib/storage";
+import { dateFormat } from "@/lib/dateFormat";
 
 type GospelRegistryProps = {
   /** Аль аймгийн цэснээс нээгдсэн — шинэ бүртгэлийн анхдагч аймаг */
@@ -44,11 +45,7 @@ const baptismFilters: { value: BaptismFilter; label: string }[] = [
 const baptismBadge =
   "rounded-full bg-success-50 px-2 py-0.5 text-theme-xs font-medium text-success-700 dark:bg-success-500/15 dark:text-success-400";
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
+const dateFormatter = dateFormat;
 
 /** YYYY-MM-DD → уншигдах огноо (цагийн бүсээс хамаарахгүйгээр) */
 const formatDate = (value: string) => {

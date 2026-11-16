@@ -17,13 +17,9 @@ import {
   announceNotificationReceived,
   setupForegroundNotifications,
 } from "@/lib/notifications";
+import { dateTimeFormat } from "@/lib/dateFormat";
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  month: "short",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const dateFormatter = dateTimeFormat;
 
 export default function NotificationDropdown() {
   const router = useRouter();

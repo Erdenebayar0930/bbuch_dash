@@ -11,6 +11,7 @@ import {
   type WelfareHousehold,
   type WelfareBoard,
 } from "@/lib/welfare";
+import { dateTimeFormat } from "@/lib/dateFormat";
 
 type WelfareAidModalProps = {
   /** null бол цонх хаалттай */
@@ -25,13 +26,7 @@ type WelfareAidModalProps = {
 
 const money = new Intl.NumberFormat("mn-MN");
 
-const dateTime = new Intl.DateTimeFormat("mn-MN", {
-  year: "2-digit",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const dateTime = dateTimeFormat;
 
 const fieldClass =
   "h-11 w-full rounded-lg border border-gray-200 bg-white px-3.5 text-theme-sm text-gray-800 transition-colors placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30";

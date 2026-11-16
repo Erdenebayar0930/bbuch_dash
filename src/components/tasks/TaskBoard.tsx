@@ -36,6 +36,7 @@ import { buildProjectTree, pathLabel } from "@/lib/projectTree";
 import ProjectManagerModal from "./ProjectManagerModal";
 import TaskFormModal from "./TaskFormModal";
 import { useBoardDrag } from "./useBoardDrag";
+import { monthDayFormat } from "@/lib/dateFormat";
 
 /** Багана бүрийн өнгө — төлөвийг харцаар ялгахад */
 const columnStyles: Record<TaskStatus, string> = {
@@ -51,10 +52,7 @@ const priorityStyles: Record<string, string> = {
   high: "bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-400",
 };
 
-const shortDate = new Intl.DateTimeFormat("mn-MN", {
-  month: "2-digit",
-  day: "2-digit",
-});
+const shortDate = monthDayFormat;
 
 /** Өнөөдрийн огноо YYYY-MM-DD — орон нутгийн цагаар (UTC руу шилжүүлэхгүй) */
 function todayIso() {

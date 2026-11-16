@@ -21,14 +21,9 @@ import {
   type BackupFile,
   type BackupSettings,
 } from "@/lib/backups";
+import { dateTimeFormat } from "@/lib/dateFormat";
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const dateFormatter = dateTimeFormat;
 
 const formatSize = (bytes: number) =>
   bytes >= 1024 * 1024

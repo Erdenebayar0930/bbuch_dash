@@ -104,33 +104,9 @@ export const postDateKey = (date: Date) => new Date(date.getTime() + UB_OFFSET_M
 /** Өнөөдөр (Улаанбаатар) — нийтлэлийн огнооны анхдагч утга */
 export const todayKey = () => postDateKey(new Date());
 
-/** `2025-03-14` → «2025 оны 3-р сарын 14», `2025-03` → «2025 оны 3-р сар» */
+/** `2025-03-14` эсвэл (зөвхөн он сар бол) `2025-03` — огнооны нэг формат (@see lib/dateFormat.ts) */
 export function formatPostPeriod(period: string): string {
-  const match = POST_PERIOD.exec(period);
-  if (!match) return "";
-  const month = `${match[1]} оны ${Number(match[2])}-р сар`;
-  return match[3] ? `${month}ын ${Number(match[3])}` : month;
-}
-
-/** «5 минутын өмнө», «2026 оны 11-р сарын 16 14:05» г.м. */
-export function formatPostTime(date: Date, now = new Date()): string {
-  const diff = Math.max(0, now.getTime() - date.getTime());
-  const minute = 60_000;
-  if (diff < minute) return "Дөнгөж сая";
-  if (diff < 60 * minute) return `${Math.floor(diff / minute)} минутын өмнө`;
-  if (diff < 24 * 60 * minute) return `${Math.floor(diff / (60 * minute))} цагийн өмнө`;
-
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Ulaanbaatar",
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-  return `${get("year")} оны ${Number(get("month"))}-р сарын ${Number(get("day"))} ${get("hour")}:${get("minute")}`;
+  return POST_PERIOD.test(period) ? period : "";
 }
 
 /**

@@ -27,8 +27,7 @@ export const isIsoDate = (value: string) =>
 export const todayIso = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ulaanbaatar" }).format(new Date());
 
-/** «2026-11-16» → «2026 оны 11-р сарын 16» */
+/** «2026-11-16» хэвээр — огнооны нэг формат (@see lib/dateFormat.ts) */
 export function formatRevelationDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return y && m && d ? `${y} оны ${m}-р сарын ${d}` : iso;
+  return iso;
 }

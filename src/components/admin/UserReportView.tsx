@@ -24,12 +24,9 @@ import {
   type UserReport,
 } from "@/lib/userDirectory";
 import { roleLabels, statusLabels } from "@/lib/users";
+import { dateFormat as isoDate } from "@/lib/dateFormat";
 
-const dateFormat = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+const dateFormat = isoDate;
 
 const dash = (value: string | null | undefined) => (value ? value : "—");
 

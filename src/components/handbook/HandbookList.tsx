@@ -12,6 +12,7 @@ import {
 } from "@/lib/handbook";
 import { isAdminRole } from "@/lib/permissions";
 import { deleteHandbookFile, uploadHandbookFile } from "@/lib/storage";
+import { dateFormat } from "@/lib/dateFormat";
 
 const sizeLabel = (bytes: number) => {
   if (bytes <= 0) return "";
@@ -19,11 +20,7 @@ const sizeLabel = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
 };
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
+const dateFormatter = dateFormat;
 
 /** Гарын авлагын баримтын жагсаалт — админ нэмж/устгана, бусад нь татна. */
 export default function HandbookList() {

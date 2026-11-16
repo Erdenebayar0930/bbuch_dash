@@ -5,14 +5,11 @@ import { Banknote, Package, Pencil, Plus, Trash2 } from "lucide-react";
 
 import SupplyModal from "@/components/finance/SupplyModal";
 import { deleteSupply, listSupplies, type Supply } from "@/lib/supplies";
+import { dateFormat } from "@/lib/dateFormat";
 
 const money = new Intl.NumberFormat("mn-MN");
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
+const dateFormatter = dateFormat;
 
 const formatDate = (value: string) => {
   const [y, m, d] = value.split("-").map(Number);

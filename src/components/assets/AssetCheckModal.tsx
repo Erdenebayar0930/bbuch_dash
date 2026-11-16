@@ -11,6 +11,7 @@ import {
   type AssetCheck,
   type CheckStatus,
 } from "@/lib/assets";
+import { dateTimeFormat } from "@/lib/dateFormat";
 
 type AssetCheckModalProps = {
   asset: Asset | null;
@@ -29,13 +30,7 @@ const statusStyles: Record<CheckStatus, string> = {
   missing: "bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-400",
 };
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const dateFormatter = dateTimeFormat;
 
 export default function AssetCheckModal({
   asset,

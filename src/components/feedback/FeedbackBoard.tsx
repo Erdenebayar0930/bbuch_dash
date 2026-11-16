@@ -32,12 +32,9 @@ import {
 } from "@/lib/feedback";
 import { aimags, labelOf } from "@/data/profileOptions";
 import { isAdminRole } from "@/lib/permissions";
+import { dateFormat } from "@/lib/dateFormat";
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
+const dateFormatter = dateFormat;
 
 const badgeStyles: Record<FeedbackStatus, string> = {
   pending: "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300",

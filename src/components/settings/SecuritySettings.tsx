@@ -11,14 +11,9 @@ import {
   setDeviceActive,
   type Device,
 } from "@/lib/devices";
+import { dateTimeFormat } from "@/lib/dateFormat";
 
-const dateFormatter = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const dateFormatter = dateTimeFormat;
 
 export default function SecuritySettings() {
   const [devices, setDevices] = useState<Device[] | null>(null);

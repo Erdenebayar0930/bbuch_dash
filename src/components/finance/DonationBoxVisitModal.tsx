@@ -18,6 +18,7 @@ import {
   type DonationBox,
 } from "@/lib/donationBoxes";
 import { MAX_VISIT_PHOTO_BYTES, uploadVisitPhoto } from "@/lib/storage";
+import { dateTimeFormat } from "@/lib/dateFormat";
 
 /** Сонгосон боловч хараахан байршуулаагүй зураг */
 type PendingPhoto = { file: File; preview: string };
@@ -32,13 +33,7 @@ type DonationBoxVisitModalProps = {
   onRecorded: () => void;
 };
 
-const dateTime = new Intl.DateTimeFormat("mn-MN", {
-  year: "2-digit",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+const dateTime = dateTimeFormat;
 
 const statusStyles: Record<VisitStatus, string> = {
   collected:

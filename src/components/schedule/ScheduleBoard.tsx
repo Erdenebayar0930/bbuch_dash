@@ -25,18 +25,13 @@ import {
 import { listUsers, type AppUser } from "@/lib/users";
 
 import ScheduleShiftModal from "./ScheduleShiftModal";
+import { monthDayFormat, yearMonthFormat } from "@/lib/dateFormat";
 
-const dayFormat = new Intl.DateTimeFormat("mn-MN", {
-  month: "2-digit",
-  day: "2-digit",
-});
+const dayFormat = monthDayFormat;
 
-const weekdayFormat = new Intl.DateTimeFormat("mn-MN", { weekday: "short" });
+const weekdayFormat = monthDayFormat;
 
-const monthFormat = new Intl.DateTimeFormat("mn-MN", {
-  year: "numeric",
-  month: "long",
-});
+const monthFormat = yearMonthFormat;
 
 /** YYYY-MM-DD → Date. Орон нутгийн шөнө дундаар — цагийн бүс өдрийг зөөхгүй. */
 const parseDate = (iso: string) => {
