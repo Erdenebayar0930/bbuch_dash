@@ -18,6 +18,9 @@ type GuardPointLeafletMapProps = {
   /** Эргэлтийн бүртгэл ба түүхийн цонхыг нээнэ */
   onVisit: (point: GuardPoint) => void;
   canManage: boolean;
+  /** Байршлыг засах/устгах эрх — тэмдэглэсэн хүн эсвэл админ */
+  canEdit: (point: GuardPoint) => boolean;
+  onOpenImage: (src: string) => void;
 };
 
 export default function GuardPointLeafletMap({
@@ -28,6 +31,8 @@ export default function GuardPointLeafletMap({
   onDelete,
   onVisit,
   canManage,
+  canEdit,
+  onOpenImage,
 }: GuardPointLeafletMapProps) {
   return (
     <PointPickerMap
@@ -50,8 +55,27 @@ export default function GuardPointLeafletMap({
             <p className="mt-1 text-gray-700">{point.address}</p>
           )}
 
+          {point.images.length > 0 && (
+            <div className="mt-2 grid grid-cols-3 gap-1">
+              {point.images.slice(0, 6).map((image) => (
+                <button
+                  key={image.path}
+                  type="button"
+                  onClick={() => onOpenImage(image.url)}
+                  aria-label="Зургийг томоор харах"
+                  className="block aspect-square overflow-hidden rounded-md bg-gray-100"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- сервер дээрх зураг */}
+                  <img src={image.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+
           {point.note && (
-            <p className="mt-1 text-xs text-gray-500">{point.note}</p>
+            <p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-line text-[13px] leading-6 text-gray-700">
+              {point.note}
+            </p>
           )}
 
           <div className="mt-2 rounded-lg bg-gray-50 p-2 text-xs text-gray-600">
@@ -79,7 +103,7 @@ export default function GuardPointLeafletMap({
               {canManage ? "Эргэлт бүртгэх" : "Эргэлтийн түүх"}
             </button>
 
-            {canManage && (
+            {canEdit(point) && (
               <>
                 <button
                   type="button"

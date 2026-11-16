@@ -119,6 +119,8 @@ export const POST_BOARDS = {
   land: { url: "/finance/land-tithe", label: "Газрын 1/10-ийн талаар" },
   "tithe-giving": { url: "/finance/allocation", label: "1/10 ба өргөл: Өргөж буй байдал" },
   "land-giving": { url: "/finance/land-tithe", label: "Газрын 1/10: Өргөж буй байдал" },
+  "guard-map-revealed": { url: "/aimag/guard/map", label: "Илчлэгдсэн үйлчлэл" },
+  "guard-map-done": { url: "/aimag/guard/map", label: "Гүйцэтгэсэн үйлчлэл" },
   "guard-duty": { url: "/aimag/guard/duty", label: "Харуулын үүрэгт зогсох" },
   "praise-hall": { url: "/aimag/praise/hall", label: "Асрын үйлчлэл" },
   "commission-az": { url: "/aimag/commission/az", label: "АЗ-ийн үйлчлэл" },

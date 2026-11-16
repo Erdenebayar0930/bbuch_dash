@@ -1,7 +1,14 @@
 import "server-only";
 
+import { isStoredFileUrl } from "@/lib/storageUrl";
+
 const MAX_NAME = 120;
 const MAX_TEXT = 300;
+/** Харуулын байршлын тайлбар — зурагтай хамт урт бичвэр бичнэ */
+export const GUARD_NOTE_LIMIT = 5000;
+
+/** Нэг байршилд хавсаргах зургийн дээд тоо */
+const MAX_IMAGES = 10;
 
 export type DonationBoxPatch = {
   name?: string;
@@ -10,6 +17,7 @@ export type DonationBoxPatch = {
   lng?: number;
   note?: string;
   active?: boolean;
+  images?: { url: string; path: string }[];
 };
 
 export type ParsedDonationBox =
@@ -28,7 +36,9 @@ export function readDonationBox(
   body: unknown,
   partial: boolean,
   /** Нэр хоосон үеийн алдаа — харуулын цэг ч энэ шалгалтыг ашиглана */
-  nameRequired = "Хайрцгийн нэрийг оруулна уу."
+  nameRequired = "Хайрцгийн нэрийг оруулна уу.",
+  /** Харуулын байршил — урт тайлбар ба зураг (`guard_points/{uid}/`) */
+  options: { noteLimit?: number; imagesOwner?: string; keepPaths?: readonly string[] } = {}
 ): ParsedDonationBox {
   if (typeof body !== "object" || body === null) {
     return invalid("Өгөгдөл буруу байна.");
@@ -53,8 +63,9 @@ export function readDonationBox(
     }
 
     const value = (input[key] as string).trim();
-    if (value.length > MAX_TEXT) {
-      return invalid(`Утга ${MAX_TEXT} тэмдэгтээс урт байж болохгүй.`);
+    const limit = key === "note" && options.noteLimit ? options.noteLimit : MAX_TEXT;
+    if (value.length > limit) {
+      return invalid(`Утга ${limit} тэмдэгтээс урт байж болохгүй.`);
     }
     patch[key] = value;
   }
@@ -78,6 +89,29 @@ export function readDonationBox(
       return invalid("Байршлын координат буруу байна.");
     }
     patch[key] = value;
+  }
+
+  // Зургууд — зөвхөн харуулын байршилд (imagesOwner заасан үед)
+  if (options.imagesOwner !== undefined && input.images !== undefined) {
+    if (!Array.isArray(input.images) || input.images.length > MAX_IMAGES) {
+      return invalid(`Хамгийн ихдээ ${MAX_IMAGES} зураг оруулна.`);
+    }
+    const own = `guard_points/${options.imagesOwner}/`;
+    const images: { url: string; path: string }[] = [];
+    for (const item of input.images) {
+      const { url, path } = (item ?? {}) as Record<string, unknown>;
+      if (
+        typeof url !== "string" ||
+        typeof path !== "string" ||
+        !isStoredFileUrl(url) ||
+        path.includes("..") ||
+        !(path.startsWith(own) || (options.keepPaths ?? []).includes(path))
+      ) {
+        return invalid("Зургийн мэдээлэл буруу байна.");
+      }
+      images.push({ url, path });
+    }
+    patch.images = images;
   }
 
   if (input.active !== undefined) {

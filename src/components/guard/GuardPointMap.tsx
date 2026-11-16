@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MapPin, Plus, RefreshCw, X } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
+import ImageViewer from "@/components/common/ImageViewer";
 import { guardVisitStatusLabels } from "@/data/guardOptions";
 import {
   deleteGuardPoint,
@@ -30,10 +31,11 @@ const LeafletMap = dynamic(() => import("./GuardPointLeafletMap"), {
 });
 
 /**
- * Харуулын цэгүүдийн газрын зураг.
+ * Харуулын «Газрын зургийн үйлчлэл → Байршлууд».
  *
- * Харуулын аймгийн гишүүд харна. Админ «Цэг нэмэх» горимд зураг дээр дарж
- * байршлаа сонгоод нэрийг нь бөглөнө.
+ * Харуулын аймгийн гишүүн бүр «Байршил тэмдэглэх» дарж газрын зураг дээрээс
+ * сонгоод нэр, тайлбар, зургаа оруулна. Засах/устгах нь тэмдэглэсэн хүн
+ * эсвэл админ. Эргэлт бүртгэх нь админд хэвээр.
  */
 export default function GuardPointMap() {
   const { user } = useUser();
@@ -52,6 +54,9 @@ export default function GuardPointMap() {
   const [editing, setEditing] = useState<GuardPoint | null>(null);
   /** Эргэлтийн цонхонд нээгдсэн цэг */
   const [visiting, setVisiting] = useState<GuardPoint | null>(null);
+  const [viewerSrc, setViewerSrc] = useState<string | null>(null);
+
+  const canEdit = (point: GuardPoint) => isAdmin || (!!user?.uid && point.createdBy === user.uid);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,7 +110,7 @@ export default function GuardPointMap() {
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="mr-auto flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
           <MapPin className="h-5 w-5 text-accent-600" strokeWidth={1.8} />
-          Харуулын цэгүүд
+          Байршлууд
           <span className="text-theme-sm font-normal text-gray-400">
             {activeCount} идэвхтэй
           </span>
@@ -124,8 +129,7 @@ export default function GuardPointMap() {
           Сэргээх
         </button>
 
-        {isAdmin &&
-          (picking ? (
+        {picking ? (
             <button
               type="button"
               onClick={() => setPicking(false)}
@@ -141,14 +145,14 @@ export default function GuardPointMap() {
               className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
             >
               <Plus className="h-4 w-4" strokeWidth={2.2} />
-              Цэг нэмэх
+              Байршил тэмдэглэх
             </button>
-          ))}
+          )}
       </div>
 
       {picking && (
         <p className="rounded-lg bg-accent-50 px-4 py-3 text-theme-sm text-accent-700 dark:bg-accent-500/10 dark:text-accent-400">
-          Харуулын цэг байрлах газар дээр газрын зургаас дарна уу.
+          Тэмдэглэх газар дээрээ газрын зургаас дарна уу.
         </p>
       )}
 
@@ -167,14 +171,14 @@ export default function GuardPointMap() {
           onDelete={handleDelete}
           onVisit={setVisiting}
           canManage={isAdmin}
+          canEdit={canEdit}
+          onOpenImage={setViewerSrc}
         />
       </div>
 
       {!loading && !error && points.length === 0 && (
         <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-          {isAdmin
-            ? "Цэг тэмдэглээгүй байна. «Цэг нэмэх» дарж зураг дээрээс сонгоно уу."
-            : "Харуулын цэг хараахан тэмдэглэгдээгүй байна."}
+          Байршил тэмдэглээгүй байна. «Байршил тэмдэглэх» дарж газрын зураг дээрээс сонгоно уу.
         </p>
       )}
 
@@ -207,6 +211,16 @@ export default function GuardPointMap() {
                   )}
                 </div>
 
+                {canEdit(point) && (
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(point)}
+                    className="shrink-0 rounded-lg border border-gray-200 px-2.5 py-1 text-theme-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/5"
+                  >
+                    Засах
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setVisiting(point)}
@@ -215,6 +229,29 @@ export default function GuardPointMap() {
                   {isAdmin ? "Эргэлт" : "Түүх"}
                 </button>
               </div>
+
+              {point.images.length > 0 && (
+                <div className="mt-2 flex gap-1.5 overflow-x-auto">
+                  {point.images.map((image) => (
+                    <button
+                      key={image.path}
+                      type="button"
+                      onClick={() => setViewerSrc(image.url)}
+                      aria-label="Зургийг томоор харах"
+                      className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-gray-100 dark:bg-white/5"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element -- сервер дээрх зураг */}
+                      <img src={image.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {point.note && (
+                <p className="font-reading mt-2 line-clamp-4 whitespace-pre-line text-[14px] leading-6 text-gray-700 dark:text-gray-300">
+                  {point.note}
+                </p>
+              )}
 
               <p className="mt-2 text-theme-xs text-gray-500 dark:text-gray-400">
                 {point.lastVisit ? (
@@ -238,6 +275,8 @@ export default function GuardPointMap() {
         onClose={() => setFormOpen(false)}
         onSaved={load}
       />
+
+      <ImageViewer src={viewerSrc} onClose={() => setViewerSrc(null)} />
 
       <GuardPointVisitModal
         point={visiting}

@@ -694,6 +694,10 @@ export const guardPoints = pgTable(
     lat: doublePrecision("lat").notNull(),
     lng: doublePrecision("lng").notNull(),
     note: bodyText("note"),
+    /** Байршлын зургууд — `guard_points/{uid}/` хавтаст (@see lib/api/fileStore.ts) */
+    images: jsonCol<{ url: string; path: string }[]>("images")
+      .notNull()
+      .$defaultFn(() => []),
     /** false бол түр идэвхгүй — зураг дээр бүдэг харагдана */
     active: boolean("active").notNull().default(true),
     createdBy: uidCol("created_by"),

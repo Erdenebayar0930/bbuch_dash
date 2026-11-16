@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ImagePlus, X } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
 import {
@@ -33,7 +34,12 @@ const emptyInput: GuardPointInput = {
   lng: 0,
   note: "",
   active: true,
+  images: [],
 };
+
+/** Нэг байршилд хавсаргах зургийн дээд тоо — сервертэй ижил */
+const MAX_IMAGES = 10;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 export default function GuardPointModal({
   isOpen,
@@ -45,6 +51,11 @@ export default function GuardPointModal({
   const [form, setForm] = useState<GuardPointInput>(emptyInput);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Шинээр сонгосон, хараахан байршуулаагүй зургууд */
+  const [files, setFiles] = useState<File[]>([]);
+  const imageInput = useRef<HTMLInputElement>(null);
+  const previews = useMemo(() => files.map((file) => URL.createObjectURL(file)), [files]);
+  useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
 
   // Цонх нээгдэх бүрд засаж буй мөр эсвэл сонгосон цэгээр дүүргэнэ
   useEffect(() => {
@@ -57,6 +68,7 @@ export default function GuardPointModal({
             lng: point.lng,
             note: point.note,
             active: point.active,
+            images: point.images,
           }
         : {
             ...emptyInput,
@@ -65,7 +77,23 @@ export default function GuardPointModal({
           }
     );
     setError(null);
+    setFiles([]);
   }, [point, picked, isOpen]);
+
+  const pickImages = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    const valid = picked.filter((file) => file.type.startsWith("image/") && file.size <= MAX_IMAGE_BYTES);
+    const room = MAX_IMAGES - form.images.length - files.length;
+    setError(
+      valid.length < picked.length
+        ? "Зөвхөн 10MB хүртэлх зураг оруулна."
+        : valid.length > room
+          ? `Хамгийн ихдээ ${MAX_IMAGES} зураг оруулна.`
+          : null
+    );
+    setFiles((prev) => [...prev, ...valid.slice(0, Math.max(0, room))]);
+  };
 
   const update = <K extends keyof GuardPointInput>(
     key: K,
@@ -79,15 +107,27 @@ export default function GuardPointModal({
     setSaving(true);
     setError(null);
 
+    const { uploadGuardPointImage, deleteGuardPointImage } = await import("@/lib/storage");
+    const uploaded: { url: string; path: string }[] = [];
+
     try {
+      for (const file of files) uploaded.push(await uploadGuardPointImage(file));
+      const input = { ...form, images: [...form.images, ...uploaded] };
+
       if (point) {
-        await updateGuardPoint(point.id, form);
+        await updateGuardPoint(point.id, input);
+        // Хасагдсан хуучин зургуудыг цэвэрлэнэ
+        const kept = new Set(form.images.map((image) => image.path));
+        void Promise.all(
+          point.images.filter((image) => !kept.has(image.path)).map((image) => deleteGuardPointImage(image.path))
+        );
       } else {
-        await createGuardPoint(form);
+        await createGuardPoint(input);
       }
       onSaved();
       onClose();
     } catch (err) {
+      await Promise.all(uploaded.map((image) => deleteGuardPointImage(image.path)));
       console.error("Байршил хадгалахад алдаа гарлаа:", err);
       setError(err instanceof Error ? err.message : "Хадгалахад алдаа гарлаа.");
     } finally {
@@ -99,7 +139,7 @@ export default function GuardPointModal({
     <Modal isOpen={isOpen} onClose={onClose} className="max-w-md p-0">
       <form onSubmit={handleSubmit} className="p-5">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          {point ? "Харуулын цэг засах" : "Харуулын цэг нэмэх"}
+          {point ? "Байршил засах" : "Байршил тэмдэглэх"}
         </h3>
 
         <div className="mt-5 grid gap-4">
@@ -111,7 +151,7 @@ export default function GuardPointModal({
               id="point-name"
               value={form.name}
               onChange={(event) => update("name", event.target.value)}
-              placeholder="Жишээ нь: Зүүн хаалга"
+              placeholder="Жишээ нь: Төв талбай"
               className={fieldClass}
               autoFocus
             />
@@ -168,15 +208,65 @@ export default function GuardPointModal({
 
           <div>
             <label htmlFor="point-note" className={labelClass}>
-              Тэмдэглэл <span className="text-gray-400">(заавал биш)</span>
+              Тайлбар <span className="text-gray-400">(заавал биш)</span>
             </label>
             <textarea
               id="point-note"
               value={form.note}
               onChange={(event) => update("note", event.target.value)}
-              rows={2}
-              className={`${fieldClass} h-auto py-2.5`}
+              rows={5}
+              maxLength={5000}
+              placeholder="Энэ байршилд юу болсон, юу хийсэн тухай бичнэ үү..."
+              className={`${fieldClass} font-reading h-auto py-2.5 text-[15px] leading-7`}
             />
+          </div>
+
+          {/* Зургууд — хадгалсан нь ба шинээр сонгосон нь */}
+          <div>
+            <span className={labelClass}>
+              Зураг <span className="text-gray-400">(заавал биш)</span>
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {form.images.map((image) => (
+                <div key={image.path} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- сервер дээрх зураг */}
+                  <img src={image.url} alt="" className="h-20 w-20 rounded-lg border border-gray-200 object-cover dark:border-white/10" />
+                  <button
+                    type="button"
+                    onClick={() => update("images", form.images.filter((other) => other.path !== image.path))}
+                    aria-label="Зургийг хасах"
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-gray-900/80 text-white hover:bg-gray-900"
+                  >
+                    <X className="h-3.5 w-3.5" strokeWidth={2.2} />
+                  </button>
+                </div>
+              ))}
+              {files.map((file, index) => (
+                <div key={`${file.name}-${index}`} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- түр blob URL */}
+                  <img src={previews[index]} alt="" className="h-20 w-20 rounded-lg border border-gray-200 object-cover dark:border-white/10" />
+                  <button
+                    type="button"
+                    onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))}
+                    aria-label="Зургийг хасах"
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-gray-900/80 text-white hover:bg-gray-900"
+                  >
+                    <X className="h-3.5 w-3.5" strokeWidth={2.2} />
+                  </button>
+                </div>
+              ))}
+              {form.images.length + files.length < MAX_IMAGES && (
+                <button
+                  type="button"
+                  onClick={() => imageInput.current?.click()}
+                  className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-gray-300 text-theme-xs text-gray-500 transition-colors hover:border-accent-400 hover:text-accent-600 dark:border-white/15 dark:text-gray-400"
+                >
+                  <ImagePlus className="h-5 w-5" strokeWidth={1.8} />
+                  Зураг
+                </button>
+              )}
+            </div>
+            <input ref={imageInput} type="file" accept="image/*" multiple onChange={pickImages} className="hidden" />
           </div>
 
           <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-3.5 py-2.5 dark:border-white/10">

@@ -1,12 +1,12 @@
 import { Metadata } from "next";
 
 import AimagGuard from "@/components/AimagGuard";
-import GuardPointMap from "@/components/guard/GuardPointMap";
+import GuardMapTabs from "@/components/guard/GuardMapTabs";
 import { GUARD_AIMAG } from "@/data/guardOptions";
 
 export const metadata: Metadata = {
   title: "Газрын зургийн үйлчлэл | ББУЧ",
-  description: "Харуулын цэгүүдийн газрын зураг",
+  description: "Илчлэгдсэн ба гүйцэтгэсэн үйлчлэл, байршлууд",
 };
 
 export default function GuardMapPage() {
@@ -17,12 +17,12 @@ export default function GuardMapPage() {
           Газрын зургийн үйлчлэл
         </h1>
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          Харуулын цэгүүд ба эргэлтийн бүртгэл
+          Илчлэгдсэн ба гүйцэтгэсэн үйлчлэл, газрын зураг дээрх байршлууд
         </p>
       </div>
 
       <AimagGuard aimag={GUARD_AIMAG}>
-        <GuardPointMap />
+        <GuardMapTabs />
       </AimagGuard>
     </div>
   );

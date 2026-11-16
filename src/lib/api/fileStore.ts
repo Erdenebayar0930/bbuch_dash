@@ -98,6 +98,8 @@ export const SCOPES: Record<string, Scope> = {
   feedback: { folder: "uid", write: "active", remove: "owner-or-admin", limit: imagesUpTo(10 * MB) },
   gospel: { folder: "uid", write: "active", remove: "owner-or-admin", limit: imagesUpTo(10 * MB) },
   revelations: { folder: "uid", write: "active", remove: "owner-or-admin", limit: imagesUpTo(10 * MB) },
+  /** Харуулын «Газрын зургийн үйлчлэл → Байршлууд» — цэгийн зураг */
+  guard_points: { folder: "uid", write: "active", remove: "owner-or-admin", limit: imagesUpTo(10 * MB) },
   posts: {
     folder: "uid",
     write: "active",

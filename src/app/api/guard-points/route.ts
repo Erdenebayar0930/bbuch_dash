@@ -2,13 +2,8 @@ import { asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { GUARD_AIMAG } from "@/data/guardOptions";
-import {
-  badRequest,
-  requireAdmin,
-  requireAimag,
-  serverError,
-} from "@/lib/api/auth";
-import { readDonationBox } from "@/lib/api/donationBoxInput";
+import { badRequest, requireAimag, serverError } from "@/lib/api/auth";
+import { GUARD_NOTE_LIMIT, readDonationBox } from "@/lib/api/donationBoxInput";
 import { db } from "@/lib/db";
 import { guardPoints } from "@/lib/db/schema";
 
@@ -17,7 +12,7 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NAME_REQUIRED = "Цэгийн нэрийг оруулна уу.";
+const NAME_REQUIRED = "Байршлын нэрийг оруулна уу.";
 
 /**
  * Харуулын цэгүүд — сүүлийн эргэлтийн хамт.
@@ -62,16 +57,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Шинэ харуулын цэг тэмдэглэнэ (зөвхөн админ). */
+/** Шинэ байршил тэмдэглэнэ — Харуулын аймгийн гишүүн эсвэл админ. */
 export async function POST(request: NextRequest) {
-  const result = await requireAdmin(request);
+  const result = await requireAimag(request, GUARD_AIMAG);
   if ("error" in result) return result.error;
 
   try {
     const parsed = readDonationBox(
       await request.json().catch(() => ({})),
       false,
-      NAME_REQUIRED
+      NAME_REQUIRED,
+      { noteLimit: GUARD_NOTE_LIMIT, imagesOwner: result.caller.uid }
     );
     if (!parsed.ok) return badRequest(parsed.error);
 

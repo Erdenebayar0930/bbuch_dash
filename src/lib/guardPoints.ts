@@ -13,6 +13,10 @@ export type GuardPoint = {
   lat: number;
   lng: number;
   note: string;
+  /** Байршлын зургууд */
+  images: { url: string; path: string }[];
+  /** Тэмдэглэсэн хүн — засах/устгах эрх */
+  createdBy: string | null;
   /** false бол түр идэвхгүй — зураг дээр бүдэг харагдана */
   active: boolean;
   /** null бол хараахан эргээгүй */
@@ -29,6 +33,8 @@ const toPoint = (row: PointRow): GuardPoint => ({
   ...row,
   address: row.address ?? "",
   note: row.note ?? "",
+  images: row.images ?? [],
+  createdBy: row.createdBy ?? null,
   lastVisit: row.lastVisit
     ? { ...row.lastVisit, visitedAt: new Date(row.lastVisit.visitedAt) }
     : null,
@@ -48,6 +54,7 @@ export type GuardPointInput = {
   lng: number;
   note: string;
   active: boolean;
+  images: { url: string; path: string }[];
 };
 
 /** Шинэ цэг тэмдэглэнэ (зөвхөн админ). */
@@ -73,9 +80,13 @@ export async function updateGuardPoint(
   return toPoint(data.point);
 }
 
-/** Цэгийг устгана (зөвхөн админ). Эргэлтийн түүх нь дагаж устана. */
+/** Байршлыг устгана (тэмдэглэсэн хүн эсвэл админ) — зургуудыг нь ч цэвэрлэнэ. */
 export async function deleteGuardPoint(id: string): Promise<void> {
-  await apiFetch(`/api/guard-points/${id}`, { method: "DELETE" });
+  const data = await apiFetch<{ images?: { path: string }[] }>(`/api/guard-points/${id}`, {
+    method: "DELETE",
+  });
+  const { deleteGuardPointImage } = await import("./storage");
+  await Promise.all((data.images ?? []).map((image) => deleteGuardPointImage(image.path)));
 }
 
 /** Нэг удаагийн эргэлтийн бүртгэл */

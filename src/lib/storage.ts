@@ -251,6 +251,19 @@ export async function deleteRevelationImage(path: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Харуулын байршлын зураг — «Газрын зургийн үйлчлэл → Байршлууд»
+// ---------------------------------------------------------------------------
+
+export async function uploadGuardPointImage(file: File): Promise<UploadedImage> {
+  requireImage(file, MAX_FEEDBACK_IMAGE_BYTES);
+  return uploadToServer("guard_points", file);
+}
+
+export async function deleteGuardPointImage(path: string): Promise<void> {
+  await removeQuietly(path, "Байршлын зургийг");
+}
+
+// ---------------------------------------------------------------------------
 // Нийтлэлийн зураг/видео
 // ---------------------------------------------------------------------------
 
