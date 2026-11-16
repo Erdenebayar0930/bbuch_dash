@@ -1,5 +1,4 @@
 import PostFeed from "@/components/posts/PostFeed";
-import WeeklySchedule from "@/components/dashboard/WeeklySchedule";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 
 export default function Dashboard() {
@@ -12,7 +11,6 @@ export default function Dashboard() {
       </div>
 
       <InstallPrompt />
-      <WeeklySchedule />
       <PostFeed />
     </div>
   );
