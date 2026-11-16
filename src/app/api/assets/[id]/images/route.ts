@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { assetImages, assets } from "@/lib/db/schema";
 
 import type { NextRequest } from "next/server";
+import { isStoredFileUrl } from "@/lib/storageUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,19 +20,8 @@ export const dynamic = "force-dynamic";
 const MAX_IMAGES = 10;
 
 /** Зөвхөн энэ төслийн Storage-аас ирсэн хаяг зөвшөөрнө */
-const STORAGE_HOSTS = new Set([
-  "firebasestorage.googleapis.com",
-  "storage.googleapis.com",
-]);
-
-function isStorageUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && STORAGE_HOSTS.has(url.hostname);
-  } catch {
-    return false;
-  }
-}
+/** Сервер дээрх (`/uploads/...`) эсвэл Firebase-д үлдсэн хуучин файл */
+const isStorageUrl = isStoredFileUrl;
 
 /**
  * Байршуулсан зургийг бүртгэлд холбоно (зөвхөн админ).

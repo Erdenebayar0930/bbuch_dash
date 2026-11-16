@@ -62,3 +62,6 @@ next-env.d.ts
 # firebase — эмулятор ажиллуулах бүрд лог үлдээдэг
 *-debug.log
 .firebase/
+
+# Локал дээр байршуулсан файлууд (@see src/lib/api/fileStore.ts) — прод дээр /home/bbuch/uploads
+/.uploads/

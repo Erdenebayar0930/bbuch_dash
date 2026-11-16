@@ -174,7 +174,7 @@ const csp = [
   "frame-src 'self' https://*.firebaseapp.com https://www.youtube-nocookie.com https://www.facebook.com",
   // Service worker + видео шахалтын worker
   "worker-src 'self' blob:",
-  // Нийтлэлд байршуулсан видео Firebase Storage-аас тоглогдоно
+  // Нийтлэлийн видео — сервер дээрх (`/uploads/`) болон Firebase-д үлдсэн хуучин нь
   "media-src 'self' blob: data: https://firebasestorage.googleapis.com",
   "manifest-src 'self'",
   // ⚠ `upgrade-insecure-requests` нь report-only бодлогод УТГАГҮЙ — хөтөч
@@ -255,7 +255,8 @@ const nextConfig: NextConfig = {
         //
         // `_next/static` болон `_next/image` энд ОРОХГҮЙ — тэдгээрийн нэр нь
         // агуулгын хэштэй тул мөнхөд кэшлэгдэх нь ЗӨВ (immutable).
-        source: "/((?!_next/static|_next/image).*)",
+        // `uploads/` — байршуулсан файлын нэр UUID тул мөнхөд кэшлэгдэнэ (route өөрөө тавина)
+        source: "/((?!_next/static|_next/image|uploads/).*)",
         headers: [
           { key: "Cache-Control", value: "no-cache, must-revalidate" },
         ],

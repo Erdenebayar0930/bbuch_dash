@@ -10,23 +10,13 @@ import { db } from "@/lib/db";
 import { feedback, users } from "@/lib/db/schema";
 
 import type { NextRequest } from "next/server";
+import { isStoredFileUrl } from "@/lib/storageUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STORAGE_HOSTS = new Set([
-  "firebasestorage.googleapis.com",
-  "storage.googleapis.com",
-]);
-
-function isStorageUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && STORAGE_HOSTS.has(url.hostname);
-  } catch {
-    return false;
-  }
-}
+/** Сервер дээрх (`/uploads/...`) эсвэл Firebase-д үлдсэн хуучин файл */
+const isStorageUrl = isStoredFileUrl;
 
 /** Бүх санал хүсэлт — нийтэд нээлттэй, шинэ нь эхэндээ. */
 export async function GET(request: NextRequest) {

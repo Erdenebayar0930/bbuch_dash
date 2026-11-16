@@ -12,22 +12,12 @@ import {
 } from "@/data/revelationOptions";
 import { db } from "@/lib/db";
 import { revelations, users } from "@/lib/db/schema";
+import { isStoredFileUrl } from "@/lib/storageUrl";
 
 export type RevelationImage = { url: string; path: string };
 
-const STORAGE_HOSTS = new Set([
-  "firebasestorage.googleapis.com",
-  "storage.googleapis.com",
-]);
-
-function isStorageUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && STORAGE_HOSTS.has(url.hostname);
-  } catch {
-    return false;
-  }
-}
+/** Сервер дээрх (`/uploads/...`) эсвэл Firebase-д үлдсэн хуучин файл */
+const isStorageUrl = isStoredFileUrl;
 
 type Parsed =
   | {

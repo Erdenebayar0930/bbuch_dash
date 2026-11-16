@@ -4,23 +4,13 @@ import { badRequest, requireActiveUser, requireAdmin, serverError } from "@/lib/
 import { readSchedulePosterUrl, writeSchedulePosterUrl } from "@/lib/api/schedule";
 
 import type { NextRequest } from "next/server";
+import { isStoredFileUrl } from "@/lib/storageUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STORAGE_HOSTS = new Set([
-  "firebasestorage.googleapis.com",
-  "storage.googleapis.com",
-]);
-
-function isStorageImageUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && STORAGE_HOSTS.has(url.hostname);
-  } catch {
-    return false;
-  }
-}
+/** Сервер дээрх (`/uploads/...`) эсвэл Firebase-д үлдсэн хуучин файл */
+const isStorageImageUrl = isStoredFileUrl;
 
 /** Хянах самбарт харагдах постерын зураг — идэвхтэй хэрэглэгч бүрт нээлттэй. */
 export async function GET(request: NextRequest) {

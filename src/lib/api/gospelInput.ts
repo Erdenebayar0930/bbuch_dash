@@ -6,6 +6,7 @@ import { isGospelAimag, MIN_BIRTH_YEAR } from "@/data/gospelOptions";
 import { genders, isValidOption } from "@/data/profileOptions";
 import { db } from "@/lib/db";
 import { gospelAreas, gospelContacts, users } from "@/lib/db/schema";
+import { isStoredFileUrl } from "@/lib/storageUrl";
 
 export type GospelInput = {
   name?: string;
@@ -33,19 +34,8 @@ type PhotoContext = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const STORAGE_HOSTS = new Set([
-  "firebasestorage.googleapis.com",
-  "storage.googleapis.com",
-]);
-
-function isStorageUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && STORAGE_HOSTS.has(url.hostname);
-  } catch {
-    return false;
-  }
-}
+/** Сервер дээрх (`/uploads/...`) эсвэл Firebase-д үлдсэн хуучин файл */
+const isStorageUrl = isStoredFileUrl;
 
 /** YYYY-MM-DD эсвэл хоосон (хүлээж аваагүй) */
 const isDateOrEmpty = (value: string) => {

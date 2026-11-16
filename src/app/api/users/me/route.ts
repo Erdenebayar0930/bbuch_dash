@@ -21,6 +21,7 @@ import { users } from "@/lib/db/schema";
 import { adminAuth } from "@/lib/firebaseAdmin";
 
 import type { NextRequest } from "next/server";
+import { isStoredFileUrl } from "@/lib/storageUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -107,19 +108,8 @@ function isDate(value: string) {
   return !Number.isNaN(parsed.getTime());
 }
 
-const STORAGE_HOSTS = new Set([
-  "firebasestorage.googleapis.com",
-  "storage.googleapis.com",
-]);
-
-function isStoragePhotoUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && STORAGE_HOSTS.has(url.hostname);
-  } catch {
-    return false;
-  }
-}
+/** Сервер дээрх (`/uploads/...`) эсвэл Firebase-д үлдсэн хуучин файл */
+const isStoragePhotoUrl = isStoredFileUrl;
 
 /** Өөрийн профайлыг уншина. */
 export async function GET(request: NextRequest) {

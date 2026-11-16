@@ -17,6 +17,7 @@ import {
 } from "@/lib/db/schema";
 
 import type { NextRequest } from "next/server";
+import { isStoredFileUrl } from "@/lib/storageUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,7 +51,7 @@ function readPhotos(input: unknown, boxId: string): VisitPhoto[] | null {
     const { url, path } = (item ?? {}) as Record<string, unknown>;
     if (typeof url !== "string" || typeof path !== "string") return null;
     if (!path.startsWith(prefix) || path.includes("..")) return null;
-    if (!url.startsWith("https://firebasestorage.googleapis.com/")) return null;
+    if (!isStoredFileUrl(url)) return null;
     photos.push({ url, path });
   }
 
