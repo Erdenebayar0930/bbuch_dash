@@ -429,6 +429,10 @@
 .flatpickr-wrapper {
   @apply w-full;
 }
+/* Огноо сонгогч body-д залгагддаг — модал (z-99999)-ын дээр гарна (@see components/form/DateInput.tsx) */
+.flatpickr-calendar.open {
+  z-index: 1000000 !important;
+}
 .flatpickr-calendar {
   @apply mt-2 !bg-white !rounded-xl !p-5 !border !border-gray-200 dark:!border-gray-800 !text-gray-500 dark:!bg-gray-dark dark:!text-gray-400 dark:!shadow-theme-xl 2xsm:!w-auto;
 }

@@ -15,6 +15,7 @@ import {
   type GospelContactInput,
 } from "@/lib/gospel";
 import { deleteGospelPhoto, uploadGospelPhoto } from "@/lib/storage";
+import DateInput from "@/components/form/DateInput";
 
 type GospelContactModalProps = {
   isOpen: boolean;
@@ -288,9 +289,8 @@ export default function GospelContactModal({
             <label htmlFor="gospel-holy-spirit" className={labelClass}>
               Ариун сүнсний баптисм
             </label>
-            <input
+            <DateInput
               id="gospel-holy-spirit"
-              type="date"
               value={form.holySpiritBaptismDate}
               max={today()}
               onChange={(event) => set("holySpiritBaptismDate", event.target.value)}
@@ -302,9 +302,8 @@ export default function GospelContactModal({
             <label htmlFor="gospel-water" className={labelClass}>
               Усан баптисм
             </label>
-            <input
+            <DateInput
               id="gospel-water"
-              type="date"
               value={form.waterBaptismDate}
               max={today()}
               onChange={(event) => set("waterBaptismDate", event.target.value)}

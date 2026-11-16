@@ -12,6 +12,7 @@ import {
   todayIso,
 } from "@/data/revelationOptions";
 import type { RevelationImage } from "@/lib/revelations";
+import DateInput from "@/components/form/DateInput";
 
 type RevelationComposerProps = {
   /** Засах үед одоогийн бичвэр ба зургууд */
@@ -154,8 +155,7 @@ export default function RevelationComposer({
       <div className="flex flex-wrap gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">Огноо</span>
-          <input
-            type="date"
+          <DateInput
             value={revealedOn}
             max={todayIso()}
             onChange={(event) => setRevealedOn(event.target.value)}

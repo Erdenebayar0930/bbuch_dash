@@ -24,6 +24,7 @@ import {
   type Task,
   type TaskInput,
 } from "@/lib/tasks";
+import DateInput from "@/components/form/DateInput";
 
 type TaskFormModalProps = {
   isOpen: boolean;
@@ -516,9 +517,8 @@ export default function TaskFormModal({
             <label htmlFor="task-due" className={labelClass}>
               Дуусах огноо <span className="text-gray-400">(заавал биш)</span>
             </label>
-            <input
+            <DateInput
               id="task-due"
-              type="date"
               value={form.dueDate}
               onChange={(event) => update("dueDate", event.target.value)}
               disabled={readOnly}

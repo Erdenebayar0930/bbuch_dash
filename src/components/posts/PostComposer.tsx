@@ -18,6 +18,7 @@ import {
   parseVideoLink,
 } from "@/data/postOptions";
 import type { PostInput, PostMedia } from "@/lib/posts";
+import DateInput from "@/components/form/DateInput";
 
 /** Зарим утас/хөтөч Office файлын төрлийг хоосон өгдөг — өргөтгөлөөр нь нөхнө */
 const TYPE_BY_EXTENSION: Record<string, string> = {
@@ -242,8 +243,7 @@ export default function PostComposer({
       <label className="flex flex-wrap items-center gap-2">
         <CalendarDays className="h-5 w-5 text-warning-500" strokeWidth={1.8} />
         <span className="text-theme-sm text-gray-600 dark:text-gray-300">Огноо:</span>
-        <input
-          type="date"
+        <DateInput
           value={periodDay}
           min={`${POST_PERIOD_MIN_YEAR}-01-01`}
           max={today}

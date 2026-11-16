@@ -2,6 +2,8 @@
 
 import React from "react";
 
+import DateInput from "@/components/form/DateInput";
+
 type SettingsFieldProps = {
   id: string;
   label: string;
@@ -24,6 +26,10 @@ export default function SettingsField({
   readOnly = false,
   className = "",
 }: SettingsFieldProps) {
+  const inputClass = `h-11 w-full rounded-lg border border-gray-200 bg-white px-4 text-theme-sm text-gray-800 shadow-theme-xs transition-colors placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 ${
+    readOnly ? "cursor-default text-gray-500 dark:text-gray-400" : ""
+  }`;
+
   return (
     <div className={className}>
       <label
@@ -32,17 +38,27 @@ export default function SettingsField({
       >
         {label}
       </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        readOnly={readOnly}
-        onChange={(event) => onChange?.(event.target.value)}
-        className={`h-11 w-full rounded-lg border border-gray-200 bg-white px-4 text-theme-sm text-gray-800 shadow-theme-xs transition-colors placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 ${
-          readOnly ? "cursor-default text-gray-500 dark:text-gray-400" : ""
-        }`}
-      />
+      {type === "date" ? (
+        // Огноо — үргэлж 2026-11-02 хэлбэрээр (@see components/form/DateInput.tsx)
+        <DateInput
+          id={id}
+          value={value}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          onChange={(event) => onChange?.(event.target.value)}
+          className={inputClass}
+        />
+      ) : (
+        <input
+          id={id}
+          type={type}
+          value={value}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          onChange={(event) => onChange?.(event.target.value)}
+          className={inputClass}
+        />
+      )}
     </div>
   );
 }

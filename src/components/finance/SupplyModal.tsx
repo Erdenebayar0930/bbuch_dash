@@ -10,6 +10,7 @@ import {
   type SupplyInput,
   type SupplyKind,
 } from "@/lib/supplies";
+import DateInput from "@/components/form/DateInput";
 
 type SupplyModalProps = {
   isOpen: boolean;
@@ -235,9 +236,8 @@ export default function SupplyModal({
             <label htmlFor="supply-date" className={labelClass}>
               Огноо <span className="text-error-500">*</span>
             </label>
-            <input
+            <DateInput
               id="supply-date"
-              type="date"
               value={form.receivedOn}
               max={today()}
               onChange={(event) => set("receivedOn", event.target.value)}

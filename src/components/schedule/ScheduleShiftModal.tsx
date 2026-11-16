@@ -12,6 +12,7 @@ import {
 } from "@/lib/shifts";
 
 import type { AppUser } from "@/lib/users";
+import DateInput from "@/components/form/DateInput";
 
 type ScheduleShiftModalProps = {
   isOpen: boolean;
@@ -107,9 +108,8 @@ export default function ScheduleShiftModal({
             <label htmlFor="shift-date" className={labelClass}>
               Огноо <span className="text-error-500">*</span>
             </label>
-            <input
+            <DateInput
               id="shift-date"
-              type="date"
               value={form.date}
               onChange={(event) => update("date", event.target.value)}
               className={fieldClass}

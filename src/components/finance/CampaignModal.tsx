@@ -13,6 +13,7 @@ import {
   type CampaignInput,
   type CampaignKind,
 } from "@/lib/campaigns";
+import DateInput from "@/components/form/DateInput";
 
 type CampaignModalProps = {
   isOpen: boolean;
@@ -336,9 +337,8 @@ export default function CampaignModal({
               <label htmlFor="campaign-ends" className={labelClass}>
                 Дуусах огноо
               </label>
-              <input
+              <DateInput
                 id="campaign-ends"
-                type="date"
                 value={form.endsOn}
                 onChange={(event) => set("endsOn", event.target.value)}
                 className={fieldClass}
