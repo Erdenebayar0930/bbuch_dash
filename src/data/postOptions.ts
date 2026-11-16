@@ -10,7 +10,7 @@ export const MAX_POST_LENGTH = 10_000;
 export const MAX_POST_IMAGE_BYTES = 10 * 1024 * 1024;
 
 /** Нэг видео файлын дээд хэмжээ — storage.rules-тэй ижил байлгана */
-export const MAX_POST_VIDEO_BYTES = 100 * 1024 * 1024;
+export const MAX_POST_VIDEO_BYTES = 200 * 1024 * 1024;
 
 /** Хавсралт баримтын (PDF, Word, Excel, PowerPoint) дээд хэмжээ */
 export const MAX_POST_FILE_BYTES = 25 * 1024 * 1024;

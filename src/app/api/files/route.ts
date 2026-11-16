@@ -19,6 +19,7 @@ import {
   removeStored,
   saveUpload,
 } from "@/lib/api/fileStore";
+import { queueVideo, removeDerived } from "@/lib/api/videoTranscode";
 
 import type { NextRequest } from "next/server";
 
@@ -81,6 +82,8 @@ export async function PUT(request: NextRequest) {
 
   try {
     const path = await saveUpload(request.body, folder, ext, limit, !!scope.replace);
+    // Нийтлэлийн бичлэг — утсанд тохирох хэлбэрт дэвсгэрт хөрвүүлнэ
+    queueVideo(path);
     return NextResponse.json({ url: publicUrl(path), path });
   } catch (error) {
     return failed(error, "Файл хадгалахад алдаа гарлаа");
@@ -114,7 +117,10 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    if (target) await removeStored(target);
+    if (target) {
+      await removeStored(target);
+      await removeDerived(target);
+    }
     else if (scope.folder === "uid") await removeFolder(`${scopeName}/${caller.uid}`);
     else return badRequest("path шаардлагатай.");
     return NextResponse.json({ ok: true });

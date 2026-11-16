@@ -236,6 +236,9 @@ const securityHeaders = [
 // route нь сервер талд ажиллах шаардлагатай (FCM service account түлхүүр браузерт гарч болохгүй).
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // ffmpeg-static нь өөрийн хавтас дахь бинар файлын замыг буцаадаг — bundle
+  // хийвэл зам нь эвдэрнэ (@see lib/api/videoTranscode.ts)
+  serverExternalPackages: ["ffmpeg-static"],
   images: {
     unoptimized: true,
   },

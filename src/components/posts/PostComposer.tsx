@@ -124,7 +124,7 @@ export default function PostComposer({
     const room = MAX_POST_MEDIA - total;
 
     if (valid.length < picked.length) {
-      setError("Зураг 10MB, видео 100MB, PDF/Word/Excel/PowerPoint файл 25MB хүртэл байна.");
+      setError("Зураг 10MB, видео 200MB, PDF/Word/Excel/PowerPoint файл 25MB хүртэл байна.");
     } else if (valid.length > room) {
       setError(`Хамгийн ихдээ ${MAX_POST_MEDIA} файл оруулна.`);
     } else {

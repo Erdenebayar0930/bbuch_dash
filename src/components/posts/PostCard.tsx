@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Check, Clock, Download, FileText, MoreHorizontal, Pencil, Trash2, Undo2 } from "lucide-react";
 
 import PostAvatar from "@/components/posts/PostAvatar";
+import VideoPlayer from "@/components/posts/VideoPlayer";
 import { formatFileSize, formatPostPeriod, parseVideoLink, postDateKey } from "@/data/postOptions";
 import type { Post } from "@/lib/posts";
 
@@ -158,14 +159,7 @@ export default function PostCard({
           )}
 
           {videos.map((video) => (
-            <video
-              key={video.path}
-              src={video.url}
-              controls
-              playsInline
-              preload="metadata"
-              className="aspect-video w-full bg-black object-contain"
-            />
+            <VideoPlayer key={video.path} url={video.url} path={video.path} />
           ))}
 
           {images.length > 0 && <ImageGrid images={images} onOpen={onOpenImage} />}

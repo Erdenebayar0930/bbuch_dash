@@ -282,7 +282,7 @@ export async function uploadPostMedia(
     throw new Error("Зургийн хэмжээ 10MB-аас хэтэрч болохгүй.");
   }
   if (kind === "video" && file.size > MAX_POST_VIDEO_BYTES) {
-    throw new Error("Видеоны хэмжээ 100MB-аас хэтэрч болохгүй.");
+    throw new Error("Видеоны хэмжээ 200MB-аас хэтэрч болохгүй.");
   }
 
   const uploaded = await uploadToServer("posts", file, { onProgress });

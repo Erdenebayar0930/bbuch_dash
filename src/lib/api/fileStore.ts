@@ -103,7 +103,7 @@ export const SCOPES: Record<string, Scope> = {
     write: "active",
     remove: "owner-or-admin",
     limit: (type) =>
-      type in IMAGE_TYPES ? 10 * MB : type in VIDEO_TYPES ? 100 * MB : type in DOC_TYPES ? 25 * MB : null,
+      type in IMAGE_TYPES ? 10 * MB : type in VIDEO_TYPES ? 200 * MB : type in DOC_TYPES ? 25 * MB : null,
   },
 };
 
@@ -142,7 +142,7 @@ export class UploadError extends Error {
 
 /**
  * Хүсэлтийн биеийг (файлын байтуудыг) шууд диск рүү урсгаж бичнэ — санах ойд
- * бүхэлд нь ачаалахгүй (видео 100MB хүртэл). Хэмжээ хэтэрвэл тасалж, түр файлыг
+ * бүхэлд нь ачаалахгүй (видео 200MB хүртэл). Хэмжээ хэтэрвэл тасалж, түр файлыг
  * устгана. Бүрэн бичигдсэний дараа л жинхэнэ нэр рүү шилжүүлнэ.
  */
 export async function saveUpload(
