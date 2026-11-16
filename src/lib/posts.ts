@@ -14,6 +14,8 @@ export type Post = {
   body: string;
   media: PostMedia[];
   videoLink: string;
+  /** `YYYY-MM` — аль он сарын мэдээлэл вэ, хоосон бол нийтэлсэн огноо */
+  period: string;
   /** pending — зөвшөөрөл хүлээж буй, approved — бүгдэд, rejected — буцаасан */
   status: "pending" | "approved" | "rejected";
   /** Буцаасан шалтгаан */
@@ -32,6 +34,7 @@ type PostRow = {
   body: string | null;
   media: PostMedia[] | null;
   videoLink: string | null;
+  period: string | null;
   status: string | null;
   reviewNote: string | null;
   createdAt: string;
@@ -41,6 +44,8 @@ type PostRow = {
 export type PostInput = {
   body: string;
   videoLink: string;
+  /** `YYYY-MM` — хоосон бол одоо */
+  period: string;
   /** Засварт үлдээх хуучин файлууд */
   keep: PostMedia[];
   files: File[];
@@ -61,6 +66,7 @@ const toPost = (row: PostRow): Post => {
     body: row.body ?? "",
     media: row.media ?? [],
     videoLink: row.videoLink ?? "",
+    period: row.period ?? "",
     status: row.status === "approved" || row.status === "rejected" ? row.status : "pending",
     reviewNote: row.reviewNote ?? "",
     createdAt,
@@ -157,7 +163,7 @@ export async function createPost(uid: string, board: PostBoard, input: PostInput
   try {
     const data = await apiFetch<{ post: PostRow }>(`/api/posts?board=${board}`, {
       method: "POST",
-      body: { body: input.body, videoLink: input.videoLink, media: uploaded },
+      body: { body: input.body, videoLink: input.videoLink, period: input.period, media: uploaded },
     });
     return toPost(data.post);
   } catch (error) {
@@ -176,6 +182,7 @@ export async function updatePost(uid: string, post: Post, input: PostInput): Pro
       body: {
         body: input.body,
         videoLink: input.videoLink,
+        period: input.period,
         media: [...input.keep, ...uploaded],
       },
     });

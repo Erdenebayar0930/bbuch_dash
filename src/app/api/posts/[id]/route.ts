@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { badRequest, forbidden, requireActiveUser, serverError } from "@/lib/api/auth";
-import { readPost, readPostRow } from "@/lib/api/postInput";
+import { periodDate, readPost, readPostRow } from "@/lib/api/postInput";
 import { canApprovePosts, notifyPostApprovers, readPostApprovers } from "@/lib/api/postReview";
 import { db } from "@/lib/db";
 import { posts } from "@/lib/db/schema";
@@ -21,7 +21,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function findPost(id: string) {
   if (!UUID.test(id)) return null;
   const [row] = await db
-    .select({ authorUid: posts.authorUid, media: posts.media, board: posts.board })
+    .select({ authorUid: posts.authorUid, media: posts.media, board: posts.board, period: posts.period })
     .from(posts)
     .where(eq(posts.id, id))
     .limit(1);
@@ -62,6 +62,10 @@ export async function PATCH(
       .set({
         ...parsed.value,
         updatedAt: now,
+        // Он сар өөрчлөгдвөл жагсаалтын байр нь ч дагаж шилжинэ
+        ...(parsed.value.period && parsed.value.period !== existing.period
+          ? { createdAt: periodDate(parsed.value.period, now) }
+          : {}),
         reviewNote: "",
         ...(approver
           ? { status: "approved", reviewedBy: caller.uid, reviewedAt: now }

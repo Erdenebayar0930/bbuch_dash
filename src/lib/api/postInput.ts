@@ -3,6 +3,8 @@ import "server-only";
 import { eq } from "drizzle-orm";
 
 import {
+  POST_PERIOD,
+  POST_PERIOD_MIN_YEAR,
   MAX_POST_LENGTH,
   MAX_POST_LINK_LENGTH,
   MAX_POST_MEDIA,
@@ -10,25 +12,25 @@ import {
 } from "@/data/postOptions";
 import { db } from "@/lib/db";
 import { posts, users } from "@/lib/db/schema";
+import { isStoredFileUrl } from "@/lib/storageUrl";
 
 export type PostMedia = { kind: "image" | "video"; url: string; path: string };
 
-const STORAGE_HOSTS = new Set([
-  "firebasestorage.googleapis.com",
-  "storage.googleapis.com",
-]);
+/** Сервер дээрх (`/uploads/...`) эсвэл Firebase-д үлдсэн хуучин файл */
+const isStorageUrl = isStoredFileUrl;
 
-function isStorageUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && STORAGE_HOSTS.has(url.hostname);
-  } catch {
-    return false;
-  }
+/**
+ * Он сарын нийтлэлийн `created_at` — тухайн сарын 15-ны 12:00 (Улаанбаатар),
+ * гэхдээ одооноос хойш биш. Ингэж жагсаалтад он сараараа эрэмбэлэгдэнэ.
+ */
+export function periodDate(period: string, now = new Date()): Date {
+  const [year, month] = period.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, 15, 4, 0, 0));
+  return date.getTime() > now.getTime() ? now : date;
 }
 
 type Parsed =
-  | { ok: true; value: { body: string; media: PostMedia[]; videoLink: string } }
+  | { ok: true; value: { body: string; media: PostMedia[]; videoLink: string; period: string } }
   | { ok: false; error: string };
 
 /**
@@ -47,6 +49,16 @@ export function readPost(input: unknown, uid: string, keepPaths: readonly string
   const body = typeof raw.body === "string" ? raw.body.trim() : "";
   const videoLink = typeof raw.videoLink === "string" ? raw.videoLink.trim() : "";
   const rawMedia: unknown[] = Array.isArray(raw.media) ? raw.media : [];
+  const period = typeof raw.period === "string" ? raw.period.trim() : "";
+
+  if (period) {
+    const match = POST_PERIOD.exec(period);
+    const now = new Date();
+    const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    if (!match || Number(match[1]) < POST_PERIOD_MIN_YEAR || period > current) {
+      return { ok: false, error: "Он сар буруу байна — ирээдүйн сар сонгож болохгүй." };
+    }
+  }
 
   if (body.length > MAX_POST_LENGTH) {
     return { ok: false, error: `Нийтлэл ${MAX_POST_LENGTH} тэмдэгтээс урт байж болохгүй.` };
@@ -80,7 +92,7 @@ export function readPost(input: unknown, uid: string, keepPaths: readonly string
     return { ok: false, error: "Бичвэр, зураг эсвэл бичлэг оруулна уу." };
   }
 
-  return { ok: true, value: { body, media, videoLink } };
+  return { ok: true, value: { body, media, videoLink, period } };
 }
 
 /** Жагсаалтын багана — бичсэн хүний нэр, зурагтай хамт */
@@ -93,6 +105,7 @@ export const postColumns = {
   body: posts.body,
   media: posts.media,
   videoLink: posts.videoLink,
+  period: posts.period,
   status: posts.status,
   reviewNote: posts.reviewNote,
   createdAt: posts.createdAt,

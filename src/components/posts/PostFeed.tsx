@@ -143,6 +143,7 @@ export default function PostFeed({ board = "home" }: { board?: PostBoard }) {
         <PostComposer
           initialBody={post.body}
           initialVideoLink={post.videoLink}
+          initialPeriod={post.period}
           initialMedia={post.media}
           submitLabel="Хадгалах"
           onCancel={() => setEditingId(null)}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ImagePlus, Link2, Video, X } from "lucide-react";
+import { CalendarDays, ImagePlus, Link2, Video, X } from "lucide-react";
 
 import {
   MAX_POST_IMAGE_BYTES,
@@ -9,6 +9,7 @@ import {
   MAX_POST_LINK_LENGTH,
   MAX_POST_MEDIA,
   MAX_POST_VIDEO_BYTES,
+  POST_PERIOD_MIN_YEAR,
   parseVideoLink,
 } from "@/data/postOptions";
 import type { PostInput, PostMedia } from "@/lib/posts";
@@ -16,6 +17,8 @@ import type { PostInput, PostMedia } from "@/lib/posts";
 type PostComposerProps = {
   initialBody?: string;
   initialVideoLink?: string;
+  /** `YYYY-MM` — хоосон бол нийтэлсэн огноо */
+  initialPeriod?: string;
   initialMedia?: PostMedia[];
   submitLabel: string;
   /** Засвар үед «Болих» товч гаргана */
@@ -34,6 +37,7 @@ const toolClass =
 export default function PostComposer({
   initialBody = "",
   initialVideoLink = "",
+  initialPeriod = "",
   initialMedia = [],
   submitLabel,
   onCancel,
@@ -42,6 +46,9 @@ export default function PostComposer({
   const [body, setBody] = useState(initialBody);
   const [videoLink, setVideoLink] = useState(initialVideoLink);
   const [showLink, setShowLink] = useState(!!initialVideoLink);
+  const [periodYear, setPeriodYear] = useState(initialPeriod.slice(0, 4));
+  const [periodMonth, setPeriodMonth] = useState(initialPeriod.slice(5, 7));
+  const [showPeriod, setShowPeriod] = useState(!!initialPeriod);
   const [keep, setKeep] = useState<PostMedia[]>(initialMedia);
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -65,6 +72,17 @@ export default function PostComposer({
   const total = keep.length + files.length;
   const linkTrimmed = videoLink.trim();
   const linkInvalid = linkTrimmed.length > 0 && !parseVideoLink(linkTrimmed);
+
+  // Он сар — ирээдүйн сар сонгогдохгүй
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const thisMonth = now.getMonth() + 1;
+  const years = Array.from({ length: thisYear - POST_PERIOD_MIN_YEAR + 1 }, (_, i) => String(thisYear - i));
+  const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).filter(
+    (month) => periodYear !== String(thisYear) || Number(month) <= thisMonth
+  );
+  const period = showPeriod && periodYear && periodMonth ? `${periodYear}-${periodMonth}` : "";
+  const periodIncomplete = showPeriod && Boolean(periodYear) !== Boolean(periodMonth);
 
   const pickFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(event.target.files ?? []);
@@ -90,7 +108,7 @@ export default function PostComposer({
   };
 
   const canSubmit =
-    !busy && !linkInvalid && (body.trim().length > 0 || total > 0 || linkTrimmed.length > 0);
+    !busy && !linkInvalid && !periodIncomplete && (body.trim().length > 0 || total > 0 || linkTrimmed.length > 0);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -104,6 +122,7 @@ export default function PostComposer({
       const ok = await onSubmit({
         body: body.trim(),
         videoLink: linkTrimmed,
+        period,
         keep,
         files,
         onProgress: setProgress,
@@ -112,6 +131,9 @@ export default function PostComposer({
         setBody("");
         setVideoLink("");
         setShowLink(false);
+        setShowPeriod(false);
+        setPeriodYear("");
+        setPeriodMonth("");
         setKeep([]);
         setFiles([]);
       }
@@ -165,6 +187,48 @@ export default function PostComposer({
               Зөвхөн YouTube эсвэл Facebook видеоны холбоос оруулна.
             </span>
           )}
+        </div>
+      )}
+
+      {showPeriod && (
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-theme-sm text-gray-600 dark:text-gray-300">Он сар:</span>
+            <select
+              value={periodYear}
+              onChange={(event) => {
+                const year = event.target.value;
+                setPeriodYear(year);
+                // Энэ онд хараахан болоогүй сар сонгогдсон бол цэвэрлэнэ
+                if (year === String(thisYear) && Number(periodMonth) > thisMonth) setPeriodMonth("");
+              }}
+              aria-label="Он"
+              className={`${fieldClass} h-10 w-auto pr-8`}
+            >
+              <option value="">Он</option>
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year} он
+                </option>
+              ))}
+            </select>
+            <select
+              value={periodMonth}
+              onChange={(event) => setPeriodMonth(event.target.value)}
+              aria-label="Сар"
+              className={`${fieldClass} h-10 w-auto pr-8`}
+            >
+              <option value="">Сар</option>
+              {months.map((month) => (
+                <option key={month} value={month}>
+                  {Number(month)}-р сар
+                </option>
+              ))}
+            </select>
+          </div>
+          <span className="text-theme-xs text-gray-400">
+            Хуучин мэдээллийг нөхөж оруулахад — нийтлэл тэр сарынхаа байранд эрэмбэлэгдэнэ.
+          </span>
         </div>
       )}
 
@@ -251,6 +315,16 @@ export default function PostComposer({
         >
           <Link2 className="h-5 w-5 text-accent-600 dark:text-accent-400" strokeWidth={1.8} />
           Холбоос
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowPeriod((open) => !open)}
+          disabled={busy}
+          aria-pressed={showPeriod}
+          className={toolClass}
+        >
+          <CalendarDays className="h-5 w-5 text-warning-500" strokeWidth={1.8} />
+          Он сар
         </button>
         {total > 0 && (
           <span className="text-theme-xs text-gray-400">

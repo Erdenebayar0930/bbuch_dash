@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { badRequest, isAdminRole, requireActiveUser, serverError } from "@/lib/api/auth";
 import { isPostBoard, type PostBoard } from "@/data/postOptions";
-import { postColumns, readPost, readPostRow } from "@/lib/api/postInput";
+import { periodDate, postColumns, readPost, readPostRow } from "@/lib/api/postInput";
 import { canApprovePosts, notifyPostApprovers, readPostApprovers } from "@/lib/api/postReview";
 import { db } from "@/lib/db";
 import { posts, users } from "@/lib/db/schema";
@@ -110,6 +110,8 @@ export async function POST(request: NextRequest) {
 
     const approver = canApprovePosts(caller, await readPostApprovers());
     const now = new Date();
+    // Хуучин сарын мэдээлэл — тэр сарынхаа байранд орно; «Засагдсан» гарахгүй
+    const backdated = parsed.value.period ? periodDate(parsed.value.period, now) : null;
 
     const [created] = await db
       .insert(posts)
@@ -117,6 +119,7 @@ export async function POST(request: NextRequest) {
         board,
         authorUid: caller.uid,
         ...parsed.value,
+        ...(backdated ? { createdAt: backdated, updatedAt: backdated } : {}),
         ...(approver
           ? { status: "approved", reviewedBy: caller.uid, reviewedAt: now }
           : { status: "pending" }),

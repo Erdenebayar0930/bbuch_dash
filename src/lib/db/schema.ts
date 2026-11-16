@@ -1288,6 +1288,12 @@ export const posts = pgTable(
     /** YouTube/Facebook видеоны холбоос — хоосон бол байхгүй */
     videoLink: varchar("video_link", { length: 500 }).notNull().default(""),
     /**
+     * Аль он сарын мэдээлэл вэ — `YYYY-MM`, хоосон бол нийтэлсэн огноо.
+     * Хуучин мэдээллийг нөхөж оруулахад: `created_at` нь тэр сар руу шилжиж,
+     * жагсаалтад зөв байрандаа орно (@see lib/api/postInput.ts periodDate).
+     */
+    period: varchar("period", { length: 7 }).notNull().default(""),
+    /**
      * pending — зөвшөөрөл хүлээж буй, approved — бүгдэд харагдана,
      * rejected — буцаасан (`reviewNote`-той). @see lib/api/postReview.ts
      */
