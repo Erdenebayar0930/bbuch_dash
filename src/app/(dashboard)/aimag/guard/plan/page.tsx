@@ -1,15 +1,16 @@
 import { Metadata } from "next";
 
 import AimagGuard from "@/components/AimagGuard";
+import CommandTabs from "@/components/tasks/CommandTabs";
 import TaskBoard from "@/components/tasks/TaskBoard";
 
 export const metadata: Metadata = {
-  title: "Төлөвлөгөө | ББУЧ",
+  title: "Тушаал | ББУЧ",
   description: "Бүх аймгийн тушаал, ажлын даалгавар",
 };
 
 /**
- * Харуулын аймгийн төлөвлөгөө — бусад аймгаас ялгаатай нь БҮХ аймгийн
+ * Харуулын аймгийн «Тушаал» (бусад аймагт «Төлөвлөгөө») — бусад аймгаас ялгаатай нь БҮХ аймгийн
  * тушаал, даалгаврыг нэг самбарт харуулна (`aimagFilter`-гүй). Сервер тал
  * `canSeeAllPlans`-аар Харуулын гишүүдэд бүх мөрийг буцаадаг.
  */
@@ -18,7 +19,7 @@ export default function GuardPlanPage() {
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          Төлөвлөгөө
+          Тушаал
         </h1>
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
           Бүх аймгийн тушаалаар бүлэглэсэн ажлын даалгавар
@@ -26,7 +27,7 @@ export default function GuardPlanPage() {
       </div>
 
       <AimagGuard aimag="guard">
-        <TaskBoard />
+        <CommandTabs aimag="guard" progress={<TaskBoard />} />
       </AimagGuard>
     </div>
   );

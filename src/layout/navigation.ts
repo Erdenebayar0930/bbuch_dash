@@ -23,6 +23,12 @@ import {
   Package,
   Scale,
   Shield,
+  ShieldCheck,
+  Tent,
+  Crown,
+  FolderKanban,
+  ScrollText,
+  Handshake,
   Users,
   UsersRound,
   Wallet,
@@ -88,6 +94,14 @@ function gospelMenu(aimag: string): NavItem {
 }
 
 /**
+ * «Халамж» — аймаг БҮРИЙН цэсийн төгсгөлд. Халамжийн бүртгэл нь бүх аймагт
+ * нэг л сан (газрын зураг, тусламжийн түүх), зөвхөн зам нь тухайн аймгийнх.
+ */
+function welfareMenu(aimag: string): NavItem {
+  return { name: "Халамж", path: `/aimag/${aimag}/tahilt/welfare`, icon: HandHeart };
+}
+
+/**
  * Үндсэн цэс — хажуугийн самбар болон breadcrumb хоёулаа эндээс уншина.
  *
  * Аймгийн цэсүүд нь profileOptions.aimags-ийн дараалалтай нийцнэ: тэнд заасан
@@ -118,11 +132,15 @@ export const navItems: NavItem[] = [
     path: "/aimag/guard",
     icon: Shield,
     aimag: "guard",
+    // Харуулын «Төлөвлөгөө» нь «Тушаал» гэж нэрлэгдэнэ (бүх аймгийн тушаал,
+    // даалгавар нэг самбарт); «Харуулын үүрэгт зогсох» — нийтлэлийн самбар
     children: [
       revelationMenu("guard"),
-      planMenu("guard"),
-      { name: "Газрын зураг", path: "/aimag/guard/map", icon: MapPin },
+      { ...planMenu("guard"), name: "Тушаал" },
+      { name: "Харуулын үүрэгт зогсох", path: "/aimag/guard/duty", icon: ShieldCheck },
+      { name: "Газрын зургийн үйлчлэл", path: "/aimag/guard/map", icon: MapPin },
       gospelMenu("guard"),
+      welfareMenu("guard"),
     ],
   },
   {
@@ -130,15 +148,18 @@ export const navItems: NavItem[] = [
     path: "/aimag/praise",
     icon: Music2,
     aimag: "praise",
+    // «Төлөвлөгөө» нь энд «Тушаал» гэж нэрлэгдэнэ; «Асрын үйлчлэл» — нийтлэлийн самбар
     children: [
       revelationMenu("praise"),
-      planMenu("praise"),
+      { ...planMenu("praise"), name: "Тушаал" },
+      { name: "Асрын үйлчлэл", path: "/aimag/praise/hall", icon: Tent },
       {
         name: "Эд хөрөнгө бүртгэл",
         path: "/aimag/praise/assets",
         icon: Boxes,
       },
       gospelMenu("praise"),
+      welfareMenu("praise"),
     ],
   },
   {
@@ -146,14 +167,17 @@ export const navItems: NavItem[] = [
     path: "/aimag/supply",
     icon: Package,
     aimag: "supply",
+    // Илчлэл, Тушаал, Хаанчлалын хангамж (нийтлэлийн самбар), Сахилгажуулалт
     children: [
       revelationMenu("supply"),
-      planMenu("supply"),
+      { ...planMenu("supply"), name: "Тушаал" },
+      { name: "Хаанчлалын хангамж", path: "/aimag/supply/kingdom", icon: Crown },
       {
-        name: "Сахилгажуулалтын төлбөр",
+        name: "Сахилгажуулалт",
         path: "/aimag/supply/discipline",
         icon: Scale,
       },
+      welfareMenu("supply"),
     ],
   },
   {
@@ -161,15 +185,19 @@ export const navItems: NavItem[] = [
     path: "/aimag/commission",
     icon: Gavel,
     aimag: "commission",
+    // «Төлөвлөгөө» нь энд «Тушаал»; АЗ, ААХ-ийн үйлчлэл — нийтлэлийн самбар
     children: [
       revelationMenu("commission"),
-      planMenu("commission"),
+      { ...planMenu("commission"), name: "Тушаал" },
+      { name: "АЗ-ийн үйлчлэл", path: "/aimag/commission/az", icon: ScrollText },
+      { name: "ААХ-ийн үйлчлэл", path: "/aimag/commission/aah", icon: Handshake },
       {
         name: "Хуваарь",
         path: "/aimag/commission/schedule",
         icon: CalendarClock,
       },
       gospelMenu("commission"),
+      welfareMenu("commission"),
     ],
   },
   {
@@ -177,14 +205,19 @@ export const navItems: NavItem[] = [
     path: "/aimag/service",
     icon: HeartHandshake,
     aimag: "service",
+    // Илчлэл, Тушаал, Туслах үйлчлэлүүд, Төслүүд (нийтлэлийн самбар), Сайн мэдээ
     children: [
       revelationMenu("service"),
-      planMenu("service"),
+      { ...planMenu("service"), name: "Тушаал" },
+      { name: "Туслах үйлчлэлүүд", path: "/aimag/service/services", icon: Handshake },
+      { name: "Төслүүд", path: "/aimag/service/projects", icon: FolderKanban },
       {
         name: "Хандивын хайрцаг",
         path: "/aimag/service/donations",
         icon: Gift,
       },
+      gospelMenu("service"),
+      welfareMenu("service"),
     ],
   },
   {

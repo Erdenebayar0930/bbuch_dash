@@ -1244,6 +1244,11 @@ const revelationFields = () => ({
   id: uuidPk(),
   /** profileOptions.aimags доторх түлхүүр — `tahilt` schema-д үргэлж "tahilt" */
   aimag: varchar("aimag", { length: 64 }).notNull(),
+  /**
+   * revelation — Илчлэл; general-command / named-command — «Тушаал» цэсний
+   * Ерөнхий тушаалууд / Нэр цохож хэлсэн тушаал (@see data/revelationOptions.ts)
+   */
+  kind: varchar("kind", { length: 32 }).notNull().default("revelation"),
   authorUid: uidCol("author_uid").references(() => users.uid, {
     onDelete: "set null",
   }),

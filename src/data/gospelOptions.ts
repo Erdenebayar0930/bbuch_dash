@@ -3,10 +3,10 @@
  */
 
 /**
- * «Сайн мэдээ» цэстэй аймгууд. Бүртгэл нь НЭГ л сан — гурвуулаа ижил
+ * «Сайн мэдээ» цэстэй аймгууд. Бүртгэл нь НЭГ л сан — бүгд ижил
  * жагсаалтыг харна, зөвхөн цэсний зам нь аймаг бүрийнх.
  */
-export const gospelAimags = ["guard", "praise", "commission"] as const;
+export const gospelAimags = ["guard", "praise", "commission", "service"] as const;
 
 export type GospelAimag = (typeof gospelAimags)[number];
 

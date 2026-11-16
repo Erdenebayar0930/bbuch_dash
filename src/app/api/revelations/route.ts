@@ -1,7 +1,8 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { aimags, isValidOption } from "@/data/profileOptions";
+import { isRevelationKind } from "@/data/revelationOptions";
 import { badRequest, requireAimag, serverError } from "@/lib/api/auth";
 import {
   readRevelation,
@@ -26,10 +27,18 @@ const readAimag = (request: NextRequest) => {
   return aimag && isValidOption(aimags, aimag) ? aimag : null;
 };
 
+/** `?kind=` — хоосон бол Илчлэл (@see data/revelationOptions.ts) */
+const readKind = (request: NextRequest) => {
+  const kind = request.nextUrl.searchParams.get("kind") || "revelation";
+  return isRevelationKind(kind) ? kind : null;
+};
+
 /** Тухайн аймгийн нийтлэлүүд — шинээс хуучин руу. Аймгийн гишүүн эсвэл админ. */
 export async function GET(request: NextRequest) {
   const aimag = readAimag(request);
   if (!aimag) return badRequest("aimag буруу байна.");
+  const kind = readKind(request);
+  if (!kind) return badRequest("kind буруу байна.");
 
   const result = await requireAimag(request, aimag);
   if ("error" in result) return result.error;
@@ -42,7 +51,7 @@ export async function GET(request: NextRequest) {
       .select(revelationColumns(revelations))
       .from(revelations)
       .leftJoin(users, eq(revelations.authorUid, users.uid))
-      .where(eq(revelations.aimag, aimag))
+      .where(and(eq(revelations.aimag, aimag), eq(revelations.kind, kind)))
       // Илчлэл ирсэн өдрөөр — нөхөж оруулсан нь өөрийн байрандаа орно
       .orderBy(desc(revelations.revealedOn), desc(revelations.createdAt))
       .limit(PAGE_SIZE);
@@ -57,6 +66,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const aimag = readAimag(request);
   if (!aimag) return badRequest("aimag буруу байна.");
+  const kind = readKind(request);
+  if (!kind) return badRequest("kind буруу байна.");
 
   const result = await requireAimag(request, aimag);
   if ("error" in result) return result.error;
@@ -70,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     const [created] = await db
       .insert(revelations)
-      .values({ aimag, authorUid: caller.uid, ...parsed.value })
+      .values({ aimag, kind, authorUid: caller.uid, ...parsed.value })
       .returning({ id: revelations.id });
 
     return NextResponse.json({

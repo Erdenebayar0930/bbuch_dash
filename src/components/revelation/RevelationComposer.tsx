@@ -24,6 +24,8 @@ type RevelationComposerProps = {
   initialImages?: RevelationImage[];
   submitLabel: string;
   placeholder?: string;
+  /** «Илчлэл авсан» / «Тушаал авсан» */
+  sourceLabel?: string;
   /** Засвар үед «Болих» товч гаргана */
   onCancel?: () => void;
   /** Амжилттай бол true — маягт цэвэрлэгдэнэ */
@@ -47,6 +49,7 @@ export default function RevelationComposer({
   initialImages = [],
   submitLabel,
   placeholder = "Илчлэлээ бичнэ үү...",
+  sourceLabel = "Илчлэл авсан",
   onCancel,
   onSubmit,
 }: RevelationComposerProps) {
@@ -164,7 +167,7 @@ export default function RevelationComposer({
         </label>
         <label className="flex min-w-[12rem] flex-1 flex-col gap-1 sm:max-w-xs">
           <span className="text-theme-xs font-medium text-gray-500 dark:text-gray-400">
-            Илчлэл авсан
+            {sourceLabel}
           </span>
           <input
             type="text"

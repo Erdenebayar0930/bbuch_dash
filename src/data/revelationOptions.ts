@@ -15,6 +15,27 @@ export const MAX_REVELATION_IMAGE_BYTES = 10 * 1024 * 1024;
  */
 export const DEFAULT_REVELATION_SOURCE = "Г.Мөнгөнцэцэг";
 
+/**
+ * Илчлэлийн загвартай бүртгэлийн төрөл — нэг хүснэгт, `kind` баганаар ялгагдана.
+ *   revelation       — аймгийн «Илчлэл» цэс
+ *   general-command  — «Тушаал» → Ерөнхий тушаалууд
+ *   named-command    — «Тушаал» → Нэр цохож хэлсэн тушаал
+ */
+export const REVELATION_KINDS = {
+  revelation: { title: "Илчлэл", placeholder: "Илчлэлээ бичнэ үү...", source: "Илчлэл авсан" },
+  "general-command": { title: "Ерөнхий тушаал", placeholder: "Тушаалаа бичнэ үү...", source: "Тушаал авсан" },
+  "named-command": {
+    title: "Нэр цохож хэлсэн тушаал",
+    placeholder: "Хэнд ямар тушаал хэлснийг бичнэ үү...",
+    source: "Тушаал авсан",
+  },
+} as const;
+
+export type RevelationKind = keyof typeof REVELATION_KINDS;
+
+export const isRevelationKind = (value: unknown): value is RevelationKind =>
+  typeof value === "string" && Object.prototype.hasOwnProperty.call(REVELATION_KINDS, value);
+
 /** «Илчлэл авсан» нэрийн дээд урт — баазын varchar(120)-тэй ижил */
 export const MAX_REVELATION_SOURCE_LENGTH = 120;
 

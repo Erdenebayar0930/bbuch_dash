@@ -1,10 +1,11 @@
 import { Metadata } from "next";
 
 import AimagGuard from "@/components/AimagGuard";
+import CommandTabs from "@/components/tasks/CommandTabs";
 import TaskBoard from "@/components/tasks/TaskBoard";
 
 export const metadata: Metadata = {
-  title: "Төлөвлөгөө | ББУЧ",
+  title: "Тушаал | ББУЧ",
   description: "Магтаалын аймгийн тушаал, ажлын даалгавар",
 };
 
@@ -13,7 +14,7 @@ export default function PraisePlanPage() {
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          Төлөвлөгөө
+          Тушаал
         </h1>
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
           Тушаалаар бүлэглэсэн ажлын даалгавар
@@ -21,7 +22,7 @@ export default function PraisePlanPage() {
       </div>
 
       <AimagGuard aimag="praise">
-        <TaskBoard aimagFilter="praise" />
+        <CommandTabs aimag="praise" progress={<TaskBoard aimagFilter="praise" />} />
       </AimagGuard>
     </div>
   );

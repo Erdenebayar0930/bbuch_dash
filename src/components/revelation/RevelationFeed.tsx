@@ -7,6 +7,7 @@ import { useUser } from "@/app/(auth)/UserProvider";
 import ImageViewer from "@/components/common/ImageViewer";
 import RevelationCard from "@/components/revelation/RevelationCard";
 import RevelationComposer from "@/components/revelation/RevelationComposer";
+import { REVELATION_KINDS, type RevelationKind } from "@/data/revelationOptions";
 import { isAdminRole } from "@/lib/permissions";
 import {
   createRevelation,
@@ -23,6 +24,8 @@ const byRevealed = (a: Revelation, b: Revelation) =>
 type RevelationFeedProps = {
   /** profileOptions.aimags доторх түлхүүр */
   aimag: string;
+  /** Илчлэл (анхдагч) эсвэл «Тушаал»-ын таб — тус бүр өөрийн бүртгэлтэй */
+  kind?: RevelationKind;
 };
 
 /**
@@ -31,7 +34,8 @@ type RevelationFeedProps = {
  * Аймгийн гишүүн бүр бичнэ, өөрийнхөө нийтлэлийг засаж устгана. Админ
  * аль ч нийтлэлийг устгана (бусдын бичсэнийг засахгүй — үг нь тэднийх).
  */
-export default function RevelationFeed({ aimag }: RevelationFeedProps) {
+export default function RevelationFeed({ aimag, kind = "revelation" }: RevelationFeedProps) {
+  const labels = REVELATION_KINDS[kind];
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
 
@@ -46,14 +50,14 @@ export default function RevelationFeed({ aimag }: RevelationFeedProps) {
     setError(null);
 
     try {
-      setItems(await listRevelations(aimag));
+      setItems(await listRevelations(aimag, kind));
     } catch (err) {
       console.error("Илчлэл ачаалж чадсангүй:", err);
       setError(err instanceof Error ? err.message : "Ачаалахад алдаа гарлаа.");
     } finally {
       setLoading(false);
     }
-  }, [aimag]);
+  }, [aimag, kind]);
 
   useEffect(() => {
     load();
@@ -67,7 +71,7 @@ export default function RevelationFeed({ aimag }: RevelationFeedProps) {
   }) => {
     if (!user?.uid) throw new Error("Нэвтэрсэн байх шаардлагатай.");
 
-    const created = await createRevelation(user.uid, aimag, input);
+    const created = await createRevelation(user.uid, aimag, input, kind);
     setItems((prev) => [created, ...prev].sort(byRevealed));
     return true;
   };
@@ -107,7 +111,12 @@ export default function RevelationFeed({ aimag }: RevelationFeedProps) {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
       <div className="surface p-4">
-        <RevelationComposer submitLabel="Нийтлэх" onSubmit={publish} />
+        <RevelationComposer
+          submitLabel="Нийтлэх"
+          placeholder={labels.placeholder}
+          sourceLabel={labels.source}
+          onSubmit={publish}
+        />
       </div>
 
       <div className="flex items-center justify-between">
@@ -146,6 +155,8 @@ export default function RevelationFeed({ aimag }: RevelationFeedProps) {
         return editingId === revelation.id ? (
           <div key={revelation.id} className="surface p-4">
             <RevelationComposer
+              placeholder={labels.placeholder}
+              sourceLabel={labels.source}
               initialBody={revelation.body}
               initialReceivedBy={revelation.receivedBy}
               initialRevealedOn={revelation.revealedOn}

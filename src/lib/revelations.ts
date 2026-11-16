@@ -60,9 +60,13 @@ const toRevelation = (row: RevelationRow): Revelation => {
   };
 };
 
-export async function listRevelations(aimag: string): Promise<Revelation[]> {
+/** `kind` — Илчлэл эсвэл «Тушаал»-ын табууд (@see data/revelationOptions.ts) */
+const kindQuery = (aimag: string, kind: string) =>
+  `aimag=${encodeURIComponent(aimag)}&kind=${encodeURIComponent(kind)}`;
+
+export async function listRevelations(aimag: string, kind = "revelation"): Promise<Revelation[]> {
   const data = await apiFetch<{ revelations: RevelationRow[] }>(
-    `/api/revelations?aimag=${encodeURIComponent(aimag)}`
+    `/api/revelations?${kindQuery(aimag, kind)}`
   );
   return data.revelations.map(toRevelation);
 }
@@ -74,7 +78,8 @@ export async function listRevelations(aimag: string): Promise<Revelation[]> {
 export async function createRevelation(
   uid: string,
   aimag: string,
-  input: { body: string; receivedBy: string; revealedOn: string; files: File[] }
+  input: { body: string; receivedBy: string; revealedOn: string; files: File[] },
+  kind = "revelation"
 ): Promise<Revelation> {
   const { uploadRevelationImage, deleteRevelationImage } = await import("./storage");
   const images: RevelationImage[] = [];
@@ -85,7 +90,7 @@ export async function createRevelation(
     }
 
     const data = await apiFetch<{ revelation: RevelationRow }>(
-      `/api/revelations?aimag=${encodeURIComponent(aimag)}`,
+      `/api/revelations?${kindQuery(aimag, kind)}`,
       {
         method: "POST",
         body: {
