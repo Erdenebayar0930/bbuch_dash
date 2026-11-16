@@ -56,6 +56,8 @@ const DOC_TYPES: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
   "application/vnd.ms-excel": "xls",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.ms-powerpoint": "ppt",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
 };
 
 /** Өргөтгөл → Content-Type (файл түгээхэд) */
@@ -100,7 +102,8 @@ export const SCOPES: Record<string, Scope> = {
     folder: "uid",
     write: "active",
     remove: "owner-or-admin",
-    limit: (type) => (type in IMAGE_TYPES ? 10 * MB : type in VIDEO_TYPES ? 100 * MB : null),
+    limit: (type) =>
+      type in IMAGE_TYPES ? 10 * MB : type in VIDEO_TYPES ? 100 * MB : type in DOC_TYPES ? 25 * MB : null,
   },
 };
 

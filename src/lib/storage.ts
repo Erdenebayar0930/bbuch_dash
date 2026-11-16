@@ -2,7 +2,12 @@
 
 import { deleteObject, ref } from "firebase/storage";
 
-import { MAX_POST_IMAGE_BYTES, MAX_POST_VIDEO_BYTES } from "@/data/postOptions";
+import {
+  MAX_POST_FILE_BYTES,
+  MAX_POST_IMAGE_BYTES,
+  MAX_POST_VIDEO_BYTES,
+  POST_FILE_TYPES,
+} from "@/data/postOptions";
 
 import { apiFetch } from "./apiClient";
 import { getDeviceId, getScreenSize } from "./deviceId";
@@ -249,7 +254,11 @@ export async function deleteRevelationImage(path: string): Promise<void> {
 // Нийтлэлийн зураг/видео
 // ---------------------------------------------------------------------------
 
-export type UploadedPostMedia = UploadedImage & { kind: "image" | "video" };
+export type UploadedPostMedia = UploadedImage & {
+  kind: "image" | "video" | "file";
+  name?: string;
+  size?: number;
+};
 
 /** Нийтлэлийн файлыг байршуулна; явцыг `onProgress`-оор (0–1) мэдээлнэ. */
 export async function uploadPostMedia(
@@ -257,9 +266,18 @@ export async function uploadPostMedia(
   file: File,
   onProgress?: (fraction: number) => void
 ): Promise<UploadedPostMedia> {
-  const kind = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : null;
+  const kind = file.type.startsWith("video/")
+    ? "video"
+    : file.type.startsWith("image/")
+      ? "image"
+      : POST_FILE_TYPES.includes(file.type)
+        ? "file"
+        : null;
 
-  if (!kind) throw new Error("Зөвхөн зураг эсвэл видео оруулах боломжтой.");
+  if (!kind) throw new Error("Зураг, видео эсвэл PDF/Word/Excel/PowerPoint файл оруулна уу.");
+  if (kind === "file" && file.size > MAX_POST_FILE_BYTES) {
+    throw new Error("Файлын хэмжээ 25MB-аас хэтэрч болохгүй.");
+  }
   if (kind === "image" && file.size > MAX_POST_IMAGE_BYTES) {
     throw new Error("Зургийн хэмжээ 10MB-аас хэтэрч болохгүй.");
   }
@@ -267,7 +285,8 @@ export async function uploadPostMedia(
     throw new Error("Видеоны хэмжээ 100MB-аас хэтэрч болохгүй.");
   }
 
-  return { kind, ...(await uploadToServer("posts", file, { onProgress })) };
+  const uploaded = await uploadToServer("posts", file, { onProgress });
+  return kind === "file" ? { kind, ...uploaded, name: file.name, size: file.size } : { kind, ...uploaded };
 }
 
 export async function deletePostMedia(path: string): Promise<void> {

@@ -1,6 +1,6 @@
 /** Нүүр хуудасны нийтлэлийн хязгаарууд — сервер ба клиент хоёул эндээс уншина. */
 
-/** Нэг нийтлэлд хавсаргах файлын (зураг + видео) дээд тоо */
+/** Нэг нийтлэлд хавсаргах файлын (зураг + видео + баримт) дээд тоо */
 export const MAX_POST_MEDIA = 10;
 
 /** Нийтлэлийн бичвэрийн дээд урт */
@@ -11,6 +11,33 @@ export const MAX_POST_IMAGE_BYTES = 10 * 1024 * 1024;
 
 /** Нэг видео файлын дээд хэмжээ — storage.rules-тэй ижил байлгана */
 export const MAX_POST_VIDEO_BYTES = 100 * 1024 * 1024;
+
+/** Хавсралт баримтын (PDF, Word, Excel, PowerPoint) дээд хэмжээ */
+export const MAX_POST_FILE_BYTES = 25 * 1024 * 1024;
+
+/** Хавсаргаж болох баримтын төрлүүд — сервер (lib/api/fileStore.ts) ч мөн шалгана */
+export const POST_FILE_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+];
+
+/** `<input accept>` — зарим утас MIME-ээр биш өргөтгөлөөр шүүдэг */
+export const POST_FILE_ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx," + POST_FILE_TYPES.join(",");
+
+/** Хавсралтын нэрийн дээд урт */
+export const MAX_POST_FILE_NAME = 200;
+
+/** 1536000 → «1.5 MB» */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 /** Видео холбоосын дээд урт — баазын varchar(500)-тэй ижил */
 export const MAX_POST_LINK_LENGTH = 500;

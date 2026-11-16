@@ -5,6 +5,8 @@
 @theme {
   --font-*: initial;
   --font-outfit: Outfit, sans-serif;
+  /* Монгол (кирилл) бичвэр уншихад — @see app/layout.tsx */
+  --font-reading: var(--font-inter), "Segoe UI", Roboto, system-ui, sans-serif;
   --font-num: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
     monospace;
 

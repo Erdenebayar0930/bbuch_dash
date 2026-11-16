@@ -1,4 +1,4 @@
-import { Outfit } from "next/font/google";
+import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import "flatpickr/dist/flatpickr.css";
 
@@ -10,6 +10,17 @@ import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 const outfit = Outfit({
   subsets: ["latin"],
   display: "swap", // ⚡ render blocking болиулна
+});
+
+/**
+ * Унших бичвэрийн фонт (нийтлэл г.м.) — Outfit-д кирилл үсэг БАЙХГҮЙ тул
+ * монгол бичвэр системийн санамсаргүй фонт руу унадаг байв. Inter нь Ө, Ү-г
+ * агуулсан `cyrillic-ext`-тэй. `font-reading` классаар хэрэглэнэ (globals.css).
+ */
+const inter = Inter({
+  subsets: ["latin", "cyrillic", "cyrillic-ext"],
+  display: "swap",
+  variable: "--font-inter",
 });
 
 export default function RootLayout({
@@ -39,7 +50,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body suppressHydrationWarning className={`${outfit.className} bg-gray-50 dark:bg-gray-950`}>
+      <body suppressHydrationWarning className={`${outfit.className} ${inter.variable} bg-gray-50 dark:bg-gray-950`}>
         <ServiceWorkerRegister />
         <NotificationSetup />
         <UserProvider>

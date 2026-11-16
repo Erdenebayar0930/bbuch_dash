@@ -6,6 +6,8 @@ import {
   POST_PERIOD,
   POST_PERIOD_MIN_YEAR,
   MAX_POST_LENGTH,
+  MAX_POST_FILE_BYTES,
+  MAX_POST_FILE_NAME,
   MAX_POST_LINK_LENGTH,
   MAX_POST_MEDIA,
   parseVideoLink,
@@ -14,7 +16,13 @@ import { db } from "@/lib/db";
 import { posts, users } from "@/lib/db/schema";
 import { isStoredFileUrl } from "@/lib/storageUrl";
 
-export type PostMedia = { kind: "image" | "video"; url: string; path: string };
+export type PostMedia = {
+  kind: "image" | "video" | "file";
+  url: string;
+  path: string;
+  name?: string;
+  size?: number;
+};
 
 /** Сервер дээрх (`/uploads/...`) эсвэл Firebase-д үлдсэн хуучин файл */
 const isStorageUrl = isStoredFileUrl;
@@ -77,9 +85,9 @@ export function readPost(input: unknown, uid: string, keepPaths: readonly string
   const media: PostMedia[] = [];
 
   for (const item of rawMedia) {
-    const { kind, url, path } = (item ?? {}) as Record<string, unknown>;
+    const { kind, url, path, name, size } = (item ?? {}) as Record<string, unknown>;
     if (
-      (kind !== "image" && kind !== "video") ||
+      (kind !== "image" && kind !== "video" && kind !== "file") ||
       typeof url !== "string" ||
       typeof path !== "string" ||
       !isStorageUrl(url) ||
@@ -88,7 +96,18 @@ export function readPost(input: unknown, uid: string, keepPaths: readonly string
     ) {
       return { ok: false, error: "Файлын мэдээлэл буруу байна." };
     }
-    media.push({ kind, url, path });
+    if (kind === "file") {
+      // Нэр нь зөвхөн харуулах зорилготой — удирдах тэмдэгтүүдийг хасна
+      const cleanName =
+        typeof name === "string" ? name.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, MAX_POST_FILE_NAME) : "";
+      const cleanSize =
+        typeof size === "number" && Number.isFinite(size) && size >= 0 && size <= MAX_POST_FILE_BYTES
+          ? Math.round(size)
+          : 0;
+      media.push({ kind, url, path, name: cleanName || "Файл", size: cleanSize });
+    } else {
+      media.push({ kind, url, path });
+    }
   }
 
   if (!body && media.length === 0 && !videoLink) {

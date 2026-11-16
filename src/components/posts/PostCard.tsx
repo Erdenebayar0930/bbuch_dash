@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Check, Clock, MoreHorizontal, Pencil, Trash2, Undo2 } from "lucide-react";
+import { Check, Clock, Download, FileText, MoreHorizontal, Pencil, Trash2, Undo2 } from "lucide-react";
 
 import PostAvatar from "@/components/posts/PostAvatar";
-import { formatPostPeriod, formatPostTime, parseVideoLink } from "@/data/postOptions";
+import { formatFileSize, formatPostPeriod, formatPostTime, parseVideoLink } from "@/data/postOptions";
 import type { Post } from "@/lib/posts";
 
 type PostCardProps = {
@@ -22,7 +22,7 @@ type PostCardProps = {
 /** Үүнээс урт бичвэрийг эхлээд хураангуйлж «Цааш унших» гаргана */
 const COLLAPSE_AT = 220;
 
-/** Нийтлэлийн карт — сайтын мэдээний карт шиг: дээр нь зураг/бичлэг, доор нь бичсэн хүн ба бичвэр. */
+/** Нийтлэлийн карт — бичсэн хүн, доор нь зураг/бичлэг, дараа нь бичвэр ба хавсралт. */
 export default function PostCard({
   post,
   canEdit,
@@ -65,10 +65,11 @@ export default function PostCard({
   const shownBody = long && !expanded ? `${body.slice(0, COLLAPSE_AT).trimEnd()}…` : body;
   const images = post.media.filter((item) => item.kind === "image").map((item) => item.url);
   const videos = post.media.filter((item) => item.kind === "video");
+  const attachments = post.media.filter((item) => item.kind === "file");
   const embed = post.videoLink ? parseVideoLink(post.videoLink) : null;
 
   return (
-    <article className="surface flex h-full flex-col overflow-hidden">
+    <article className="surface font-reading flex h-full flex-col overflow-hidden">
       {post.status === "pending" && (
         <p className="flex items-center gap-2 bg-warning-50 px-4 py-2 text-theme-xs font-medium text-warning-700 dark:bg-warning-500/10 dark:text-warning-400">
           <Clock className="h-3.5 w-3.5" strokeWidth={2} />
@@ -81,44 +82,13 @@ export default function PostCard({
           {post.reviewNote ? ` ${post.reviewNote}` : " Засаад дахин илгээнэ үү."}
         </p>
       )}
-      {(embed || videos.length > 0 || images.length > 0) && (
-        <div className="flex flex-col gap-0.5">
-          {embed && (
-            <div className="relative aspect-video w-full bg-black">
-              <iframe
-                src={embed.embedUrl}
-                title="Видео"
-                loading="lazy"
-                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-                className="absolute inset-0 h-full w-full border-0"
-              />
-            </div>
-          )}
-
-          {videos.map((video) => (
-            <video
-              key={video.path}
-              src={video.url}
-              controls
-              playsInline
-              preload="metadata"
-              className="aspect-video w-full bg-black object-contain"
-            />
-          ))}
-
-          {images.length > 0 && <ImageGrid images={images} onOpen={onOpenImage} />}
-        </div>
-      )}
-
       <header className="flex items-center gap-3 px-4 pt-4">
         <PostAvatar name={post.authorName} photoUrl={post.authorPhotoUrl} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-theme-sm font-semibold text-gray-900 dark:text-white/90">
+          <p className="truncate text-[15px] font-semibold tracking-[-0.01em] text-gray-900 dark:text-white/90">
             {post.authorName}
           </p>
-          <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+          <p className="text-[13px] text-gray-500 dark:text-gray-400">
             {post.period ? formatPostPeriod(post.period) : formatPostTime(post.createdAt)}
             {post.edited && " · Засагдсан"}
           </p>
@@ -170,21 +140,89 @@ export default function PostCard({
         )}
       </header>
 
+      {(embed || videos.length > 0 || images.length > 0) && (
+        <div className="mt-3 flex flex-col gap-0.5">
+          {embed && (
+            <div className="relative aspect-video w-full bg-black">
+              <iframe
+                src={embed.embedUrl}
+                title="Видео"
+                loading="lazy"
+                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                className="absolute inset-0 h-full w-full border-0"
+              />
+            </div>
+          )}
+
+          {videos.map((video) => (
+            <video
+              key={video.path}
+              src={video.url}
+              controls
+              playsInline
+              preload="metadata"
+              className="aspect-video w-full bg-black object-contain"
+            />
+          ))}
+
+          {images.length > 0 && <ImageGrid images={images} onOpen={onOpenImage} />}
+        </div>
+      )}
+
       {body && (
         <div className="px-4 pt-3">
-          <p className="whitespace-pre-line break-words text-theme-sm leading-relaxed text-gray-800 dark:text-white/90">
+          <p className="whitespace-pre-line break-words text-[15px] leading-7 text-gray-700 dark:text-gray-200">
             {shownBody}
           </p>
           {long && (
             <button
               type="button"
               onClick={() => setExpanded((open) => !open)}
-              className="mt-1 text-theme-sm font-medium text-gray-500 hover:underline dark:text-gray-400"
+              className="mt-1 text-[14px] font-semibold text-accent-600 hover:underline dark:text-accent-400"
             >
               {expanded ? "Хураах" : "Цааш унших"}
             </button>
           )}
         </div>
+      )}
+
+      {attachments.length > 0 && (
+        <ul className="flex flex-col gap-2 px-4 pt-3">
+          {attachments.map((file) => {
+            const name = file.name || "Файл";
+            const ext = /\.([a-z0-9]{1,5})$/i.exec(name)?.[1]?.toUpperCase() ?? "ФАЙЛ";
+            return (
+              <li key={file.path}>
+                <a
+                  href={file.url}
+                  download={name}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 transition-colors hover:border-accent-300 hover:bg-accent-50/60 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-accent-500/40 dark:hover:bg-accent-500/10"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600 dark:bg-accent-500/10 dark:text-accent-400">
+                    <FileText className="h-5 w-5" strokeWidth={1.8} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14px] font-medium text-gray-800 dark:text-white/90">
+                      {name}
+                    </span>
+                    <span className="text-[12px] text-gray-500 dark:text-gray-400">
+                      {ext}
+                      {file.size ? ` · ${formatFileSize(file.size)}` : ""}
+                    </span>
+                  </span>
+                  <Download
+                    className="h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-accent-600 dark:group-hover:text-accent-400"
+                    strokeWidth={2}
+                  />
+                </a>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       {post.status === "pending" && onApprove && onReject && (

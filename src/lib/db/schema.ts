@@ -1282,7 +1282,10 @@ export const posts = pgTable(
     }),
     body: bodyText("body"),
     /** Storage дахь файлууд — `posts/{uid}/` хавтаст */
-    media: jsonCol<{ kind: "image" | "video"; url: string; path: string }[]>("media")
+    /** `file` — PDF/Word/Excel хавсралт; `name`, `size` нь зөвхөн түүнд */
+    media: jsonCol<
+      { kind: "image" | "video" | "file"; url: string; path: string; name?: string; size?: number }[]
+    >("media")
       .notNull()
       .$defaultFn(() => []),
     /** YouTube/Facebook видеоны холбоос — хоосон бол байхгүй */

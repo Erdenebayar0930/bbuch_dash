@@ -4,7 +4,14 @@ import type { PostBoard } from "@/data/postOptions";
 
 import { apiFetch } from "./apiClient";
 
-export type PostMedia = { kind: "image" | "video"; url: string; path: string };
+/** `file` — хавсралт баримт (PDF, Word, Excel); `name`, `size` нь түүнд л байна */
+export type PostMedia = {
+  kind: "image" | "video" | "file";
+  url: string;
+  path: string;
+  name?: string;
+  size?: number;
+};
 
 export type Post = {
   id: string;
