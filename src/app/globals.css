@@ -247,6 +247,14 @@
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+  /* Харанхуй горимд select-ийн дэвсгэр тунгалаг (bg-white/[0.03]) тул
+     хөтөч жагсаалтыг цагаан дэвсгэр дээр цагаан бичгээр зурдаг —
+     option-уудад бодит бараан өнгө өгнө. */
+  .dark select option,
+  .dark select optgroup {
+    background-color: var(--color-gray-900);
+    color: var(--color-gray-100, #f2f4f7);
+  }
   body {
     @apply relative font-normal font-outfit z-1 bg-gray-50;
     touch-action: manipulation;
