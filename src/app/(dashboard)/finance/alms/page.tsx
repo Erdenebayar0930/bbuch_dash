@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 
+import AboutTabs from "@/components/finance/AboutTabs";
 import CampaignBoard from "@/components/finance/CampaignBoard";
 
 export const metadata: Metadata = {
@@ -9,7 +10,8 @@ export const metadata: Metadata = {
 
 /**
  * Санхүү → Өглөг. Хандивтай ижил бүтэцтэй (зөвшөөрөл, мэдэгдэл, эрэмбэ)
- * боловч тусдаа жагсаалт, үргэлж нэг удаагийнх. Табууд: Идэвхтэй | Дууссан.
+ * боловч тусдаа жагсаалт, үргэлж нэг удаагийнх. Табууд: «Өглөгийн талаар»
+ * (нийтлэл) | «Өглөг».
  */
 export default function FinanceAlmsPage() {
   return (
@@ -21,7 +23,9 @@ export default function FinanceAlmsPage() {
         </p>
       </div>
 
-      <CampaignBoard board="alms" />
+      <AboutTabs board="alms" mainLabel="Өглөг">
+        <CampaignBoard board="alms" />
+      </AboutTabs>
     </div>
   );
 }

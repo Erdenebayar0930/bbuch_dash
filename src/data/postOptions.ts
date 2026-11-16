@@ -82,3 +82,19 @@ export function formatPostTime(date: Date, now = new Date()): string {
   const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
   return `${get("year")} оны ${Number(get("month"))}-р сарын ${Number(get("day"))} ${get("hour")}:${get("minute")}`;
 }
+
+/**
+ * Нийтлэлийн самбар — нүүр хуудас эсвэл Санхүүгийн «…талаар» табууд. Бүгд
+ * нэг `posts` хүснэгтэд, `board` баганаар ялгагдана; зөвшөөрөл нь адилхан.
+ */
+export const POST_BOARDS = {
+  home: { url: "/", label: "Нүүр" },
+  donation: { url: "/finance/donations", label: "Хандивын талаар" },
+  alms: { url: "/finance/alms", label: "Өглөгийн талаар" },
+  supply: { url: "/finance/supply", label: "Хангамжийн талаар" },
+} as const;
+
+export type PostBoard = keyof typeof POST_BOARDS;
+
+export const isPostBoard = (value: unknown): value is PostBoard =>
+  typeof value === "string" && Object.prototype.hasOwnProperty.call(POST_BOARDS, value);

@@ -9,6 +9,7 @@ import CampaignApproversModal from "@/components/finance/CampaignApproversModal"
 import PostAvatar from "@/components/posts/PostAvatar";
 import PostCard from "@/components/posts/PostCard";
 import PostComposer from "@/components/posts/PostComposer";
+import type { PostBoard } from "@/data/postOptions";
 import { isAdminRole } from "@/lib/permissions";
 import {
   createPost,
@@ -34,7 +35,7 @@ const newestFirst = (a: Post, b: Post) => b.createdAt.getTime() - a.createdAt.ge
  * lib/api/postReview.ts). Зөвшөөрөгдөөгүй нийтлэл (`queue`) нь бичсэн хүн
  * болон зөвшөөрөгчдөд л дээд хэсэгт харагдана.
  */
-export default function PostFeed() {
+export default function PostFeed({ board = "home" }: { board?: PostBoard }) {
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
 
@@ -53,7 +54,7 @@ export default function PostFeed() {
     setLoading(true);
     setError(null);
     try {
-      const page = await listPosts();
+      const page = await listPosts(board);
       setItems(page.posts);
       setHasMore(page.hasMore);
       setQueue(page.queue);
@@ -64,7 +65,7 @@ export default function PostFeed() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [board]);
 
   useEffect(() => {
     load();
@@ -75,7 +76,7 @@ export default function PostFeed() {
     if (!last) return;
     setLoadingMore(true);
     try {
-      const page = await listPosts(last.createdAt);
+      const page = await listPosts(board, last.createdAt);
       setItems((prev) => [
         ...prev,
         ...page.posts.filter((post) => !prev.some((item) => item.id === post.id)),
@@ -104,7 +105,7 @@ export default function PostFeed() {
 
   const publish = async (input: PostInput) => {
     if (!user?.uid) throw new Error("Нэвтэрсэн байх шаардлагатай.");
-    place(await createPost(user.uid, input));
+    place(await createPost(user.uid, board, input));
     return true;
   };
 
@@ -247,7 +248,7 @@ export default function PostFeed() {
             void load();
           }}
           title="Нийтлэл зөвшөөрөгчид"
-          description="Сонгосон хүмүүс нүүр хуудсанд оруулсан нийтлэлийг зөвшөөрөх эсвэл буцаана. Хэнийг ч сонгоогүй бол админ зөвшөөрнө."
+          description="Сонгосон хүмүүс нүүр хуудас болон Хандив, Өглөг, Хангамжийн «талаар» хэсэгт оруулсан нийтлэлийг зөвшөөрөх эсвэл буцаана. Хэнийг ч сонгоогүй бол админ зөвшөөрнө."
           load={loadPostApprovers}
           save={savePostApprovers}
         />

@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 
+import AboutTabs from "@/components/finance/AboutTabs";
 import CampaignBoard from "@/components/finance/CampaignBoard";
 
 export const metadata: Metadata = {
@@ -7,7 +8,10 @@ export const metadata: Metadata = {
   description: "Тухайн үед зарласан хандивын аянууд",
 };
 
-/** Санхүү → Хандив. Тухайн үед зарласан хандивууд — бүгд харж, бүгд зарлана (зөвшөөрөлтэй). */
+/**
+ * Санхүү → Хандив. Табууд: «Хандивын талаар» (нийтлэл) | «Хандив» — тухайн үед
+ * зарласан хандивууд, бүгд харж, бүгд зарлана (зөвшөөрөлтэй).
+ */
 export default function FinanceDonationsPage() {
   return (
     <div className="flex flex-col gap-5">
@@ -18,7 +22,9 @@ export default function FinanceDonationsPage() {
         </p>
       </div>
 
-      <CampaignBoard />
+      <AboutTabs board="donation" mainLabel="Хандив">
+        <CampaignBoard />
+      </AboutTabs>
     </div>
   );
 }

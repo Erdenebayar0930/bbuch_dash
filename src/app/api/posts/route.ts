@@ -2,6 +2,7 @@ import { and, desc, eq, lt, ne, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { badRequest, isAdminRole, requireActiveUser, serverError } from "@/lib/api/auth";
+import { isPostBoard, type PostBoard } from "@/data/postOptions";
 import { postColumns, readPost, readPostRow } from "@/lib/api/postInput";
 import { canApprovePosts, notifyPostApprovers, readPostApprovers } from "@/lib/api/postReview";
 import { db } from "@/lib/db";
@@ -18,8 +19,14 @@ const PAGE_SIZE = 20;
 /** Зөвшөөрөгдөөгүй нийтлэлийн дээд тоо — нэг дор */
 const QUEUE_LIMIT = 100;
 
+/** `?board=` — хоосон бол нүүр хуудас */
+const readBoard = (request: NextRequest): PostBoard | null => {
+  const raw = request.nextUrl.searchParams.get("board") || "home";
+  return isPostBoard(raw) ? raw : null;
+};
+
 /**
- * Нүүр хуудасны нийтлэлүүд — шинээс хуучин руу. Идэвхтэй хэрэглэгч бүр.
+ * Нүүр хуудасны (эсвэл `?board=`-ын) нийтлэлүүд — шинээс хуучин руу. Идэвхтэй хэрэглэгч бүр.
  *
  * `posts` — зөвшөөрөгдсөн нийтлэлүүд, `?before=<ISO>` нь дараагийн хуудас.
  * `queue` — зөвшөөрөгдөөгүй (хүлээгдэж буй/буцаасан): зөвшөөрөгч ба админд
@@ -30,6 +37,8 @@ export async function GET(request: NextRequest) {
   if ("error" in result) return result.error;
 
   const { caller } = result;
+  const board = readBoard(request);
+  if (!board) return badRequest("board буруу байна.");
   const beforeRaw = request.nextUrl.searchParams.get("before");
   const before = beforeRaw ? new Date(beforeRaw) : null;
   if (before && Number.isNaN(before.getTime())) return badRequest("before буруу байна.");
@@ -43,7 +52,11 @@ export async function GET(request: NextRequest) {
       .from(posts)
       .leftJoin(users, eq(posts.authorUid, users.uid))
       .where(
-        and(eq(posts.status, "approved"), before ? lt(posts.createdAt, before) : undefined)
+        and(
+          eq(posts.board, board),
+          eq(posts.status, "approved"),
+          before ? lt(posts.createdAt, before) : undefined
+        )
       )
       .orderBy(desc(posts.createdAt))
       .limit(PAGE_SIZE + 1);
@@ -58,10 +71,15 @@ export async function GET(request: NextRequest) {
             seesAll
               ? // Зөвшөөрөгч бусдын буцаасныг биш, хүлээгдэж буйг ба өөрийнхөө бүгдийг харна
                 and(
+                  eq(posts.board, board),
                   ne(posts.status, "approved"),
                   or(eq(posts.status, "pending"), eq(posts.authorUid, caller.uid))
                 )
-              : and(ne(posts.status, "approved"), eq(posts.authorUid, caller.uid))
+              : and(
+                  eq(posts.board, board),
+                  ne(posts.status, "approved"),
+                  eq(posts.authorUid, caller.uid)
+                )
           )
           .orderBy(desc(posts.createdAt))
           .limit(QUEUE_LIMIT);
@@ -83,6 +101,8 @@ export async function POST(request: NextRequest) {
   if ("error" in result) return result.error;
 
   const { caller } = result;
+  const board = readBoard(request);
+  if (!board) return badRequest("board буруу байна.");
 
   try {
     const parsed = readPost(await request.json().catch(() => ({})), caller.uid);
@@ -94,6 +114,7 @@ export async function POST(request: NextRequest) {
     const [created] = await db
       .insert(posts)
       .values({
+        board,
         authorUid: caller.uid,
         ...parsed.value,
         ...(approver
@@ -102,7 +123,7 @@ export async function POST(request: NextRequest) {
       })
       .returning({ id: posts.id });
 
-    if (!approver) await notifyPostApprovers(parsed.value, caller.uid, false);
+    if (!approver) await notifyPostApprovers({ ...parsed.value, board }, caller.uid, false);
 
     return NextResponse.json({ post: await readPostRow(created.id) });
   } catch (error) {

@@ -1275,6 +1275,8 @@ export const posts = pgTable(
   "posts",
   {
     id: uuidPk(),
+    /** Аль самбарынх — home | donation | alms | supply (@see data/postOptions.ts) */
+    board: varchar("board", { length: 32 }).notNull().default("home"),
     authorUid: uidCol("author_uid").references(() => users.uid, {
       onDelete: "set null",
     }),
@@ -1301,6 +1303,7 @@ export const posts = pgTable(
   (table) => [
     index("posts_created_idx").on(table.createdAt),
     index("posts_status_created_idx").on(table.status, table.createdAt),
+    index("posts_board_status_created_idx").on(table.board, table.status, table.createdAt),
   ]
 );
 

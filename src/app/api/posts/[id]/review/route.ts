@@ -55,10 +55,10 @@ export async function POST(
         reviewedAt: now,
       })
       .where(eq(posts.id, id))
-      .returning({ authorUid: posts.authorUid });
+      .returning({ authorUid: posts.authorUid, board: posts.board });
     if (!updated) return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
 
-    await notifyPostAuthor(updated.authorUid, status, note, caller.uid);
+    await notifyPostAuthor(updated.authorUid, updated.board, status, note, caller.uid);
 
     return NextResponse.json({ post: await readPostRow(id) });
   } catch (error) {

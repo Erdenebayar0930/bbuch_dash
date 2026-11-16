@@ -21,7 +21,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function findPost(id: string) {
   if (!UUID.test(id)) return null;
   const [row] = await db
-    .select({ authorUid: posts.authorUid, media: posts.media })
+    .select({ authorUid: posts.authorUid, media: posts.media, board: posts.board })
     .from(posts)
     .where(eq(posts.id, id))
     .limit(1);
@@ -69,7 +69,7 @@ export async function PATCH(
       })
       .where(eq(posts.id, id));
 
-    if (!approver) await notifyPostApprovers(parsed.value, caller.uid, true);
+    if (!approver) await notifyPostApprovers({ ...parsed.value, board: existing.board }, caller.uid, true);
 
     return NextResponse.json({ post: await readPostRow(id) });
   } catch (error) {

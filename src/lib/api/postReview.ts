@@ -2,6 +2,7 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
+import { POST_BOARDS, isPostBoard } from "@/data/postOptions";
 import { isAdminRole, type Caller } from "@/lib/api/auth";
 import { notifyUsers, resolveNotifyTargets } from "@/lib/api/notify";
 import { db } from "@/lib/db";
@@ -53,13 +54,24 @@ export function canApprovePosts(caller: Caller, approvers: string[]): boolean {
     : isAdminRole(caller.user?.role);
 }
 
+/** Самбарын хуудасны хаяг — мэдэгдэл дарахад шилжинэ */
+const boardUrl = (board: string) => (isPostBoard(board) ? POST_BOARDS[board].url : "/");
+
+/** «Хандивын талаар: » гэх мэт — нүүр хуудсынхад хоосон */
+const boardPrefix = (board: string) =>
+  isPostBoard(board) && board !== "home" ? `${POST_BOARDS[board].label}: ` : "";
+
 const snippet = (text: string, max = 120) => {
   const clean = text.replace(/\s+/g, " ").trim();
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 };
 
 /** Зөвшөөрөгчдөд — шинэ эсвэл засагдсан нийтлэл хүлээгдэж байна */
-export async function notifyPostApprovers(post: { body: string }, authorUid: string, edited: boolean) {
+export async function notifyPostApprovers(
+  post: { body: string; board: string },
+  authorUid: string,
+  edited: boolean
+) {
   const approvers = await readPostApprovers();
   const uids =
     approvers.length > 0
@@ -72,9 +84,9 @@ export async function notifyPostApprovers(post: { body: string }, authorUid: str
   await notifyUsers(
     uids.filter((uid) => uid !== authorUid),
     {
-      title: `${edited ? "Засагдсан" : "Шинэ"} нийтлэл зөвшөөрөл хүлээж байна`,
+      title: `${boardPrefix(post.board)}${edited ? "Засагдсан" : "Шинэ"} нийтлэл зөвшөөрөл хүлээж байна`,
       body: snippet(post.body) || "Зураг/бичлэгтэй нийтлэл",
-      url: "/",
+      url: boardUrl(post.board),
     },
     authorUid
   );
@@ -83,6 +95,7 @@ export async function notifyPostApprovers(post: { body: string }, authorUid: str
 /** Бичсэн хүнд — нийтлэл нь зөвшөөрөгдсөн эсвэл буцаагдсан */
 export async function notifyPostAuthor(
   authorUid: string | null,
+  board: string,
   status: "approved" | "rejected",
   note: string,
   by: string
@@ -91,8 +104,16 @@ export async function notifyPostAuthor(
   await notifyUsers(
     [authorUid],
     status === "approved"
-      ? { title: "Таны нийтлэл зөвшөөрөгдлөө", body: "Нүүр хуудсанд бүгдэд харагдаж байна.", url: "/" }
-      : { title: "Таны нийтлэлийг буцаалаа", body: note || "Зөвшөөрөгч засахыг хүссэн.", url: "/" },
+      ? {
+          title: `${boardPrefix(board)}Таны нийтлэл зөвшөөрөгдлөө`,
+          body: "Одоо бүгдэд харагдаж байна.",
+          url: boardUrl(board),
+        }
+      : {
+          title: `${boardPrefix(board)}Таны нийтлэлийг буцаалаа`,
+          body: note || "Зөвшөөрөгч засахыг хүссэн.",
+          url: boardUrl(board),
+        },
     by
   );
 }

@@ -5,6 +5,7 @@ import { Construction } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import SupplyLedger from "@/components/finance/SupplyLedger";
+import PostFeed from "@/components/posts/PostFeed";
 import { isAdminRole } from "@/lib/permissions";
 
 type TabKey = "about" | "church-supply" | "church-budget";
@@ -25,8 +26,7 @@ const TABS: { key: TabKey; label: string; access: TabAccess }[] = [
   { key: "church-budget", label: "Чуулганы төсөв", access: "aimag" },
 ];
 
-const PLACEHOLDER: Record<Exclude<TabKey, "church-supply">, string> = {
-  about: "Хангамжийн тухай тайлбар мэдээлэл энд орно.",
+const PLACEHOLDER: Record<Exclude<TabKey, "church-supply" | "about">, string> = {
   "church-budget": "Чуулганы төсвийн мэдээлэл энд орно.",
 };
 
@@ -81,7 +81,9 @@ export default function SupplyTabs() {
       </div>
 
       <div role="tabpanel" id={`supply-panel-${active}`} aria-labelledby={`supply-tab-${active}`}>
-        {active === "church-supply" ? (
+        {active === "about" ? (
+          <PostFeed board="supply" />
+        ) : active === "church-supply" ? (
           <SupplyLedger canEdit={isAdmin} />
         ) : (
           <div className="surface flex min-h-[320px] flex-col items-center justify-center gap-3 p-10 text-center">

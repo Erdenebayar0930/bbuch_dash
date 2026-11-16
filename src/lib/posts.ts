@@ -1,5 +1,7 @@
 "use client";
 
+import type { PostBoard } from "@/data/postOptions";
+
 import { apiFetch } from "./apiClient";
 
 export type PostMedia = { kind: "image" | "video"; url: string; path: string };
@@ -75,8 +77,10 @@ export type PostPage = {
   canApprove: boolean;
 };
 
-export async function listPosts(before?: Date): Promise<PostPage> {
-  const query = before ? `?before=${encodeURIComponent(before.toISOString())}` : "";
+export async function listPosts(board: PostBoard, before?: Date): Promise<PostPage> {
+  const params = new URLSearchParams({ board });
+  if (before) params.set("before", before.toISOString());
+  const query = `?${params.toString()}`;
   const data = await apiFetch<{
     posts: PostRow[];
     hasMore: boolean;
@@ -147,11 +151,11 @@ async function removeFiles(media: PostMedia[]) {
 }
 
 /** Нийтлэл үүсгэнэ — хадгалагдаагүй бол байршуулсан файлуудыг буцааж устгана. */
-export async function createPost(uid: string, input: PostInput): Promise<Post> {
+export async function createPost(uid: string, board: PostBoard, input: PostInput): Promise<Post> {
   const uploaded = await uploadAll(uid, input.files, input.onProgress);
 
   try {
-    const data = await apiFetch<{ post: PostRow }>("/api/posts", {
+    const data = await apiFetch<{ post: PostRow }>(`/api/posts?board=${board}`, {
       method: "POST",
       body: { body: input.body, videoLink: input.videoLink, media: uploaded },
     });
