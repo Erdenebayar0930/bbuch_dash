@@ -26,6 +26,7 @@ import {
   UsersRound,
   Wallet,
   Wheat,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 
@@ -241,6 +242,7 @@ export const navItems: NavItem[] = [
     superOnly: true,
   },
   // Хамгийн доор — бүх хэрэглэгчид нээлттэй
+  { name: "Системийн use case", path: "/use-case", icon: Workflow },
   { name: "Санал хүсэлт", path: "/feedback", icon: MessageSquarePlus },
 ];
 
