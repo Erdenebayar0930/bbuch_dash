@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 
 import {
   addGivingPerson,
@@ -333,16 +333,37 @@ export default function GivingTracker({
                     {MONTHS.map((month) => {
                       const key = monthKey(year, month);
                       const checked = given.has(key);
+                      // Сахилгажуулалт: өнгөрсөн сарын төлөөгүй нь хугацаа хэтэрсэн
+                      const overdue =
+                        isDiscipline &&
+                        !checked &&
+                        (year < now.year || (year === now.year && month < now.month));
                       return (
                         <td key={month} className="px-1 py-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggle(person, month)}
-                            disabled={readOnly}
-                            aria-label={`${person.name} — ${year} оны ${month}-р сар ${checked ? doneWord : notDoneWord}`}
-                            className="h-5 w-5 cursor-pointer accent-success-600 disabled:cursor-default"
-                          />
+                          <span className="relative inline-flex h-5 w-5 align-middle">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggle(person, month)}
+                              disabled={readOnly}
+                              title={overdue ? "Хугацаа хэтэрсэн" : undefined}
+                              aria-label={`${person.name} — ${year} оны ${month}-р сар ${checked ? doneWord : notDoneWord}${overdue ? " (хугацаа хэтэрсэн)" : ""}`}
+                              className={`peer h-5 w-5 cursor-pointer appearance-none rounded-md border-2 transition-colors disabled:cursor-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500 ${
+                                checked
+                                  ? "border-success-500 bg-success-500"
+                                  : overdue
+                                    ? "border-error-500 bg-error-500/15 dark:bg-error-500/25"
+                                    : "border-gray-300 bg-white dark:border-white/20 dark:bg-white/5"
+                              }`}
+                            />
+                            {checked && (
+                              <Check
+                                aria-hidden="true"
+                                className="pointer-events-none absolute inset-0 m-auto h-3.5 w-3.5 text-white"
+                                strokeWidth={3.5}
+                              />
+                            )}
+                          </span>
                         </td>
                       );
                     })}

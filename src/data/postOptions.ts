@@ -89,6 +89,8 @@ export function formatPostTime(date: Date, now = new Date()): string {
  */
 export const POST_BOARDS = {
   home: { url: "/", label: "Нүүр" },
+  tithe: { url: "/finance/allocation", label: "1/10 ба өргөлийн талаар" },
+  land: { url: "/finance/land-tithe", label: "Газрын 1/10-ийн талаар" },
   donation: { url: "/finance/donations", label: "Хандивын талаар" },
   alms: { url: "/finance/alms", label: "Өглөгийн талаар" },
   supply: { url: "/finance/supply", label: "Хангамжийн талаар" },

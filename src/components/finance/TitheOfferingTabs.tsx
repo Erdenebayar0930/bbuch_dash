@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { Construction } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import GivingTracker from "@/components/finance/GivingTracker";
 import StatementImport from "@/components/finance/StatementImport";
 import TitheAccountCard from "@/components/finance/TitheAccountCard";
+import PostFeed from "@/components/posts/PostFeed";
 import { isAdminRole } from "@/lib/permissions";
 
 type TabKey = "about" | "guide" | "giving";
@@ -22,23 +22,10 @@ type TitheOfferingTabsProps = {
   variant?: keyof typeof VARIANTS;
 };
 
-/** «Бэлтгэгдэж байна» хоосон төлөв */
-function Placeholder({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="surface flex min-h-[320px] flex-col items-center justify-center gap-3 p-10 text-center">
-      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500">
-        <Construction className="h-6 w-6" strokeWidth={1.6} />
-      </span>
-      <p className="text-base font-medium text-gray-800 dark:text-white/90">{title}</p>
-      <p className="max-w-sm text-theme-sm text-gray-500 dark:text-gray-400">{text}</p>
-    </div>
-  );
-}
-
 /**
  * Санхүү → 1/10 ба өргөл / Газрын 1/10 хуудасны табууд.
  *
- * • …-ийн талаар — тайлбар мэдээлэл (агуулга нь хараахан тодорхойгүй)
+ * • …-ийн талаар — нийтлэл оруулдаг самбар (`PostFeed`, board = tithe | land)
  * • Өргөх заавар — өргөх данс ба гүйлгээний утгыг хуулах (бүгдэд)
  * • Өргөж буй байдал — зөвхөн админд. Нэрс × сарууд, сар бүр өргөсөн эсэхийг
  *   чагтална (`GivingTracker`, хуудас бүрт тусдаа жагсаалт). 1/10 ба өргөлд
@@ -100,10 +87,7 @@ export default function TitheOfferingTabs({ variant = "tithe" }: TitheOfferingTa
             {variant === "tithe" && <StatementImport />}
           </div>
         ) : (
-          <Placeholder
-            title={`${names.about} — бэлтгэгдэж байна`}
-            text={`${names.title}-ийн тухай тайлбар мэдээлэл энд орно. Дансны мэдээлэл «Өргөх заавар» хэсэгт байна.`}
-          />
+          <PostFeed board={variant} />
         )}
       </div>
     </div>
