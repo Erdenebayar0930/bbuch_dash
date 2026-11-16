@@ -112,15 +112,16 @@ export const navItems: NavItem[] = [
   {
     // Аймгуудын дээр. «1/10 ба өргөл» нь бүгдэд — гишүүд өргөх данс, гүйлгээний
     // утгаа эндээс хуулна (хуулга уншдаг таб нь хуудас дотроо зөвхөн админд).
-    // Хангамж нь админ ба Хангамжийн аймагт; Хандив, Өглөг бүгдэд.
+    // Хангамж, Хандив, Өглөг бүгдэд.
     name: "Санхүү",
     path: "/finance",
     icon: Wallet,
     children: [
       { name: "1/10 ба өргөл", path: "/finance/allocation", icon: Coins },
       { name: "Газрын 1/10", path: "/finance/land-tithe", icon: Wheat },
-      // Хангамжийн аймгийнхан Сахилгажуулалт табыг харна (бусад таб нь админд)
-      { name: "Хангамж", path: "/finance/supply", icon: Package, aimag: "supply" },
+      // Цэс нь бүгдэд; Сахилгажуулалт таб нь хуудас дотроо админ ба Хангамжийн
+      // аймагт, Чуулганы хангамж таб нь админд (@see SupplyTabs)
+      { name: "Хангамж", path: "/finance/supply", icon: Package },
       { name: "Хандив", path: "/finance/donations", icon: Gift },
       { name: "Өглөг", path: "/finance/alms", icon: HandHeart },
     ],

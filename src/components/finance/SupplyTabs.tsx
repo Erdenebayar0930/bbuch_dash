@@ -10,12 +10,23 @@ import { isAdminRole } from "@/lib/permissions";
 
 type TabKey = "about" | "church-supply" | "church-budget" | "discipline";
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "about", label: "Хангамжийн талаар" },
-  { key: "church-supply", label: "Чуулганы хангамж" },
-  { key: "church-budget", label: "Чуулганы төсөв" },
-  { key: "discipline", label: "Сахилгажуулалт" },
+/**
+ * `access` — хэн харах вэ:
+ * - all: бүх хэрэглэгч
+ * - admin: админ, супер админ (`/api/supplies` нь `requireAdmin`)
+ * - supply: админ, супер админ ба Хангамжийн аймгийн гишүүн
+ *   (`/api/discipline` нь `requireAimag("supply")`)
+ */
+type TabAccess = "all" | "admin" | "supply";
+
+const TABS: { key: TabKey; label: string; access: TabAccess }[] = [
+  { key: "about", label: "Хангамжийн талаар", access: "all" },
+  { key: "church-supply", label: "Чуулганы хангамж", access: "admin" },
+  { key: "church-budget", label: "Чуулганы төсөв", access: "all" },
+  { key: "discipline", label: "Сахилгажуулалт", access: "supply" },
 ];
+
+const SUPPLY_AIMAG = "supply";
 
 const PLACEHOLDER: Record<Exclude<TabKey, "church-supply" | "discipline">, string> = {
   about: "Хангамжийн тухай тайлбар мэдээлэл энд орно.",
@@ -25,13 +36,18 @@ const PLACEHOLDER: Record<Exclude<TabKey, "church-supply" | "discipline">, strin
 /**
  * Санхүү → Хангамж хуудасны табууд. «Чуулганы хангамж» нь орж ирсэн мөнгө,
  * эд зүйлсийн бүртгэл (`SupplyLedger`); бусад нь агуулга нь хараахан
- * тодорхойгүй. Хангамжийн аймгийн гишүүн (админ бус) зөвхөн Сахилгажуулалтыг харна.
+ * тодорхойгүй. Хуудас бүгдэд нээлттэй ч таб бүр `access`-ээрээ шүүгдэнэ.
  */
 export default function SupplyTabs() {
   const { user } = useUser();
-  // Админ бус (Хангамжийн аймгийн гишүүн) зөвхөн Сахилгажуулалтыг харна
   const isAdmin = isAdminRole(user?.role);
-  const tabs = isAdmin ? TABS : TABS.filter((item) => item.key === "discipline");
+  const inSupply = isAdmin || (user?.aimags ?? []).includes(SUPPLY_AIMAG);
+  const tabs = TABS.filter(
+    (item) =>
+      item.access === "all" ||
+      (item.access === "admin" && isAdmin) ||
+      (item.access === "supply" && inSupply)
+  );
   const [picked, setPicked] = useState<TabKey>("about");
   const active = tabs.some((item) => item.key === picked) ? picked : tabs[0].key;
   const setActive = setPicked;
