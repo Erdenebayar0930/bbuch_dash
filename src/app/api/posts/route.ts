@@ -110,8 +110,9 @@ export async function POST(request: NextRequest) {
 
     const approver = canApprovePosts(caller, await readPostApprovers());
     const now = new Date();
-    // Хуучин сарын мэдээлэл — тэр сарынхаа байранд орно; «Засагдсан» гарахгүй
-    const backdated = parsed.value.period ? periodDate(parsed.value.period, now) : null;
+    // Сонгосон огноо нь нийтэлсэн огноо — тэр өдрийнхөө байранд эрэмбэлэгдэнэ.
+    // updatedAt-ыг тэнцүү тавьснаар «Засагдсан» гэж гарахгүй.
+    const postedAt = periodDate(parsed.value.period, now);
 
     const [created] = await db
       .insert(posts)
@@ -119,7 +120,8 @@ export async function POST(request: NextRequest) {
         board,
         authorUid: caller.uid,
         ...parsed.value,
-        ...(backdated ? { createdAt: backdated, updatedAt: backdated } : {}),
+        createdAt: postedAt,
+        updatedAt: postedAt,
         ...(approver
           ? { status: "approved", reviewedBy: caller.uid, reviewedAt: now }
           : { status: "pending" }),

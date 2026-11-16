@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Check, Clock, Download, FileText, MoreHorizontal, Pencil, Trash2, Undo2 } from "lucide-react";
 
 import PostAvatar from "@/components/posts/PostAvatar";
-import { formatFileSize, formatPostPeriod, formatPostTime, parseVideoLink } from "@/data/postOptions";
+import { formatFileSize, formatPostPeriod, parseVideoLink, postDateKey } from "@/data/postOptions";
 import type { Post } from "@/lib/posts";
 
 type PostCardProps = {
@@ -89,7 +89,8 @@ export default function PostCard({
             {post.authorName}
           </p>
           <p className="text-[13px] text-gray-500 dark:text-gray-400">
-            {post.period ? formatPostPeriod(post.period) : formatPostTime(post.createdAt)}
+            {/* Огноо нь нийтэлсэн өдөр — цаг чухал биш */}
+            {formatPostPeriod(post.period || postDateKey(post.createdAt))}
             {post.edited && " · Засагдсан"}
           </p>
         </div>

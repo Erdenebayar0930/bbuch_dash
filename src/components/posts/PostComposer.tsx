@@ -14,6 +14,7 @@ import {
   POST_FILE_TYPES,
   POST_PERIOD_MIN_YEAR,
   formatFileSize,
+  todayKey,
   parseVideoLink,
 } from "@/data/postOptions";
 import type { PostInput, PostMedia } from "@/lib/posts";
@@ -44,7 +45,7 @@ const extensionLabel = (name: string) => /\.([a-z0-9]{1,5})$/i.exec(name)?.[1]?.
 type PostComposerProps = {
   initialBody?: string;
   initialVideoLink?: string;
-  /** `YYYY-MM-DD` — хоосон бол нийтэлсэн огноо */
+  /** `YYYY-MM-DD` — нийтлэлийн огноо; хоосон бол өнөөдөр */
   initialPeriod?: string;
   initialMedia?: PostMedia[];
   submitLabel: string;
@@ -73,11 +74,11 @@ export default function PostComposer({
   const [body, setBody] = useState(initialBody);
   const [videoLink, setVideoLink] = useState(initialVideoLink);
   const [showLink, setShowLink] = useState(!!initialVideoLink);
-  // Хуучин `YYYY-MM` утгыг тухайн сарын 1-ний өдөр гэж харуулна
+  // Огноо — анхдагчаар өнөөдөр; хуучин мэдээлэл бол хэрэглэгч сольж өгнө.
+  // Хуучин `YYYY-MM` утгыг тухайн сарын 1-ний өдөр гэж харуулна.
   const [periodDay, setPeriodDay] = useState(
-    initialPeriod.length === 7 ? `${initialPeriod}-01` : initialPeriod
+    initialPeriod.length === 7 ? `${initialPeriod}-01` : initialPeriod || todayKey()
   );
-  const [showPeriod, setShowPeriod] = useState(!!initialPeriod);
   const [keep, setKeep] = useState<PostMedia[]>(initialMedia);
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -103,11 +104,10 @@ export default function PostComposer({
   const linkTrimmed = videoLink.trim();
   const linkInvalid = linkTrimmed.length > 0 && !parseVideoLink(linkTrimmed);
 
-  // Огноо — ирээдүйн өдөр сонгогдохгүй (хөтчийн орон нутгийн цагаар)
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const period = showPeriod && periodDay ? periodDay : "";
-  const periodIncomplete = !!period && (period > today || period < `${POST_PERIOD_MIN_YEAR}-01-01`);
+  // Ирээдүйн өдөр сонгогдохгүй (Улаанбаатарын өнөөдөр — сервертэй ижил)
+  const today = todayKey();
+  const period = periodDay;
+  const periodIncomplete = !period || period > today || period < `${POST_PERIOD_MIN_YEAR}-01-01`;
 
   const pickFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(event.target.files ?? []).map(withKnownType);
@@ -158,8 +158,7 @@ export default function PostComposer({
         setBody("");
         setVideoLink("");
         setShowLink(false);
-        setShowPeriod(false);
-        setPeriodDay("");
+        setPeriodDay(todayKey());
         setKeep([]);
         setFiles([]);
       }
@@ -240,24 +239,22 @@ export default function PostComposer({
         </div>
       )}
 
-      {showPeriod && (
-        <div className="flex flex-col gap-1">
-          <label className="flex flex-wrap items-center gap-2">
-            <span className="text-theme-sm text-gray-600 dark:text-gray-300">Огноо:</span>
-            <input
-              type="date"
-              value={periodDay}
-              min={`${POST_PERIOD_MIN_YEAR}-01-01`}
-              max={today}
-              onChange={(event) => setPeriodDay(event.target.value)}
-              className={`${fieldClass} h-10 w-auto`}
-            />
-          </label>
-          <span className="text-theme-xs text-gray-400">
-            Хуучин мэдээллийг нөхөж оруулахад — нийтлэл тэр өдрийнхөө байранд эрэмбэлэгдэнэ.
-          </span>
-        </div>
-      )}
+      <label className="flex flex-wrap items-center gap-2">
+        <CalendarDays className="h-5 w-5 text-warning-500" strokeWidth={1.8} />
+        <span className="text-theme-sm text-gray-600 dark:text-gray-300">Огноо:</span>
+        <input
+          type="date"
+          value={periodDay}
+          min={`${POST_PERIOD_MIN_YEAR}-01-01`}
+          max={today}
+          required
+          onChange={(event) => setPeriodDay(event.target.value)}
+          className={`${fieldClass} h-10 w-auto`}
+        />
+        {period !== today && !periodIncomplete && (
+          <span className="text-theme-xs text-gray-400">Нийтлэл энэ өдрийнхөө байранд эрэмбэлэгдэнэ</span>
+        )}
+      </label>
 
       {thumbs.length > 0 && (
         <ul className="flex flex-wrap gap-2">
@@ -385,16 +382,6 @@ export default function PostComposer({
         >
           <Link2 className="h-5 w-5 text-accent-600 dark:text-accent-400" strokeWidth={1.8} />
           Холбоос
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowPeriod((open) => !open)}
-          disabled={busy}
-          aria-pressed={showPeriod}
-          className={toolClass}
-        >
-          <CalendarDays className="h-5 w-5 text-warning-500" strokeWidth={1.8} />
-          Огноо
         </button>
         {total > 0 && (
           <span className="text-theme-xs text-gray-400">

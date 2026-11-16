@@ -9,7 +9,7 @@ import CampaignApproversModal from "@/components/finance/CampaignApproversModal"
 import PostAvatar from "@/components/posts/PostAvatar";
 import PostCard from "@/components/posts/PostCard";
 import PostComposer from "@/components/posts/PostComposer";
-import type { PostBoard } from "@/data/postOptions";
+import { postDateKey, type PostBoard } from "@/data/postOptions";
 import { isAdminRole } from "@/lib/permissions";
 import {
   createPost,
@@ -143,7 +143,7 @@ export default function PostFeed({ board = "home" }: { board?: PostBoard }) {
         <PostComposer
           initialBody={post.body}
           initialVideoLink={post.videoLink}
-          initialPeriod={post.period}
+          initialPeriod={post.period || postDateKey(post.createdAt)}
           initialMedia={post.media}
           submitLabel="Хадгалах"
           onCancel={() => setEditingId(null)}

@@ -95,6 +95,15 @@ export const POST_PERIOD = /^(\d{4})-(0[1-9]|1[0-2])(?:-(0[1-9]|[12]\d|3[01]))?$
 /** Он сар сонгох доод хязгаар */
 export const POST_PERIOD_MIN_YEAR = 2000;
 
+/** Улаанбаатарын цагийн бүс (UTC+8, зуны цаг байхгүй) */
+const UB_OFFSET_MS = 8 * 3_600_000;
+
+/** Огнооны түлхүүр `YYYY-MM-DD` — Улаанбаатарын цагаар */
+export const postDateKey = (date: Date) => new Date(date.getTime() + UB_OFFSET_MS).toISOString().slice(0, 10);
+
+/** Өнөөдөр (Улаанбаатар) — нийтлэлийн огнооны анхдагч утга */
+export const todayKey = () => postDateKey(new Date());
+
 /** `2025-03-14` → «2025 оны 3-р сарын 14», `2025-03` → «2025 оны 3-р сар» */
 export function formatPostPeriod(period: string): string {
   const match = POST_PERIOD.exec(period);

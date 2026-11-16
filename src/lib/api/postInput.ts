@@ -6,6 +6,7 @@ import {
   POST_PERIOD,
   POST_PERIOD_MIN_YEAR,
   MAX_POST_LENGTH,
+  postDateKey,
   MAX_POST_FILE_BYTES,
   MAX_POST_FILE_NAME,
   MAX_POST_LINK_LENGTH,
@@ -28,13 +29,16 @@ export type PostMedia = {
 const isStorageUrl = isStoredFileUrl;
 
 /**
- * Огноотой нийтлэлийн `created_at` — тухайн өдрийн 12:00 (Улаанбаатар; зөвхөн
- * он сар бол 15-ны өдөр), гэхдээ одооноос хойш биш. Ингэж жагсаалтад
- * огноогоороо эрэмбэлэгдэнэ.
+ * Нийтлэлийн `created_at` — хэрэглэгчийн сонгосон ӨДӨР (Улаанбаатар) + одоогийн
+ * цаг. Жагсаалт энэ баганаар эрэмбэлэгддэг тул нийтлэл сонгосон өдрийнхөө
+ * байранд орно; нэг өдөрт оруулсан хэд хэдэн нийтлэл оруулсан дарааллаа
+ * хадгална. Өнөөдрийг сонгосон бол яг одоо. Зөвхөн он сар (`YYYY-MM`) бол 15-ны өдөр.
  */
 export function periodDate(period: string, now = new Date()): Date {
   const [year, month, day = 15] = period.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day, 4, 0, 0));
+  const ub = 8 * 3_600_000;
+  const timeOfDay = (now.getTime() + ub) % 86_400_000;
+  const date = new Date(Date.UTC(year, month - 1, day) - ub + timeOfDay);
   return date.getTime() > now.getTime() ? now : date;
 }
 
@@ -58,12 +62,13 @@ export function readPost(input: unknown, uid: string, keepPaths: readonly string
   const body = typeof raw.body === "string" ? raw.body.trim() : "";
   const videoLink = typeof raw.videoLink === "string" ? raw.videoLink.trim() : "";
   const rawMedia: unknown[] = Array.isArray(raw.media) ? raw.media : [];
-  const period = typeof raw.period === "string" ? raw.period.trim() : "";
+  // Огноо заавал байна — ирээгүй бол өнөөдөр (Улаанбаатар)
+  const period = (typeof raw.period === "string" ? raw.period.trim() : "") || postDateKey(new Date());
 
   if (period) {
     const match = POST_PERIOD.exec(period);
     // Улаанбаатарын өнөөдөр (UTC+8) — хэрэглэгчийн хөтөчтэй таарна
-    const today = new Date(Date.now() + 8 * 3_600_000).toISOString().slice(0, 10);
+    const today = postDateKey(new Date());
     const [year, month, day] = period.split("-").map(Number);
     const real = !match?.[3] || new Date(Date.UTC(year, month - 1, day)).getUTCDate() === day;
     if (!match || !real || year < POST_PERIOD_MIN_YEAR || period > today) {
