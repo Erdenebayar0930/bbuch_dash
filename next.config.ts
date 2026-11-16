@@ -170,10 +170,12 @@ const csp = [
   // worker-ийн fetch нь img-src биш connect-src-д захирагдана. Үгүй бол SW
   // суусан төхөөрөмж (ялангуяа утас/PWA) дээр газрын зураг хоосон саарал болно.
   `connect-src 'self'${isDev ? " ws: http://localhost:*" : ""} https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org`,
-  "frame-src 'self' https://*.firebaseapp.com",
+  // Нүүр хуудасны нийтлэл дэх YouTube/Facebook видео (@see data/postOptions.ts)
+  "frame-src 'self' https://*.firebaseapp.com https://www.youtube-nocookie.com https://www.facebook.com",
   // Service worker + видео шахалтын worker
   "worker-src 'self' blob:",
-  "media-src 'self' blob: data:",
+  // Нийтлэлд байршуулсан видео Firebase Storage-аас тоглогдоно
+  "media-src 'self' blob: data: https://firebasestorage.googleapis.com",
   "manifest-src 'self'",
   // ⚠ `upgrade-insecure-requests` нь report-only бодлогод УТГАГҮЙ — хөтөч
   // түүнийг үл тоомсорлоод console-д алдаа бичдэг ("is ignored when delivered

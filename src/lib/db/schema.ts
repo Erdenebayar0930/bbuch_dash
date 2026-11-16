@@ -1266,6 +1266,44 @@ export const revelations = pgTable("revelations", revelationFields(), (table) =>
   index("revelations_aimag_created_idx").on(table.aimag, table.createdAt),
 ]);
 
+/**
+ * Нүүр хуудасны нийтлэл (Facebook-ийн пост шиг) — бичвэр, зураг/видео файл,
+ * YouTube/Facebook видеоны холбоос. Идэвхтэй гишүүн бүр нийтэлж, бүгд уншина.
+ * Бичсэн хүн устсан ч нийтлэл нь үлдэнэ.
+ */
+export const posts = pgTable(
+  "posts",
+  {
+    id: uuidPk(),
+    authorUid: uidCol("author_uid").references(() => users.uid, {
+      onDelete: "set null",
+    }),
+    body: bodyText("body"),
+    /** Storage дахь файлууд — `posts/{uid}/` хавтаст */
+    media: jsonCol<{ kind: "image" | "video"; url: string; path: string }[]>("media")
+      .notNull()
+      .$defaultFn(() => []),
+    /** YouTube/Facebook видеоны холбоос — хоосон бол байхгүй */
+    videoLink: varchar("video_link", { length: 500 }).notNull().default(""),
+    /**
+     * pending — зөвшөөрөл хүлээж буй, approved — бүгдэд харагдана,
+     * rejected — буцаасан (`reviewNote`-той). @see lib/api/postReview.ts
+     */
+    status: varchar("status", { length: 16 }).notNull().default("pending"),
+    reviewNote: text("review_note").notNull().default(""),
+    reviewedBy: uidCol("reviewed_by").references(() => users.uid, {
+      onDelete: "set null",
+    }),
+    reviewedAt: utcTimestamp("reviewed_at"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("posts_created_idx").on(table.createdAt),
+    index("posts_status_created_idx").on(table.status, table.createdAt),
+  ]
+);
+
 /** Тахилтын Илчлэл — бусад аймгийн илчлэлээс тусдаа */
 export const tahiltRevelations = tahiltSchema.table(
   "revelations",

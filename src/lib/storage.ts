@@ -5,7 +5,10 @@ import {
   getDownloadURL,
   ref,
   uploadBytes,
+  uploadBytesResumable,
 } from "firebase/storage";
+
+import { MAX_POST_IMAGE_BYTES, MAX_POST_VIDEO_BYTES } from "@/data/postOptions";
 
 import { storage } from "./firebase";
 
@@ -334,5 +337,61 @@ export async function deleteRevelationImage(path: string): Promise<void> {
     await deleteObject(ref(storage, path));
   } catch (error) {
     console.warn("Илчлэлийн зургийг устгаж чадсангүй:", error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Нүүр хуудасны нийтлэлийн зураг/видео — бичсэн хүний хавтас руу
+// ---------------------------------------------------------------------------
+
+export type UploadedPostMedia = UploadedImage & { kind: "image" | "video" };
+
+/**
+ * Нийтлэлийн файлыг `posts/{uid}/` руу байршуулна. Видео том байж болох тул
+ * resumable-аар илгээж, явцыг `onProgress`-оор (0–1) мэдээлнэ.
+ */
+export async function uploadPostMedia(
+  uid: string,
+  file: File,
+  onProgress?: (fraction: number) => void
+): Promise<UploadedPostMedia> {
+  const kind = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : null;
+
+  if (!kind) throw new Error("Зөвхөн зураг эсвэл видео оруулах боломжтой.");
+  if (kind === "image" && file.size > MAX_POST_IMAGE_BYTES) {
+    throw new Error("Зургийн хэмжээ 10MB-аас хэтэрч болохгүй.");
+  }
+  if (kind === "video" && file.size > MAX_POST_VIDEO_BYTES) {
+    throw new Error("Видеоны хэмжээ 100MB-аас хэтэрч болохгүй.");
+  }
+
+  const fallback = kind === "video" ? "mp4" : "jpg";
+  const match = /\.([a-zA-Z0-9]{1,5})$/.exec(file.name);
+  const path = `posts/${uid}/${crypto.randomUUID()}.${match ? match[1].toLowerCase() : fallback}`;
+
+  const task = uploadBytesResumable(ref(storage, path), file, {
+    contentType: file.type,
+    cacheControl: "public, max-age=31536000",
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    task.on(
+      "state_changed",
+      (snapshot) => onProgress?.(snapshot.totalBytes ? snapshot.bytesTransferred / snapshot.totalBytes : 0),
+      reject,
+      () => resolve()
+    );
+  });
+
+  return { kind, url: await getDownloadURL(task.snapshot.ref), path };
+}
+
+/** Нийтлэлийн файлыг устгана. Байхгүй/эрхгүй бол чимээгүй алгасна. */
+export async function deletePostMedia(path: string): Promise<void> {
+  if (!path) return;
+  try {
+    await deleteObject(ref(storage, path));
+  } catch (error) {
+    console.warn("Нийтлэлийн файлыг устгаж чадсангүй:", error);
   }
 }

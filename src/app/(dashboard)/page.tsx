@@ -1,4 +1,4 @@
-import QuickLinks from "@/components/dashboard/QuickLinks";
+import PostFeed from "@/components/posts/PostFeed";
 import WeeklySchedule from "@/components/dashboard/WeeklySchedule";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 
@@ -9,14 +9,11 @@ export default function Dashboard() {
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
           Нүүр
         </h1>
-        <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          Хэсгүүд рүү шилжих
-        </p>
       </div>
 
       <InstallPrompt />
       <WeeklySchedule />
-      <QuickLinks />
+      <PostFeed />
     </div>
   );
 }

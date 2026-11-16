@@ -63,21 +63,6 @@ export type NavItem = {
 };
 
 /**
- * Аймаг бүрийн "Тахилт" бүлэг цэс. Халамж нь бүх аймагт адилхан (нэг л сан),
- * зөвхөн зам нь тухайн аймгийнх — аймгийн тусгай дэд цэсийг энд нэмнэ.
- */
-function tahiltMenu(aimag: string): NavItem {
-  return {
-    name: "Тахилт",
-    path: `/aimag/${aimag}/tahilt`,
-    icon: HandCoins,
-    children: [
-      { name: "Халамж", path: `/aimag/${aimag}/tahilt/welfare`, icon: HandHeart },
-    ],
-  };
-}
-
-/**
  * Аймаг бүрийн "Илчлэл" цэс — аймгийн цэсийн ХАМГИЙН ЭХЭНД (Төлөвлөгөөний
  * өмнө). Нийтлэл нь аймаг бүрт тусдаа; Facebook-ийн нийтлэл шиг бичнэ.
  */
@@ -138,7 +123,6 @@ export const navItems: NavItem[] = [
       planMenu("guard"),
       { name: "Газрын зураг", path: "/aimag/guard/map", icon: MapPin },
       gospelMenu("guard"),
-      tahiltMenu("guard"),
     ],
   },
   {
@@ -155,7 +139,6 @@ export const navItems: NavItem[] = [
         icon: Boxes,
       },
       gospelMenu("praise"),
-      tahiltMenu("praise"),
     ],
   },
   {
@@ -171,7 +154,6 @@ export const navItems: NavItem[] = [
         path: "/aimag/supply/discipline",
         icon: Scale,
       },
-      tahiltMenu("supply"),
     ],
   },
   {
@@ -188,7 +170,6 @@ export const navItems: NavItem[] = [
         icon: CalendarClock,
       },
       gospelMenu("commission"),
-      tahiltMenu("commission"),
     ],
   },
   {
@@ -204,7 +185,6 @@ export const navItems: NavItem[] = [
         path: "/aimag/service/donations",
         icon: Gift,
       },
-      tahiltMenu("service"),
     ],
   },
   {

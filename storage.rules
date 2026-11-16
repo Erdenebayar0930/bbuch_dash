@@ -179,6 +179,22 @@ service firebase.storage {
       allow delete: if signedIn() && (request.auth.uid == uid || activeAdmin());
     }
 
+    // ------------------------------------------------------------------
+    // Нүүр хуудасны нийтлэлийн зураг/видео — идэвхтэй хэрэглэгч ӨӨРИЙН
+    // хавтас руу бичнэ, нэвтэрсэн хүн уншина. Зураг 10MB, видео 100MB.
+    // Устгах: эзэн нь эсвэл админ (нийтлэл устгах үед).
+    // ------------------------------------------------------------------
+    match /posts/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.auth.uid == uid
+                   && claim('status') == 'active'
+                   && ((isImage() && request.resource.size < 10 * 1024 * 1024)
+                       || (request.resource.contentType.matches('video/.*')
+                           && request.resource.size < 100 * 1024 * 1024));
+      allow delete: if signedIn() && (request.auth.uid == uid || activeAdmin());
+    }
+
     // Бусад бүх зам хаалттай.
     match /{allPaths=**} {
       allow read, write: if false;

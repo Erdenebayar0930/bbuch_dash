@@ -9,6 +9,11 @@ import { listUsers, type AppUser } from "@/lib/users";
 type CampaignApproversModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  /** Өөр зөвшөөрлийн жагсаалтад (жишээ нь нүүр хуудасны нийтлэл) дахин ашиглахад */
+  title?: string;
+  description?: string;
+  load?: () => Promise<string[]>;
+  save?: (uids: string[]) => Promise<string[]>;
 };
 
 const fullName = (user: AppUser) =>
@@ -18,7 +23,14 @@ const fullName = (user: AppUser) =>
  * Хандив зөвшөөрөх эрхтэй хүмүүсийг сонгоно — зөвхөн админ.
  * Хэнийг ч сонгоогүй бол админ зөвшөөрнө.
  */
-export default function CampaignApproversModal({ isOpen, onClose }: CampaignApproversModalProps) {
+export default function CampaignApproversModal({
+  isOpen,
+  onClose,
+  title = "Хандив зөвшөөрөгчид",
+  description = "Сонгосон хүмүүс зарласан хандивыг зөвшөөрөх эсвэл өөрчлүүлэхээр буцаана. Хэнийг ч сонгоогүй бол админ зөвшөөрнө.",
+  load = loadApprovers,
+  save: saveUids = saveApprovers,
+}: CampaignApproversModalProps) {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -31,7 +43,7 @@ export default function CampaignApproversModal({ isOpen, onClose }: CampaignAppr
     setLoading(true);
     setError(null);
     setQuery("");
-    Promise.all([listUsers(), loadApprovers()])
+    Promise.all([listUsers(), load()])
       .then(([rows, uids]) => {
         setUsers(
           rows
@@ -42,7 +54,7 @@ export default function CampaignApproversModal({ isOpen, onClose }: CampaignAppr
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Ачаалахад алдаа гарлаа."))
       .finally(() => setLoading(false));
-  }, [isOpen]);
+  }, [isOpen, load]);
 
   const shown = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -65,7 +77,7 @@ export default function CampaignApproversModal({ isOpen, onClose }: CampaignAppr
     setSaving(true);
     setError(null);
     try {
-      await saveApprovers([...picked]);
+      await saveUids([...picked]);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Хадгалахад алдаа гарлаа.");
@@ -77,11 +89,8 @@ export default function CampaignApproversModal({ isOpen, onClose }: CampaignAppr
   return (
     <Modal isOpen={isOpen} onClose={onClose} className="max-w-md p-0">
       <div className="p-5">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Хандив зөвшөөрөгчид</h3>
-        <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          Сонгосон хүмүүс зарласан хандивыг зөвшөөрөх эсвэл өөрчлүүлэхээр буцаана.
-          Хэнийг ч сонгоогүй бол админ зөвшөөрнө.
-        </p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">{description}</p>
 
         <input
           value={query}
