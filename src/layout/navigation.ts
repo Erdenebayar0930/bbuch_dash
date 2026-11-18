@@ -9,6 +9,7 @@ import {
   CalendarClock,
   ClipboardList,
   DatabaseBackup,
+  Flame,
   Gavel,
   Gift,
   GraduationCap,
@@ -129,6 +130,41 @@ export const navItems: NavItem[] = [
     ],
   },
   {
+    // Эрх олгосон хүнд л — profileOptions.aimags дахь "dut" харьяалалтай гишүүд
+    // (ба админ). API нь ч шалгана (@see data/postOptions.ts RESTRICTED_BOARDS).
+    name: "Д.У.Т",
+    path: "/dut",
+    icon: Flame,
+    aimag: "dut",
+  },
+  {
+    // Аймгуудтай адил үйлчлэлийн нэгж — profileOptions.aimags дахь "tahilt"
+    // харьяалалтай гишүүд (ба админ) харна. Халамж нь аймгуудын Тахилт доорхтой
+    // нэг л сан.
+    name: "Тахилт",
+    path: "/tahilt",
+    icon: HandCoins,
+    aimag: "tahilt",
+    children: [
+      { name: "Илчлэл", path: "/tahilt/revelation", icon: Megaphone },
+      {
+        name: "Тахилт дахь чуулган",
+        path: "/tahilt/church",
+        icon: Church,
+        children: [
+          // Сургаал, Амралтын өдрийн үйлчлэл, Үйл явдал нь хуудас доторх таб
+          { name: "Цуглаан", path: "/tahilt/church/gathering", icon: UsersRound },
+          // Насанд хүрэгсэд, Өсвөр, Хүүхэд нь хуудас доторх таб
+          { name: "Итгэгчид", path: "/tahilt/church/believers", icon: Users },
+        ],
+      },
+      // Бусад аймгийн Төлөвлөгөөнөөс тусдаа — өөрийн хүснэгттэй (tahilt_commands)
+      { name: "Тушаал", path: "/tahilt/commands", icon: ClipboardList },
+      { name: "Халамж", path: "/tahilt/welfare", icon: HandHeart },
+      { name: "Сургалт", path: "/tahilt/training", icon: GraduationCap },
+    ],
+  },
+  {
     name: "Харуулын аймаг",
     path: "/aimag/guard",
     icon: Shield,
@@ -220,33 +256,6 @@ export const navItems: NavItem[] = [
       },
       gospelMenu("service"),
       welfareMenu("service"),
-    ],
-  },
-  {
-    // Аймгуудтай адил үйлчлэлийн нэгж — profileOptions.aimags дахь "tahilt"
-    // харьяалалтай гишүүд (ба админ) харна. Халамж нь аймгуудын Тахилт доорхтой
-    // нэг л сан.
-    name: "Тахилт",
-    path: "/tahilt",
-    icon: HandCoins,
-    aimag: "tahilt",
-    children: [
-      { name: "Илчлэл", path: "/tahilt/revelation", icon: Megaphone },
-      {
-        name: "Тахилт дахь чуулган",
-        path: "/tahilt/church",
-        icon: Church,
-        children: [
-          // Сургаал, Амралтын өдрийн үйлчлэл, Үйл явдал нь хуудас доторх таб
-          { name: "Цуглаан", path: "/tahilt/church/gathering", icon: UsersRound },
-          // Насанд хүрэгсэд, Өсвөр, Хүүхэд нь хуудас доторх таб
-          { name: "Итгэгчид", path: "/tahilt/church/believers", icon: Users },
-        ],
-      },
-      // Бусад аймгийн Төлөвлөгөөнөөс тусдаа — өөрийн хүснэгттэй (tahilt_commands)
-      { name: "Тушаал", path: "/tahilt/commands", icon: ClipboardList },
-      { name: "Халамж", path: "/tahilt/welfare", icon: HandHeart },
-      { name: "Сургалт", path: "/tahilt/training", icon: GraduationCap },
     ],
   },
   { name: "Мэдэгдэл илгээх", path: "/admin/notifications", icon: Bell, notifierOnly: true },

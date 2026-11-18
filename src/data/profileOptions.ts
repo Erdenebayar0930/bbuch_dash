@@ -67,14 +67,18 @@ export const aimags: Option[] = [
   { value: "commission", label: "Агуу захирамжийн аймаг" },
   { value: "service", label: "Туслах үйлчлэх аймаг" },
   { value: "tahilt", label: "Тахилт" },
+  // Д.У.Т — Тахилттай адил: админ хэрэглэгчид энэ харьяаллыг олгосноор цэс нээгдэнэ
+  { value: "dut", label: "Д.У.Т" },
 ];
 
 /**
  * Халамжийн хэсгийг үзэх эрхтэй аймгууд. Халамж нь нэг л сан боловч цэс нь
  * аймаг бүрийн Тахилт доор байдаг (/aimag/<aimag>/tahilt/welfare) — тиймээс
- * аль ч аймгийн гишүүн үзнэ. Бичих эрх нь админд хэвээр.
+ * аль ч аймгийн гишүүн үзнэ. Бичих эрх нь админд хэвээр. Д.У.Т-д Халамж байхгүй.
  */
-export const welfareAimags: readonly string[] = aimags.map((item) => item.value);
+export const welfareAimags: readonly string[] = aimags
+  .map((item) => item.value)
+  .filter((value) => value !== "dut");
 
 /** Сонголтын утга зөв эсэхийг шалгана — сервер тал ашиглана */
 export const isValidOption = (options: Option[], value: string) =>

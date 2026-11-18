@@ -1,8 +1,8 @@
 import { and, desc, eq, lt, ne, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { badRequest, isAdminRole, requireActiveUser, serverError } from "@/lib/api/auth";
-import { isPostBoard, type PostBoard } from "@/data/postOptions";
+import { badRequest, isAdminRole, requireActiveUser, requireAimag, serverError } from "@/lib/api/auth";
+import { RESTRICTED_BOARDS, isPostBoard, type PostBoard } from "@/data/postOptions";
 import { periodDate, postColumns, readPost, readPostRow } from "@/lib/api/postInput";
 import { canApprovePosts, notifyPostApprovers, readPostApprovers } from "@/lib/api/postReview";
 import { db } from "@/lib/db";
@@ -25,6 +25,13 @@ const readBoard = (request: NextRequest): PostBoard | null => {
   return isPostBoard(raw) ? raw : null;
 };
 
+/** Хязгаартай самбар (Д.У.Т) бол харьяалал шалгана, бусад нь идэвхтэй хэрэглэгч бүр */
+const requireBoardAccess = (request: NextRequest) => {
+  const raw = request.nextUrl.searchParams.get("board") || "home";
+  const aimag = isPostBoard(raw) ? RESTRICTED_BOARDS[raw] : undefined;
+  return aimag ? requireAimag(request, aimag) : requireActiveUser(request);
+};
+
 /**
  * Нүүр хуудасны (эсвэл `?board=`-ын) нийтлэлүүд — шинээс хуучин руу. Идэвхтэй хэрэглэгч бүр.
  *
@@ -33,7 +40,7 @@ const readBoard = (request: NextRequest): PostBoard | null => {
  * бүгд, бусдад зөвхөн өөрийнх. Эхний хуудсанд л буцна.
  */
 export async function GET(request: NextRequest) {
-  const result = await requireActiveUser(request);
+  const result = await requireBoardAccess(request);
   if ("error" in result) return result.error;
 
   const { caller } = result;
@@ -97,7 +104,7 @@ export async function GET(request: NextRequest) {
 
 /** Шинэ нийтлэл — идэвхтэй хэрэглэгч бүр. Зөвшөөрөгч бол шууд нийтлэгдэнэ. */
 export async function POST(request: NextRequest) {
-  const result = await requireActiveUser(request);
+  const result = await requireBoardAccess(request);
   if ("error" in result) return result.error;
 
   const { caller } = result;

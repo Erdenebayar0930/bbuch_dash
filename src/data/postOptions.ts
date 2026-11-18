@@ -128,6 +128,7 @@ export const POST_BOARDS = {
   "service-services": { url: "/aimag/service/services", label: "Туслах үйлчлэлүүд" },
   "service-projects": { url: "/aimag/service/projects", label: "Төслүүд" },
   "service-media": { url: "/aimag/service/media", label: "Медиа" },
+  dut: { url: "/dut", label: "Д.У.Т" },
   "supply-kingdom": { url: "/aimag/supply/kingdom", label: "Хаанчлалын хангамж" },
   donation: { url: "/finance/donations", label: "Хандивын талаар" },
   alms: { url: "/finance/alms", label: "Өглөгийн талаар" },
@@ -136,5 +137,11 @@ export const POST_BOARDS = {
 
 export type PostBoard = keyof typeof POST_BOARDS;
 
-export const isPostBoard = (value: unknown): value is PostBoard =>
+/**
+ * Эрх олгосон хүнд л нээгдэх самбар → шаардах аймгийн түлхүүр
+ * (profileOptions.aimags). API нь `requireAimag`-аар шалгана; админ бүгдийг.
+ */
+export const RESTRICTED_BOARDS: Partial<Record<PostBoard, string>> = { dut: "dut" };
+
+export const isPostBoard =(value: unknown): value is PostBoard =>
   typeof value === "string" && Object.prototype.hasOwnProperty.call(POST_BOARDS, value);
