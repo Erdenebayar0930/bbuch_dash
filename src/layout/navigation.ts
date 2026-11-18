@@ -112,24 +112,6 @@ function welfareMenu(aimag: string): NavItem {
 export const navItems: NavItem[] = [
   { name: "Нүүр", path: "/", icon: LayoutGrid },
   {
-    // Аймгуудын дээр. «1/10 ба өргөл» нь бүгдэд — гишүүд өргөх данс, гүйлгээний
-    // утгаа эндээс хуулна (хуулга уншдаг таб нь хуудас дотроо зөвхөн админд).
-    // Хангамж, Хандив, Өглөг бүгдэд.
-    name: "Санхүү",
-    path: "/finance",
-    icon: Wallet,
-    children: [
-      { name: "1/10 ба өргөл", path: "/finance/allocation", icon: Coins },
-      { name: "Газрын 1/10", path: "/finance/land-tithe", icon: Wheat },
-      // Цэс нь бүгдэд. Хуудас доторх табууд (@see SupplyTabs): Хангамжийн талаар —
-      // бүгдэд, Чуулганы хангамж/төсөв — аймгийн гишүүдэд (админ бүгдийг).
-      // Сахилгажуулалт нь Хангамжийн аймаг → Сахилгажуулалтын төлбөр рүү шилжсэн.
-      { name: "Хангамж", path: "/finance/supply", icon: Package },
-      { name: "Хандив", path: "/finance/donations", icon: Gift },
-      { name: "Өглөг", path: "/finance/alms", icon: HandHeart },
-    ],
-  },
-  {
     // Эрх олгосон хүнд л — profileOptions.aimags дахь "dut" харьяалалтай гишүүд
     // (ба админ). API нь ч шалгана (@see data/postOptions.ts RESTRICTED_BOARDS).
     name: "Д.У.Т",
@@ -162,6 +144,24 @@ export const navItems: NavItem[] = [
       { name: "Тушаал", path: "/tahilt/commands", icon: ClipboardList },
       { name: "Халамж", path: "/tahilt/welfare", icon: HandHeart },
       { name: "Сургалт", path: "/tahilt/training", icon: GraduationCap },
+    ],
+  },
+  {
+    // Аймгуудын дээр. «1/10 ба өргөл» нь бүгдэд — гишүүд өргөх данс, гүйлгээний
+    // утгаа эндээс хуулна (хуулга уншдаг таб нь хуудас дотроо зөвхөн админд).
+    // Хангамж, Хандив, Өглөг бүгдэд.
+    name: "Санхүү",
+    path: "/finance",
+    icon: Wallet,
+    children: [
+      { name: "1/10 ба өргөл", path: "/finance/allocation", icon: Coins },
+      { name: "Газрын 1/10", path: "/finance/land-tithe", icon: Wheat },
+      // Цэс нь бүгдэд. Хуудас доторх табууд (@see SupplyTabs): Хангамжийн талаар —
+      // бүгдэд, Чуулганы хангамж/төсөв — аймгийн гишүүдэд (админ бүгдийг).
+      // Сахилгажуулалт нь Хангамжийн аймаг → Сахилгажуулалтын төлбөр рүү шилжсэн.
+      { name: "Хангамж", path: "/finance/supply", icon: Package },
+      { name: "Хандив", path: "/finance/donations", icon: Gift },
+      { name: "Өглөг", path: "/finance/alms", icon: HandHeart },
     ],
   },
   {
