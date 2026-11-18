@@ -20,7 +20,7 @@ type RevelationCardProps = {
 const COLLAPSE_AT = 600;
 
 /**
- * Илчлэл нь өөрөө гол — нийтэлсэн хүн харагдахгүй. Бичвэр голлон томоор,
+ * Илчлэл нь өөрөө гол — нийтэлсэн хүн харагдахгүй. Бичвэр зүүн тийш шахсан, томоор,
  * зураг нь доор, хамгийн доор жижгээр огноо ба илчлэл авсан хүн
  * («2026 оны 11-р сарын 16 · Г.Мөнгөнцэцэг»). Огноо нь илчлэл ирсэн өдөр
  * (`revealedOn`) — нийтэлсэн цаг биш, нөхөж оруулж болно.
@@ -102,7 +102,7 @@ export default function RevelationCard({
       </header>
 
       {body && (
-        <div className={`px-5 text-center sm:px-10 ${canEdit || canDelete ? "pt-1" : "pt-6"}`}>
+        <div className={`px-5 text-left sm:px-6 ${canEdit || canDelete ? "pt-1" : "pt-5"}`}>
           <p
             className={`whitespace-pre-line break-words leading-relaxed text-gray-900 dark:text-white/90 ${revelationFontClass(fontSize)}`}
           >
@@ -124,7 +124,7 @@ export default function RevelationCard({
         <ImageGrid images={images.map((image) => image.url)} onOpen={onOpenImage} />
       )}
 
-      <footer className="px-5 pb-4 pt-4 text-center text-theme-xs text-gray-400 dark:text-gray-500">
+      <footer className="px-5 pb-4 pt-4 text-left sm:px-6 text-theme-xs text-gray-400 dark:text-gray-500">
         {formatRevelationDate(revelation.revealedOn)}
         {" · "}
         {revelation.receivedBy}

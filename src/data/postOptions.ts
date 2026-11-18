@@ -127,6 +127,7 @@ export const POST_BOARDS = {
   "commission-aah": { url: "/aimag/commission/aah", label: "ААХ-ийн үйлчлэл" },
   "service-services": { url: "/aimag/service/services", label: "Туслах үйлчлэлүүд" },
   "service-projects": { url: "/aimag/service/projects", label: "Төслүүд" },
+  "service-media": { url: "/aimag/service/media", label: "Медиа" },
   "supply-kingdom": { url: "/aimag/supply/kingdom", label: "Хаанчлалын хангамж" },
   donation: { url: "/finance/donations", label: "Хандивын талаар" },
   alms: { url: "/finance/alms", label: "Өглөгийн талаар" },

@@ -4,6 +4,7 @@ import {
   BookOpen,
   Boxes,
   Church,
+  Clapperboard,
   Coins,
   CalendarClock,
   ClipboardList,
@@ -205,12 +206,13 @@ export const navItems: NavItem[] = [
     path: "/aimag/service",
     icon: HeartHandshake,
     aimag: "service",
-    // Илчлэл, Тушаал, Туслах үйлчлэлүүд, Төслүүд (нийтлэлийн самбар), Сайн мэдээ
+    // Илчлэл, Тушаал, Туслах үйлчлэлүүд, Төслүүд, Медиа (нийтлэлийн самбар), Сайн мэдээ
     children: [
       revelationMenu("service"),
       { ...planMenu("service"), name: "Тушаал" },
       { name: "Туслах үйлчлэлүүд", path: "/aimag/service/services", icon: Handshake },
       { name: "Төслүүд", path: "/aimag/service/projects", icon: FolderKanban },
+      { name: "Медиа", path: "/aimag/service/media", icon: Clapperboard },
       {
         name: "Хандивын хайрцаг",
         path: "/aimag/service/donations",
