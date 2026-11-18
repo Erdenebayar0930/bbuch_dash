@@ -16,8 +16,6 @@ type RevelationCardProps = {
   onOpenImage: (src: string) => void;
 };
 
-/** Үүнээс урт бичвэрийг эхлээд хураангуйлж «Цааш унших» гаргана */
-const COLLAPSE_AT = 600;
 
 /**
  * Илчлэл нь өөрөө гол — нийтэлсэн хүн харагдахгүй. Бичвэр зүүн тийш шахсан, томоор,
@@ -49,8 +47,20 @@ export default function RevelationCard({
   }, [menuOpen]);
 
   const { body, images } = revelation;
-  const long = body.length > COLLAPSE_AT;
-  const shownBody = long && !expanded ? `${body.slice(0, COLLAPSE_AT).trimEnd()}…` : body;
+
+  // Хураасан үедээ 4 мөрөөс давж байгаа эсэх — давбал «Дэлгэрэнгүй» гаргана.
+  // Өргөн, үсгийн хэмжээ өөрчлөгдөхөд дахин хэмжинэ.
+  const bodyRef = useRef<HTMLParagraphElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  useEffect(() => {
+    const element = bodyRef.current;
+    if (!element || expanded) return;
+    const measure = () => setOverflows(element.scrollHeight > element.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [body, fontSize, expanded]);
 
   return (
     <article className="surface overflow-hidden">
@@ -104,17 +114,19 @@ export default function RevelationCard({
       {body && (
         <div className={`px-5 text-left sm:px-6 ${canEdit || canDelete ? "pt-1" : "pt-5"}`}>
           <p
-            className={`whitespace-pre-line break-words leading-relaxed text-gray-900 dark:text-white/90 ${revelationFontClass(fontSize)}`}
+            ref={bodyRef}
+            className={`whitespace-pre-line break-words leading-relaxed text-gray-900 dark:text-white/90 ${revelationFontClass(fontSize)} ${expanded ? "" : "line-clamp-4"}`}
           >
-            {shownBody}
+            {body}
           </p>
-          {long && (
+          {(overflows || expanded) && (
             <button
               type="button"
               onClick={() => setExpanded((open) => !open)}
-              className="mt-2 text-theme-sm font-medium text-gray-500 hover:underline dark:text-gray-400"
+              aria-expanded={expanded}
+              className="mt-1 text-[14px] font-semibold text-accent-600 hover:underline dark:text-accent-400"
             >
-              {expanded ? "Хураах" : "Цааш унших"}
+              {expanded ? "Хураах" : "Дэлгэрэнгүй"}
             </button>
           )}
         </div>
