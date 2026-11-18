@@ -459,11 +459,13 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
                         <p className="min-w-0 flex-1 text-theme-sm font-medium text-gray-900 dark:text-white">
                           {task.title}
                         </p>
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-theme-xs font-medium ${priorityStyles[task.priority]}`}
-                        >
-                          {taskPriorityLabels[task.priority]}
-                        </span>
+                        {isTahiltBoard && (
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-theme-xs font-medium ${priorityStyles[task.priority]}`}
+                          >
+                            {taskPriorityLabels[task.priority]}
+                          </span>
+                        )}
                       </div>
 
                       {(() => {
@@ -491,7 +493,7 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
                       )}
 
                       <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                        {task.assignedTo ? (
+                        {!isTahiltBoard ? null : task.assignedTo ? (
                           <span className="flex items-center gap-1.5 text-theme-xs text-gray-600 dark:text-gray-400">
                             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-100 text-[10px] font-semibold text-accent-700 dark:bg-accent-500/20 dark:text-accent-300">
                               {initialsOf(task.assigneeName)}

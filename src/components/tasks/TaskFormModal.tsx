@@ -104,6 +104,8 @@ export default function TaskFormModal({
 }: TaskFormModalProps) {
   /** Тахилтын самбарт аймаг сонгохгүй — бүх даалгавар Тахилтынх */
   const hideAimags = board === "tahilt";
+  /** Аймгийн «Төлөвлөгөө» — хариуцагч, хамтрагч, ач холбогдолгүй энгийн хэлбэр */
+  const isPlan = board !== "tahilt";
   const [form, setForm] = useState<TaskInput>(
     emptyInput(defaultProjectId, defaultAimags)
   );
@@ -140,7 +142,7 @@ export default function TaskFormModal({
   // Хариуцагч/хамтрагч болох хүмүүс — сонгосон аймгуудын гишүүд
   const aimagsKey = form.aimags.join(",");
   useEffect(() => {
-    if (!isOpen || !canEdit) return;
+    if (!isOpen || !canEdit || isPlan) return;
     // Аймаггүй бол бүх хүн — зөвхөн Харуул/админд нээлттэй
     if (!aimagsKey && !canManage) return;
 
@@ -154,7 +156,7 @@ export default function TaskFormModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, canEdit, canManage, aimagsKey]);
+  }, [isOpen, canEdit, canManage, aimagsKey, isPlan]);
 
   const update = <K extends keyof TaskInput>(key: K, value: TaskInput[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -263,9 +265,9 @@ export default function TaskFormModal({
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
           {task
             ? canEdit
-              ? "Даалгавар засах"
-              : "Даалгавар"
-            : "Ажлын даалгавар үүсгэх"}
+              ? isPlan ? "Төлөвлөгөө засах" : "Даалгавар засах"
+              : isPlan ? "Төлөвлөгөө" : "Даалгавар"
+            : isPlan ? "Төлөвлөгөө үүсгэх" : "Ажлын даалгавар үүсгэх"}
         </h3>
 
         {selectedProject?.parentId && (
@@ -348,7 +350,7 @@ export default function TaskFormModal({
 
           <div>
             <label htmlFor="task-title" className={labelClass}>
-              Даалгаврын нэр <span className="text-error-500">*</span>
+              {isPlan ? "Төлөвлөгөөний нэр" : "Даалгаврын нэр"} <span className="text-error-500">*</span>
             </label>
             <input
               id="task-title"
@@ -377,6 +379,8 @@ export default function TaskFormModal({
             />
           </div>
 
+          {!isPlan && (
+          <>
           <div>
             <label htmlFor="task-assignee" className={labelClass}>
               Ерөнхий хариуцагч
@@ -468,8 +472,10 @@ export default function TaskFormModal({
               </div>
             )}
           </div>
+          </>
+          )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className={isPlan ? "grid gap-4" : "grid gap-4 sm:grid-cols-2"}>
             <div>
               <label htmlFor="task-status" className={labelClass}>
                 Төлөв
@@ -491,6 +497,7 @@ export default function TaskFormModal({
               </select>
             </div>
 
+            {!isPlan && (
             <div>
               <label htmlFor="task-priority" className={labelClass}>
                 Ач холбогдол
@@ -511,6 +518,7 @@ export default function TaskFormModal({
                 ))}
               </select>
             </div>
+            )}
           </div>
 
           <div>
