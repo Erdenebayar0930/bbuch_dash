@@ -185,6 +185,11 @@ export const MAX_WELFARE_PHOTO_BYTES = 10 * 1024 * 1024;
 /** Нэг удаагийн халамжид оруулах зургийн дээд тоо */
 export const MAX_WELFARE_PHOTOS = 3;
 
+export async function uploadWelfareHouseholdPhoto(file: File): Promise<UploadedImage> {
+  requireImage(file, MAX_WELFARE_PHOTO_BYTES);
+  return uploadToServer("welfare_households", file);
+}
+
 export async function uploadWelfarePhoto(householdId: string, file: File): Promise<UploadedImage> {
   requireImage(file, MAX_WELFARE_PHOTO_BYTES);
   return uploadToServer("welfare_aids", file, { key: householdId });

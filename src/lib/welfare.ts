@@ -30,6 +30,8 @@ export type WelfareHousehold = {
   lng: number;
   /** false бол жагсаалтаас түр гарсан — зураг дээр бүдэг харагдана */
   active: boolean;
+  /** Өрхийн зургууд, ихдээ 3 */
+  photos: WelfarePhoto[];
   /** null бол хараахан халамж үзүүлээгүй */
   lastAid: LastAid | null;
   /** Бүх тусламжид зарцуулсан нийт дүн, ₮ */
@@ -39,7 +41,8 @@ export type WelfareHousehold = {
   createdAt: Date;
 };
 
-type HouseholdRow = Omit<WelfareHousehold, "createdAt" | "lastAid"> & {
+type HouseholdRow = Omit<WelfareHousehold, "createdAt" | "lastAid" | "photos"> & {
+  photos: WelfarePhoto[] | null;
   createdAt: string;
   lastAid?: {
     description: string;
@@ -58,6 +61,7 @@ const toHousehold = (row: HouseholdRow): WelfareHousehold => ({
   lastAid: row.lastAid
     ? { ...row.lastAid, providedAt: new Date(row.lastAid.providedAt) }
     : null,
+  photos: Array.isArray(row.photos) ? row.photos : [],
   createdAt: new Date(row.createdAt),
 });
 
@@ -77,6 +81,7 @@ export type HouseholdInput = {
   lat: number;
   lng: number;
   active: boolean;
+  photos: WelfarePhoto[];
 };
 
 /** Шинэ өрх бүртгэнэ (зөвхөн админ). */

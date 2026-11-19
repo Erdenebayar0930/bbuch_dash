@@ -1,10 +1,18 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Crosshair, Loader2 } from "lucide-react";
+import { Crosshair, ImagePlus, Loader2, X } from "lucide-react";
 
+import { useUser } from "@/app/(auth)/UserProvider";
+import ImageViewer from "@/components/common/ImageViewer";
 import { Modal } from "@/components/ui/modal";
 import { getCurrentCoords } from "@/lib/geolocation";
+import { isAdminRole } from "@/lib/permissions";
+import {
+  MAX_WELFARE_PHOTOS,
+  MAX_WELFARE_PHOTO_BYTES,
+  uploadWelfareHouseholdPhoto,
+} from "@/lib/storage";
 import {
   createHousehold,
   updateHousehold,
@@ -24,6 +32,9 @@ type WelfareHouseholdModalProps = {
   board?: WelfareBoard;
 };
 
+/** Сонгосон боловч хараахан байршуулаагүй зураг */
+type PendingPhoto = { file: File; preview: string };
+
 const fieldClass =
   "h-11 w-full rounded-lg border border-gray-200 bg-white px-3.5 text-theme-sm text-gray-800 transition-colors placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30";
 
@@ -38,6 +49,7 @@ const emptyInput: HouseholdInput = {
   lat: 0,
   lng: 0,
   active: true,
+  photos: [],
 };
 
 export default function WelfareHouseholdModal({
@@ -48,7 +60,15 @@ export default function WelfareHouseholdModal({
   onSaved,
   board = "main",
 }: WelfareHouseholdModalProps) {
+  const { user } = useUser();
+  /** Хадгалсан зургийг зөвхөн админ хасна */
+  const canRemoveSaved = isAdminRole(user?.role);
+
   const [form, setForm] = useState<HouseholdInput>(emptyInput);
+  /** Хадгалахаас өмнө сонгосон шинэ зургууд — илгээх үед л байршуулна */
+  const [pending, setPending] = useState<PendingPhoto[]>([]);
+  /** Томруулж харах зураг */
+  const [viewer, setViewer] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
@@ -67,9 +87,11 @@ export default function WelfareHouseholdModal({
             lat: household.lat,
             lng: household.lng,
             active: household.active,
+            photos: household.photos,
           }
         : { ...emptyInput, lat: picked?.lat ?? 0, lng: picked?.lng ?? 0 }
     );
+    setPending([]);
     setError(null);
     setAccuracy(null);
   }, [household, picked, isOpen]);
@@ -100,17 +122,73 @@ export default function WelfareHouseholdModal({
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const photoCount = form.photos.length + pending.length;
+
+  const handlePick = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    // Ижил файлыг дахин сонгож болохоор утгыг цэвэрлэнэ
+    event.target.value = "";
+    setError(null);
+
+    const images = files.filter((file) => file.type.startsWith("image/"));
+    if (images.length < files.length) {
+      setError("Зөвхөн зураг оруулах боломжтой.");
+    }
+
+    if (images.some((file) => file.size > MAX_WELFARE_PHOTO_BYTES)) {
+      setError("Зургийн хэмжээ 10MB-аас хэтэрч болохгүй.");
+      return;
+    }
+
+    const room = MAX_WELFARE_PHOTOS - photoCount;
+    if (images.length > room) {
+      setError(`Нэг өрхөд ${MAX_WELFARE_PHOTOS} хүртэл зураг оруулна.`);
+    }
+
+    setPending((current) => [
+      ...current,
+      ...images.slice(0, Math.max(0, room)).map((file) => ({
+        file,
+        preview: URL.createObjectURL(file),
+      })),
+    ]);
+  };
+
+  const removePending = (index: number) => {
+    setPending((current) => {
+      URL.revokeObjectURL(current[index].preview);
+      return current.filter((_, i) => i !== index);
+    });
+  };
+
+  /** Хадгалсан зургийг хасна — зөвхөн админд товч гарна */
+  const removeSaved = (path: string) => {
+    setForm((prev) => ({
+      ...prev,
+      photos: prev.photos.filter((photo) => photo.path !== path),
+    }));
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setError(null);
 
     try {
+      const uploaded = await Promise.all(
+        pending.map((photo) => uploadWelfareHouseholdPhoto(photo.file))
+      );
+      const input = { ...form, photos: [...form.photos, ...uploaded] };
+
       if (household) {
-        await updateHousehold(household.id, form, board);
+        await updateHousehold(household.id, input, board);
       } else {
-        await createHousehold(form, board);
+        await createHousehold(input, board);
       }
+      setPending((current) => {
+        current.forEach((photo) => URL.revokeObjectURL(photo.preview));
+        return [];
+      });
       onSaved();
       onClose();
     } catch (err) {
@@ -190,6 +268,85 @@ export default function WelfareHouseholdModal({
               placeholder="Гэр бүлийн нөхцөл байдал, онцгой анхаарах зүйл"
               className={`${fieldClass} h-auto py-2.5`}
             />
+          </div>
+
+          <div>
+            <p className={labelClass}>
+              Зураг{" "}
+              <span className="text-gray-400">
+                (заавал биш, {MAX_WELFARE_PHOTOS} хүртэл)
+              </span>
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {form.photos.map((photo) => (
+                <div
+                  key={photo.path}
+                  className="relative h-20 w-20 overflow-hidden rounded-lg border border-gray-200 dark:border-white/10"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo.url}
+                    alt=""
+                    className="h-full w-full cursor-zoom-in object-cover"
+                    onClick={() => setViewer(photo.url)}
+                  />
+                  {canRemoveSaved && (
+                    <button
+                      type="button"
+                      onClick={() => removeSaved(photo.path)}
+                      aria-label="Зургийг устгах"
+                      className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              {pending.map((photo, index) => (
+                <div
+                  key={photo.preview}
+                  className="relative h-20 w-20 overflow-hidden rounded-lg border border-accent-300 dark:border-accent-500/40"
+                >
+                  {/* blob: хаяг тул next/image биш */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo.preview}
+                    alt=""
+                    className="h-full w-full cursor-zoom-in object-cover"
+                    onClick={() => setViewer(photo.preview)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePending(index)}
+                    aria-label="Зургийг хасах"
+                    className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+
+              {photoCount < MAX_WELFARE_PHOTOS && (
+                <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-gray-300 text-theme-xs text-gray-500 transition-colors hover:border-accent-400 hover:text-accent-600 dark:border-white/15 dark:text-gray-400">
+                  <ImagePlus className="h-5 w-5" strokeWidth={1.8} />
+                  Нэмэх
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePick}
+                    className="sr-only"
+                  />
+                </label>
+              )}
+            </div>
+            {!canRemoveSaved && (
+              <p className="mt-1.5 text-theme-xs text-gray-400">
+                Хадгалсан зургийг устгах боломжгүй.
+              </p>
+            )}
           </div>
 
           {/* Координат — газрын зургаас сонгоно, GPS-ээр авна, эсвэл гараар */}
@@ -287,6 +444,8 @@ export default function WelfareHouseholdModal({
           </button>
         </div>
       </form>
+
+      <ImageViewer src={viewer} onClose={() => setViewer(null)} />
     </Modal>
   );
 }

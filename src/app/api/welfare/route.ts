@@ -122,7 +122,8 @@ export async function POST(request: NextRequest) {
   try {
     const parsed = readWelfareHousehold(
       await request.json().catch(() => ({})),
-      false
+      false,
+      { uploaderUid: result.caller.uid, existing: [], canRemove: true }
     );
     if (!parsed.ok) return badRequest(parsed.error);
 

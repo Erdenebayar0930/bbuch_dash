@@ -4,9 +4,11 @@ import { NextResponse } from "next/server";
 import {
   badRequest,
   requireAdmin,
+  isAdminRole,
   requireAimag,
   serverError,
 } from "@/lib/api/auth";
+import { removeStored } from "@/lib/api/fileStore";
 import { welfareAimags } from "@/data/profileOptions";
 import { readWelfareHousehold } from "@/lib/api/welfareInput";
 import { boardOf, welfareTables } from "@/lib/api/dataBoard";
@@ -35,9 +37,22 @@ export async function PATCH(
   const { id } = await context.params;
 
   try {
+    const [current] = await db
+      .select({ photos: welfareHouseholds.photos })
+      .from(welfareHouseholds)
+      .where(eq(welfareHouseholds.id, id))
+      .limit(1);
+    if (!current) return notFound();
+
+    const existing = current.photos ?? [];
     const parsed = readWelfareHousehold(
       await request.json().catch(() => ({})),
-      true
+      true,
+      {
+        uploaderUid: result.caller.uid,
+        existing,
+        canRemove: isAdminRole(result.caller.user?.role),
+      }
     );
     if (!parsed.ok) return badRequest(parsed.error);
 
@@ -58,6 +73,14 @@ export async function PATCH(
       .limit(1);
 
     if (!updated) return notFound();
+
+    // Админ хассан зургийн файлыг цэвэрлэнэ — алдаа нь хадгалалтыг саатуулахгүй
+    if (parsed.value.photos) {
+      const next = new Set(parsed.value.photos.map((photo) => photo.path));
+      for (const photo of existing) {
+        if (!next.has(photo.path)) await removeStored(photo.path).catch(() => {});
+      }
+    }
 
     return NextResponse.json({ household: updated });
   } catch (error) {

@@ -1,10 +1,16 @@
 import "server-only";
 
+import { isStoredFileUrl } from "@/lib/storageUrl";
+
+import type { VisitPhoto } from "@/lib/db/schema";
+
 const MAX_NAME = 120;
 const MAX_PHONE = 40;
 const MAX_NOTE = 500;
 /** Нэг өрхийн гишүүдийн боломжит дээд тоо */
 const MAX_FAMILY = 50;
+/** Нэг өрхөд оруулах зургийн дээд тоо */
+export const MAX_HOUSEHOLD_PHOTOS = 3;
 
 export type WelfarePatch = {
   name?: string;
@@ -14,6 +20,17 @@ export type WelfarePatch = {
   lat?: number;
   lng?: number;
   active?: boolean;
+  photos?: VisitPhoto[];
+};
+
+/** Зургийн шалгалтад хэрэгтэй контекст */
+export type PhotoRules = {
+  /** Шинэ зураг нь `welfare_households/<uid>/` дотор байх ёстой */
+  uploaderUid: string;
+  /** Өрхийн одоогийн зургууд (шинэ өрхөд хоосон) */
+  existing: readonly VisitPhoto[];
+  /** Админ л хадгалсан зургийг хасна */
+  canRemove: boolean;
 };
 
 export type ParsedWelfare =
@@ -30,7 +47,8 @@ const invalid = (error: string): ParsedWelfare => ({ ok: false, error });
  */
 export function readWelfareHousehold(
   body: unknown,
-  partial: boolean
+  partial: boolean,
+  rules?: PhotoRules
 ): ParsedWelfare {
   if (typeof body !== "object" || body === null) {
     return invalid("Өгөгдөл буруу байна.");
@@ -109,6 +127,40 @@ export function readWelfareHousehold(
       return invalid("active нь true/false байх ёстой.");
     }
     patch.active = input.active;
+  }
+
+  if (input.photos !== undefined && rules) {
+    if (!Array.isArray(input.photos) || input.photos.length > MAX_HOUSEHOLD_PHOTOS) {
+      return invalid(`Хамгийн ихдээ ${MAX_HOUSEHOLD_PHOTOS} зураг оруулна.`);
+    }
+
+    const own = `welfare_households/${rules.uploaderUid}/`;
+    const kept = new Set(rules.existing.map((photo) => photo.path));
+    const photos: VisitPhoto[] = [];
+
+    for (const item of input.photos) {
+      const { url, path } = (item ?? {}) as Record<string, unknown>;
+      if (
+        typeof url !== "string" ||
+        typeof path !== "string" ||
+        !isStoredFileUrl(url) ||
+        path.includes("..") ||
+        !(path.startsWith(own) || kept.has(path))
+      ) {
+        return invalid("Зургийн мэдээлэл буруу байна.");
+      }
+      photos.push({ url, path });
+    }
+
+    // Хадгалсан зургийг зөвхөн админ хасна
+    if (!rules.canRemove) {
+      const next = new Set(photos.map((photo) => photo.path));
+      if (rules.existing.some((photo) => !next.has(photo.path))) {
+        return invalid("Хадгалсан зургийг устгах эрхгүй байна.");
+      }
+    }
+
+    patch.photos = photos;
   }
 
   return { ok: true, value: patch };

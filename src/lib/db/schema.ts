@@ -1031,6 +1031,11 @@ const welfareHouseholdFields = () => ({
   lat: doublePrecision("lat").notNull(),
   lng: doublePrecision("lng").notNull(),
   active: boolean("active").notNull().default(true),
+  /**
+   * Өрхийн зургууд (`welfare_households/<uid>/`), ихдээ 3. Нэгэнт хадгалсныг
+   * зөвхөн админ хасна — бусад нь зөвхөн нэмнэ.
+   */
+  photos: jsonCol<VisitPhoto[]>("photos"),
   createdBy: uidCol("created_by"),
   createdAt: utcTimestamp("created_at").notNull().defaultNow(),
   updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
