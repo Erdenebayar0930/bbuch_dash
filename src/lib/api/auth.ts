@@ -6,7 +6,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { devices, users } from "@/lib/db/schema";
 import { adminAuth } from "@/lib/firebaseAdmin";
-import { asRole, canSendNotifications, isAdminRole, isSuperRole } from "@/lib/permissions";
+import {
+  asRole,
+  canManageWelfare,
+  canSendNotifications,
+  isAdminRole,
+  isSuperRole,
+} from "@/lib/permissions";
 import { backfillClaimsIfStale } from "./claims";
 
 import type { NextRequest } from "next/server";
@@ -287,6 +293,26 @@ export async function requireNotifier(request: NextRequest) {
 
   if (!canSendNotifications(result.caller.user?.role, result.caller.user?.canNotify)) {
     return { error: forbidden("Мэдэгдэл илгээх эрхгүй байна.") } as const;
+  }
+
+  return result;
+}
+
+/**
+ * Халамж бүртгэх эрхийг шаардана — админ/супер, эсвэл админаас `canWelfare`
+ * эрх авсан, тухайн хэсгийг үзэх аймгийн гишүүн.
+ */
+export async function requireWelfareManager(
+  request: NextRequest,
+  /** Халамжийн хэсэг харагдах аймгууд — гишүүн биш бол бичих ч эрхгүй */
+  aimag: string | readonly string[]
+) {
+  const result = await requireAimag(request, aimag);
+
+  if ("error" in result) return result;
+
+  if (!canManageWelfare(result.caller.user?.role, result.caller.user?.canWelfare)) {
+    return { error: forbidden("Халамж бүртгэх эрхгүй байна.") } as const;
   }
 
   return result;

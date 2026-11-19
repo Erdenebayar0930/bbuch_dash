@@ -4,8 +4,10 @@ import { NextResponse } from "next/server";
 import {
   badRequest,
   requireAdmin,
+  requireWelfareManager,
   serverError,
 } from "@/lib/api/auth";
+import { welfareAimags } from "@/data/profileOptions";
 import { readWelfareHousehold } from "@/lib/api/welfareInput";
 import { boardOf, welfareTables } from "@/lib/api/dataBoard";
 import { db } from "@/lib/db";
@@ -17,14 +19,17 @@ export const dynamic = "force-dynamic";
 
 const notFound = () => NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
 
-/** Өрхийн мэдээллийг засна (зөвхөн админ). */
+/** Өрхийн мэдээллийг засна (админ ба Халамж бүртгэх эрхтэй хэрэглэгч). */
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const board = boardOf(request);
   const { households: welfareHouseholds } = welfareTables(board);
-  const result = await requireAdmin(request);
+  const result = await requireWelfareManager(
+    request,
+    board === "tahilt" ? "tahilt" : welfareAimags
+  );
   if ("error" in result) return result.error;
 
   const { id } = await context.params;

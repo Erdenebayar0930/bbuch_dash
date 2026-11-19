@@ -5,7 +5,7 @@ import { welfareAimags } from "@/data/profileOptions";
 
 import {
   badRequest,
-  requireAdmin,
+  requireWelfareManager,
   requireAimag,
   serverError,
 } from "@/lib/api/auth";
@@ -113,11 +113,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** Шинэ өрх бүртгэнэ (зөвхөн админ). */
+/** Шинэ өрх бүртгэнэ (админ ба Халамж бүртгэх эрхтэй хэрэглэгч). */
 export async function POST(request: NextRequest) {
   const board = boardOf(request);
   const { households: welfareHouseholds } = welfareTables(board);
-  const result = await requireAdmin(request);
+  const result = await requireWelfareManager(
+    request,
+    board === "tahilt" ? "tahilt" : AIMAG
+  );
   if ("error" in result) return result.error;
 
   try {

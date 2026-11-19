@@ -7,7 +7,7 @@ import { Crosshair, Loader2, MapPin, Plus, RefreshCw, X } from "lucide-react";
 import { useUser } from "@/app/(auth)/UserProvider";
 import ExportButton from "@/components/common/ExportButton";
 import { getCurrentCoords } from "@/lib/geolocation";
-import { isAdminRole } from "@/lib/permissions";
+import { canManageWelfare, isAdminRole } from "@/lib/permissions";
 import {
   deleteHousehold,
   listHouseholds,
@@ -47,6 +47,8 @@ type WelfareMapProps = {
 export default function WelfareMap({ board = "main" }: WelfareMapProps) {
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
+  /** Өрх нэмэх, засах, халамж бүртгэх — админ ба эрх авсан хэрэглэгч */
+  const canManage = canManageWelfare(user?.role, user?.can_welfare);
 
   /**
    * Устгах эрх админ, супер админд. Түүхтэй өрхийг устгавал халамжийн
@@ -178,7 +180,7 @@ export default function WelfareMap({ board = "main" }: WelfareMapProps) {
         {/* Талбар дээрээс шууд бүртгэх зам — зургаас цэг хайхгүйгээр.
             Дэмжлэгийг рендерт шалгахгүй (hydration зөрнө) — дарсны дараа
             getCurrentCoords ойлгомжтой алдаа буцаана. */}
-        {isAdmin && (
+        {canManage && (
           <button
             type="button"
             onClick={handleUseMyLocation}
@@ -195,7 +197,7 @@ export default function WelfareMap({ board = "main" }: WelfareMapProps) {
           </button>
         )}
 
-        {isAdmin &&
+        {canManage &&
           (picking ? (
             <button
               type="button"
@@ -237,14 +239,14 @@ export default function WelfareMap({ board = "main" }: WelfareMapProps) {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onAid={setAiding}
-          canManage={isAdmin}
+          canManage={canManage}
           canDelete={canDelete}
         />
       </div>
 
       {!loading && households.length === 0 && (
         <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-          {isAdmin
+          {canManage
             ? "Өрх бүртгээгүй байна. «Байршил нэмэх» дарж зураг дээрээс сонгоно уу."
             : "Хамрагдсан өрх хараахан бүртгэгдээгүй байна."}
         </p>
@@ -300,7 +302,7 @@ export default function WelfareMap({ board = "main" }: WelfareMapProps) {
                   onClick={() => setAiding(household)}
                   className="shrink-0 rounded-lg border border-gray-200 px-2.5 py-1 text-theme-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/5"
                 >
-                  {isAdmin ? "Халамж" : "Түүх"}
+                  {canManage ? "Халамж" : "Түүх"}
                 </button>
               </div>
 
@@ -334,7 +336,7 @@ export default function WelfareMap({ board = "main" }: WelfareMapProps) {
 
       <WelfareAidModal
         household={aiding}
-        canRecord={isAdmin}
+        canRecord={canManage}
         onClose={() => setAiding(null)}
         onRecorded={load}
         board={board}

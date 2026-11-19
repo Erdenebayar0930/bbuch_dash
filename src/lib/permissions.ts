@@ -31,6 +31,15 @@ export const canSendNotifications = (
 ): boolean => isAdminRole(role) || !!canNotify;
 
 /**
+ * Халамж бүртгэх (өрх нэмэх/засах, халамж бүртгэх) эрх — админ/супер үргэлж,
+ * бусад хэрэглэгч зөвхөн админаас `canWelfare` эрх авсан бол.
+ */
+export const canManageWelfare = (
+  role?: string | null,
+  canWelfare?: boolean | null
+): boolean => isAdminRole(role) || !!canWelfare;
+
+/**
  * Төлөвлөгөөг (тушаал, даалгавар) БҮХ аймгаар нь харах эсэх.
  *
  * Мэдээлэл нь нэг сан — аймаг бүр зөвхөн өөрийнхөө тушаалыг харна. Харин
