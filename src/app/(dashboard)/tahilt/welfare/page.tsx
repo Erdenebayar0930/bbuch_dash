@@ -21,7 +21,8 @@ export default function WelfarePage() {
       </div>
 
       <AimagGuard aimag="tahilt">
-        <WelfareMap board="tahilt" />
+        {/* Аймгуудын Халамжтай НЭГ сан — аль цэсээр орсон ч бүх бүртгэл харагдана */}
+        <WelfareMap />
       </AimagGuard>
     </div>
   );
