@@ -141,11 +141,6 @@ export const users = pgTable(
      * Админ/супер бол энэ талбараас үл хамааран үргэлж илгээх боломжтой.
      */
     canNotify: boolean("can_notify").notNull().default(false),
-    /**
-     * Админ бус ч Халамж бүртгэх эрх авсан эсэх (зөвхөн админ оноодог) — өрх
-     * нэмэх, засах, халамж бүртгэх. Устгах нь админд хэвээр.
-     */
-    canWelfare: boolean("can_welfare").notNull().default(false),
     /** super | admin | user */
     role: varchar("role", { length: 32 }).notNull().default("user"),
     /** active | pending | blocked */

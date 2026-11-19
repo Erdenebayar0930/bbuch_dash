@@ -31,13 +31,15 @@ export const canSendNotifications = (
 ): boolean => isAdminRole(role) || !!canNotify;
 
 /**
- * Халамж бүртгэх (өрх нэмэх/засах, халамж бүртгэх) эрх — админ/супер үргэлж,
- * бусад хэрэглэгч зөвхөн админаас `canWelfare` эрх авсан бол.
+ * Халамж бүртгэх (өрх нэмэх/засах, халамж бүртгэх) эрх — админ, эсвэл
+ * Халамжийн хэсгийг үзэх аймгийн гишүүн бүр. Устгах нь админд хэвээр.
  */
 export const canManageWelfare = (
-  role?: string | null,
-  canWelfare?: boolean | null
-): boolean => isAdminRole(role) || !!canWelfare;
+  role: string | null | undefined,
+  userAimags: readonly string[] | null | undefined,
+  allowed: readonly string[]
+): boolean =>
+  isAdminRole(role) || allowed.some((aimag) => (userAimags ?? []).includes(aimag));
 
 /**
  * Төлөвлөгөөг (тушаал, даалгавар) БҮХ аймгаар нь харах эсэх.

@@ -5,7 +5,6 @@ import { welfareAimags } from "@/data/profileOptions";
 
 import {
   badRequest,
-  requireWelfareManager,
   requireAimag,
   serverError,
 } from "@/lib/api/auth";
@@ -65,7 +64,7 @@ export async function GET(
 }
 
 /**
- * Шинэ халамжийн бүртгэл нэмнэ (админ ба Халамж бүртгэх эрхтэй хэрэглэгч).
+ * Шинэ халамжийн бүртгэл нэмнэ (аймгийн гишүүн бүр).
  *
  * Хуучин бүртгэлийг дарж бичихгүй — тусламж бүр тусдаа мөр болж үлдэнэ.
  */
@@ -75,10 +74,7 @@ export async function POST(
 ) {
   const board = boardOf(request);
   const { households: welfareHouseholds, aids: welfareAids } = welfareTables(board);
-  const result = await requireWelfareManager(
-    request,
-    board === "tahilt" ? "tahilt" : AIMAG
-  );
+  const result = await requireAimag(request, board === "tahilt" ? "tahilt" : AIMAG);
   if ("error" in result) return result.error;
 
   const { id } = await context.params;

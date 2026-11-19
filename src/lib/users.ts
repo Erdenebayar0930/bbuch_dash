@@ -54,8 +54,6 @@ export type AppUser = {
   status: UserStatus;
   /** Админ бус ч мэдэгдэл илгээх эрх авсан эсэх (зөвхөн админ оноодог) */
   can_notify: boolean;
-  /** Админ бус ч Халамж бүртгэх эрх авсан эсэх (зөвхөн админ оноодог) */
-  can_welfare: boolean;
   createdAt: Date | null;
 };
 
@@ -87,7 +85,6 @@ export type UserRow = {
   role: string;
   status: string;
   canNotify: boolean | null;
-  canWelfare: boolean | null;
   createdAt: string | null;
 };
 
@@ -120,7 +117,6 @@ export function toAppUser(row: UserRow): AppUser {
     role: asRole(row.role),
     status: (row.status ?? "active") as UserStatus,
     can_notify: row.canNotify ?? false,
-    can_welfare: row.canWelfare ?? false,
     createdAt: row.createdAt ? new Date(row.createdAt) : null,
   };
 }
@@ -357,11 +353,6 @@ export async function deleteUser(uid: string) {
 /** Админ бус хэрэглэгчид мэдэгдэл илгээх эрх олгох/хасах (зөвхөн админ). */
 export async function setUserCanNotify(uid: string, canNotify: boolean) {
   await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: { canNotify } });
-}
-
-/** Админ бус хэрэглэгчид Халамж бүртгэх эрх олгох/хасах (зөвхөн админ). */
-export async function setUserCanWelfare(uid: string, canWelfare: boolean) {
-  await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: { canWelfare } });
 }
 
 /**

@@ -294,15 +294,6 @@ export async function PATCH(
       patch.canNotify = body.canNotify;
     }
 
-    if (body.canWelfare !== undefined) {
-      if (typeof body.canWelfare !== "boolean") {
-        return badRequest("canWelfare нь true/false байна.");
-      }
-
-      checks.push(canAssignGroups(actor, target));
-      patch.canWelfare = body.canWelfare;
-    }
-
     if (Object.keys(patch).length === 1) {
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }

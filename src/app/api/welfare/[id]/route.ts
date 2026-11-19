@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import {
   badRequest,
   requireAdmin,
-  requireWelfareManager,
+  requireAimag,
   serverError,
 } from "@/lib/api/auth";
 import { welfareAimags } from "@/data/profileOptions";
@@ -19,14 +19,14 @@ export const dynamic = "force-dynamic";
 
 const notFound = () => NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
 
-/** Өрхийн мэдээллийг засна (админ ба Халамж бүртгэх эрхтэй хэрэглэгч). */
+/** Өрхийн мэдээллийг засна (аймгийн гишүүн бүр). */
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const board = boardOf(request);
   const { households: welfareHouseholds } = welfareTables(board);
-  const result = await requireWelfareManager(
+  const result = await requireAimag(
     request,
     board === "tahilt" ? "tahilt" : welfareAimags
   );

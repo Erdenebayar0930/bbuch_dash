@@ -7,6 +7,7 @@ import { Crosshair, Loader2, MapPin, Plus, RefreshCw, X } from "lucide-react";
 import { useUser } from "@/app/(auth)/UserProvider";
 import ExportButton from "@/components/common/ExportButton";
 import { getCurrentCoords } from "@/lib/geolocation";
+import { welfareAimags } from "@/data/profileOptions";
 import { canManageWelfare, isAdminRole } from "@/lib/permissions";
 import {
   deleteHousehold,
@@ -47,8 +48,12 @@ type WelfareMapProps = {
 export default function WelfareMap({ board = "main" }: WelfareMapProps) {
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
-  /** Өрх нэмэх, засах, халамж бүртгэх — админ ба эрх авсан хэрэглэгч */
-  const canManage = canManageWelfare(user?.role, user?.can_welfare);
+  /** Өрх нэмэх, засах, халамж бүртгэх — админ ба аймгийн гишүүн бүр */
+  const canManage = canManageWelfare(
+    user?.role,
+    user?.aimags,
+    board === "tahilt" ? ["tahilt"] : welfareAimags
+  );
 
   /**
    * Устгах эрх админ, супер админд. Түүхтэй өрхийг устгавал халамжийн

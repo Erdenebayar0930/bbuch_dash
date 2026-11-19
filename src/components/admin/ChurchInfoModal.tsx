@@ -1,17 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Bell, BellOff, HandHeart, Plus, X } from "lucide-react";
+import { Bell, BellOff, Plus, X } from "lucide-react";
 
 import Checkbox from "@/components/form/input/Checkbox";
 import { Modal } from "@/components/ui/modal";
 import { aimags as aimagOptions } from "@/data/profileOptions";
-import {
-  setUserCanNotify,
-  setUserCanWelfare,
-  setUserChurchInfo,
-  type AppUser,
-} from "@/lib/users";
+import { setUserCanNotify, setUserChurchInfo, type AppUser } from "@/lib/users";
 
 const MAX_CALLINGS = 5;
 
@@ -20,16 +15,11 @@ type ChurchInfoModalProps = {
   onClose: () => void;
   onSaved: (
     uid: string,
-    patch: {
-      aimags: string[];
-      callings: string[];
-      can_notify: boolean;
-      can_welfare: boolean;
-    }
+    patch: { aimags: string[]; callings: string[]; can_notify: boolean }
   ) => void;
 };
 
-/** Тухайн хэрэглэгчийн дуудлага, аймаг, мэдэгдэл илгээх ба Халамж бүртгэх эрхийг оноох админы цонх. */
+/** Тухайн хэрэглэгчийн дуудлага, аймаг, мэдэгдэл илгээх эрхийг оноох админы цонх. */
 export default function ChurchInfoModal({
   user,
   onClose,
@@ -38,7 +28,6 @@ export default function ChurchInfoModal({
   const [aimags, setAimags] = useState<string[]>([]);
   const [callings, setCallings] = useState<string[]>([]);
   const [canNotify, setCanNotify] = useState(false);
-  const [canWelfare, setCanWelfare] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +37,6 @@ export default function ChurchInfoModal({
       setAimags(user.aimags);
       setCallings(user.callings);
       setCanNotify(user.can_notify);
-      setCanWelfare(user.can_welfare);
       setDraft("");
       setError("");
     }
@@ -91,16 +79,8 @@ export default function ChurchInfoModal({
         canNotify !== user.can_notify
           ? setUserCanNotify(user.uid, canNotify)
           : Promise.resolve(),
-        canWelfare !== user.can_welfare
-          ? setUserCanWelfare(user.uid, canWelfare)
-          : Promise.resolve(),
       ]);
-      onSaved(user.uid, {
-        aimags,
-        callings,
-        can_notify: canNotify,
-        can_welfare: canWelfare,
-      });
+      onSaved(user.uid, { aimags, callings, can_notify: canNotify });
       onClose();
     } catch (err) {
       console.error("Чуулганы мэдээлэл хадгалахад алдаа гарлаа:", err);
@@ -184,28 +164,57 @@ export default function ChurchInfoModal({
         </form>
       </div>
 
-      {/* Тусгай эрхүүд — нээлттэй/хаалттайг үгээр нь ч харуулна */}
-      <div className="mt-5 space-y-3">
-        <PermissionSwitch
-          label="Мэдэгдэл илгээх эрх"
-          hint="Аймаг эсвэл тодорхой хүн рүү мэдэгдэл илгээх"
-          checked={canNotify}
-          onToggle={() => setCanNotify((prev) => !prev)}
-          icon={
-            canNotify ? (
-              <Bell className="h-4 w-4" strokeWidth={1.8} />
-            ) : (
-              <BellOff className="h-4 w-4" strokeWidth={1.8} />
-            )
-          }
-        />
-        <PermissionSwitch
-          label="Халамж бүртгэх эрх"
-          hint="Халамжийн өрх нэмэх, засах, халамж бүртгэх"
-          checked={canWelfare}
-          onToggle={() => setCanWelfare((prev) => !prev)}
-          icon={<HandHeart className="h-4 w-4" strokeWidth={1.8} />}
-        />
+      {/* Мэдэгдэл илгээх эрх — нээлттэй/хаалттайг үгээр нь ч харуулна */}
+      <div className="mt-5 flex items-center gap-3 rounded-lg border border-gray-200 p-3 dark:border-white/10">
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+            canNotify
+              ? "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"
+              : "bg-gray-100 text-gray-400 dark:bg-white/10 dark:text-gray-500"
+          }`}
+        >
+          {canNotify ? (
+            <Bell className="h-4 w-4" strokeWidth={1.8} />
+          ) : (
+            <BellOff className="h-4 w-4" strokeWidth={1.8} />
+          )}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-theme-sm font-medium text-gray-800 dark:text-white/90">
+            Мэдэгдэл илгээх эрх
+          </p>
+          <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+            Аймаг эсвэл тодорхой хүн рүү мэдэгдэл илгээх
+          </p>
+        </div>
+
+        <span
+          className={`text-theme-xs font-semibold ${
+            canNotify
+              ? "text-success-600 dark:text-success-400"
+              : "text-gray-400"
+          }`}
+        >
+          {canNotify ? "Нээлттэй" : "Хаалттай"}
+        </span>
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={canNotify}
+          aria-label={`Мэдэгдэл илгээх эрх: ${canNotify ? "нээлттэй" : "хаалттай"}`}
+          onClick={() => setCanNotify((prev) => !prev)}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-hidden focus-visible:ring-3 focus-visible:ring-accent-500/30 ${
+            canNotify ? "bg-success-500" : "bg-gray-300 dark:bg-white/20"
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              canNotify ? "translate-x-5" : "translate-x-0.5"
+            }`}
+          />
+        </button>
       </div>
 
       {error && (
@@ -232,62 +241,5 @@ export default function ChurchInfoModal({
         </button>
       </div>
     </Modal>
-  );
-}
-
-type PermissionSwitchProps = {
-  label: string;
-  hint: string;
-  checked: boolean;
-  onToggle: () => void;
-  icon: React.ReactNode;
-};
-
-/** Нэг эрхийг нээх/хаах мөр */
-function PermissionSwitch({ label, hint, checked, onToggle, icon }: PermissionSwitchProps) {
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 dark:border-white/10">
-      <span
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-          checked
-            ? "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"
-            : "bg-gray-100 text-gray-400 dark:bg-white/10 dark:text-gray-500"
-        }`}
-      >
-        {icon}
-      </span>
-
-      <div className="min-w-0 flex-1">
-        <p className="text-theme-sm font-medium text-gray-800 dark:text-white/90">
-          {label}
-        </p>
-        <p className="text-theme-xs text-gray-500 dark:text-gray-400">{hint}</p>
-      </div>
-
-      <span
-        className={`text-theme-xs font-semibold ${
-          checked ? "text-success-600 dark:text-success-400" : "text-gray-400"
-        }`}
-      >
-        {checked ? "Нээлттэй" : "Хаалттай"}
-      </span>
-
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={`${label}: ${checked ? "нээлттэй" : "хаалттай"}`}
-        onClick={onToggle}
-        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-hidden focus-visible:ring-3 focus-visible:ring-accent-500/30 ${
-          checked ? "bg-success-500" : "bg-gray-300 dark:bg-white/20"
-        }`}
-      >
-        <span
-          className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-            checked ? "translate-x-5" : "translate-x-0.5"
-          }`}
-        />
-      </button>
-    </div>
   );
 }

@@ -158,7 +158,6 @@ export default function AdminGuard({ children, requireAdmin = false }: Props) {
       // шалгалтаар цэс нь өөрөө шинэчлэгдэнэ
       aimags: profile.aimags,
       can_notify: profile.can_notify,
-      can_welfare: profile.can_welfare,
     };
 
     // Өөрчлөгдөөгүй бол дэмий рендер хийхгүй. Өөрчлөгдсөн бол эрх нь шууд
