@@ -112,6 +112,8 @@ export async function deleteHousehold(
   await apiFetch(`/api/welfare/${id}${q(board)}`, { method: "DELETE" });
 }
 
+export type WelfarePhoto = { url: string; path: string };
+
 /** Нэг удаагийн халамжийн бүртгэл */
 export type WelfareAid = {
   id: string;
@@ -120,6 +122,8 @@ export type WelfareAid = {
   /** Зарцуулсан дүн, ₮ */
   amount: number;
   note: string;
+  /** Халамж үзүүлэх үеийн зургууд — хадгалсны дараа өөрчлөгдөхгүй */
+  photos: WelfarePhoto[];
   providedAt: Date;
   /** Үзүүлсэн хүний нэр — устсан бүртгэл дээр хоосон байж болно */
   providedByName: string;
@@ -130,6 +134,7 @@ type AidRow = {
   description: string;
   amount: number;
   note: string | null;
+  photos: WelfarePhoto[] | null;
   providedAt: string;
   providedByName: string | null;
   providedByLastName: string | null;
@@ -149,6 +154,7 @@ export async function listAids(
     description: row.description,
     amount: row.amount ?? 0,
     note: row.note ?? "",
+    photos: Array.isArray(row.photos) ? row.photos : [],
     providedAt: new Date(row.providedAt),
     providedByName:
       [row.providedByName, row.providedByLastName].filter(Boolean).join(" ") ||
@@ -156,10 +162,15 @@ export async function listAids(
   }));
 }
 
-/** Шинэ халамжийн бүртгэл нэмнэ (зөвхөн админ). */
+/** Шинэ халамжийн бүртгэл нэмнэ (аймгийн гишүүн бүр). */
 export async function recordAid(
   householdId: string,
-  input: { description: string; amount: number; note: string },
+  input: {
+    description: string;
+    amount: number;
+    note: string;
+    photos?: WelfarePhoto[];
+  },
   board: WelfareBoard = "main"
 ): Promise<void> {
   await apiFetch(`/api/welfare/${householdId}/aids${q(board)}`, {

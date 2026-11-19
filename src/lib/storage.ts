@@ -178,6 +178,19 @@ export async function uploadVisitPhoto(boxId: string, file: File): Promise<Uploa
 }
 
 // ---------------------------------------------------------------------------
+// Халамжийн бүртгэлийн зураг — өрхийн хавтсанд, устгахыг зөвхөн админ
+// ---------------------------------------------------------------------------
+
+export const MAX_WELFARE_PHOTO_BYTES = 10 * 1024 * 1024;
+/** Нэг удаагийн халамжид оруулах зургийн дээд тоо */
+export const MAX_WELFARE_PHOTOS = 3;
+
+export async function uploadWelfarePhoto(householdId: string, file: File): Promise<UploadedImage> {
+  requireImage(file, MAX_WELFARE_PHOTO_BYTES);
+  return uploadToServer("welfare_aids", file, { key: householdId });
+}
+
+// ---------------------------------------------------------------------------
 // Долоо хоногийн хуваарийн постер — ганц, дахин байршуулахад сольно
 // ---------------------------------------------------------------------------
 

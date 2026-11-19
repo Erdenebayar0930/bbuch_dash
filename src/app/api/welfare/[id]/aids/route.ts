@@ -10,7 +10,8 @@ import {
 } from "@/lib/api/auth";
 import { boardOf, welfareTables } from "@/lib/api/dataBoard";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { users, type VisitPhoto } from "@/lib/db/schema";
+import { isStoredFileUrl } from "@/lib/storageUrl";
 
 import type { NextRequest } from "next/server";
 
@@ -27,6 +28,30 @@ const MAX_DESCRIPTION = 200;
 const MAX_NOTE = 400;
 /** Зарцуулалтын дээд хязгаар, ₮ — андуурч тэг илүү бичихээс хамгаална */
 const MAX_AMOUNT = 1_000_000_000;
+/** Нэг удаагийн халамжид оруулах зургийн дээд тоо */
+const MAX_PHOTOS = 3;
+
+/**
+ * Клиентийн илгээсэн зургийн жагсаалтыг шалгана. Буруу бол null.
+ * Зам нь ЗААВАЛ тухайн өрхийн хавтас дотор байх ёстой — дурын URL шигтгэхгүй.
+ */
+function readPhotos(input: unknown, householdId: string): VisitPhoto[] | null {
+  if (input === undefined || input === null) return [];
+  if (!Array.isArray(input) || input.length > MAX_PHOTOS) return null;
+
+  const prefix = `welfare_aids/${householdId}/`;
+  const photos: VisitPhoto[] = [];
+
+  for (const item of input) {
+    const { url, path } = (item ?? {}) as Record<string, unknown>;
+    if (typeof url !== "string" || typeof path !== "string") return null;
+    if (!path.startsWith(prefix) || path.includes("..")) return null;
+    if (!isStoredFileUrl(url)) return null;
+    photos.push({ url, path });
+  }
+
+  return photos;
+}
 
 /** Тухайн өрхөд үзүүлсэн халамжийн түүх — сүүлийнх нь эхэндээ. */
 export async function GET(
@@ -47,6 +72,7 @@ export async function GET(
         description: welfareAids.description,
         amount: welfareAids.amount,
         note: welfareAids.note,
+        photos: welfareAids.photos,
         providedAt: welfareAids.providedAt,
         providedByName: users.firstName,
         providedByLastName: users.lastName,
@@ -107,6 +133,9 @@ export async function POST(
       return badRequest(`Тэмдэглэл ${MAX_NOTE} тэмдэгтээс урт байж болохгүй.`);
     }
 
+    const photos = readPhotos(body.photos, id);
+    if (!photos) return badRequest(`Зураг ${MAX_PHOTOS} хүртэл, зөв замтай байна.`);
+
     const [household] = await db
       .select({ id: welfareHouseholds.id })
       .from(welfareHouseholds)
@@ -126,6 +155,7 @@ export async function POST(
       description,
       amount,
       note,
+      photos,
       providedBy: result.caller.uid,
     });
 

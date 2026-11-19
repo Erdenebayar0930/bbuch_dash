@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { History } from "lucide-react";
+import { History, ImagePlus, X } from "lucide-react";
 
+import ImageViewer from "@/components/common/ImageViewer";
 import { Modal } from "@/components/ui/modal";
 import {
   listAids,
@@ -12,6 +13,14 @@ import {
   type WelfareBoard,
 } from "@/lib/welfare";
 import { dateTimeFormat } from "@/lib/dateFormat";
+import {
+  MAX_WELFARE_PHOTOS,
+  MAX_WELFARE_PHOTO_BYTES,
+  uploadWelfarePhoto,
+} from "@/lib/storage";
+
+/** Сонгосон боловч хараахан байршуулаагүй зураг */
+type PendingPhoto = { file: File; preview: string };
 
 type WelfareAidModalProps = {
   /** null бол цонх хаалттай */
@@ -49,6 +58,10 @@ export default function WelfareAidModal({
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState(0);
   const [note, setNote] = useState("");
+  /** Хадгалахаас өмнө сонгосон зургууд — илгээх үед л байршуулна */
+  const [pending, setPending] = useState<PendingPhoto[]>([]);
+  /** Томруулж харах зураг */
+  const [viewer, setViewer] = useState<string | null>(null);
 
   const [aids, setAids] = useState<WelfareAid[]>([]);
   const [loading, setLoading] = useState(false);
@@ -76,6 +89,7 @@ export default function WelfareAidModal({
     setDescription("");
     setAmount(0);
     setNote("");
+    setPending([]);
     setError(null);
     setAids([]);
     loadHistory();
@@ -83,18 +97,64 @@ export default function WelfareAidModal({
 
   if (!household) return null;
 
+  const handlePick = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    // Ижил файлыг дахин сонгож болохоор утгыг цэвэрлэнэ
+    event.target.value = "";
+    setError(null);
+
+    const images = files.filter((file) => file.type.startsWith("image/"));
+    if (images.length < files.length) {
+      setError("Зөвхөн зураг оруулах боломжтой.");
+    }
+
+    if (images.some((file) => file.size > MAX_WELFARE_PHOTO_BYTES)) {
+      setError("Зургийн хэмжээ 10MB-аас хэтэрч болохгүй.");
+      return;
+    }
+
+    const room = MAX_WELFARE_PHOTOS - pending.length;
+    if (images.length > room) {
+      setError(`Нэг удаагийн халамжид ${MAX_WELFARE_PHOTOS} хүртэл зураг оруулна.`);
+    }
+
+    setPending((current) => [
+      ...current,
+      ...images.slice(0, Math.max(0, room)).map((file) => ({
+        file,
+        preview: URL.createObjectURL(file),
+      })),
+    ]);
+  };
+
+  /** Хадгалахаас ӨМНӨ л хасна — бүртгэгдсэн зургийг устгах боломжгүй */
+  const removePending = (index: number) => {
+    setPending((current) => {
+      URL.revokeObjectURL(current[index].preview);
+      return current.filter((_, i) => i !== index);
+    });
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setError(null);
 
     try {
-      await recordAid(household.id, { description, amount, note }, board);
+      const photos = await Promise.all(
+        pending.map((photo) => uploadWelfarePhoto(household.id, photo.file))
+      );
+
+      await recordAid(household.id, { description, amount, note, photos }, board);
       await loadHistory();
       onRecorded();
       setDescription("");
       setAmount(0);
       setNote("");
+      setPending((current) => {
+        current.forEach((photo) => URL.revokeObjectURL(photo.preview));
+        return [];
+      });
     } catch (err) {
       console.error("Халамж бүртгэхэд алдаа гарлаа:", err);
       setError(err instanceof Error ? err.message : "Бүртгэхэд алдаа гарлаа.");
@@ -153,6 +213,58 @@ export default function WelfareAidModal({
                 }
                 className={fieldClass}
               />
+            </div>
+
+            <div>
+              <p className={labelClass}>
+                Зураг{" "}
+                <span className="text-gray-400">
+                  (заавал биш, {MAX_WELFARE_PHOTOS} хүртэл)
+                </span>
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                {pending.map((photo, index) => (
+                  <div
+                    key={photo.preview}
+                    className="relative h-20 w-20 overflow-hidden rounded-lg border border-gray-200 dark:border-white/10"
+                  >
+                    {/* blob: хаяг тул next/image биш */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo.preview}
+                      alt=""
+                      className="h-full w-full cursor-zoom-in object-cover"
+                      onClick={() => setViewer(photo.preview)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePending(index)}
+                      aria-label="Зургийг хасах"
+                      className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+
+                {pending.length < MAX_WELFARE_PHOTOS && (
+                  <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-gray-300 text-theme-xs text-gray-500 transition-colors hover:border-accent-400 hover:text-accent-600 dark:border-white/15 dark:text-gray-400">
+                    <ImagePlus className="h-5 w-5" strokeWidth={1.8} />
+                    Нэмэх
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handlePick}
+                      className="sr-only"
+                    />
+                  </label>
+                )}
+              </div>
+              <p className="mt-1.5 text-theme-xs text-gray-400">
+                Бүртгэсний дараа зургийг устгах, солих боломжгүй.
+              </p>
             </div>
 
             <div>
@@ -227,6 +339,27 @@ export default function WelfareAidModal({
                   {aid.providedByName}
                   {aid.note ? ` · ${aid.note}` : ""}
                 </p>
+
+                {aid.photos.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {aid.photos.map((photo) => (
+                      <button
+                        key={photo.path}
+                        type="button"
+                        onClick={() => setViewer(photo.url)}
+                        className="h-14 w-14 overflow-hidden rounded-md border border-gray-200 dark:border-white/10"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={photo.url}
+                          alt=""
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -242,6 +375,8 @@ export default function WelfareAidModal({
           </button>
         </div>
       </div>
+
+      <ImageViewer src={viewer} onClose={() => setViewer(null)} />
     </Modal>
   );
 }

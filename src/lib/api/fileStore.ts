@@ -88,6 +88,8 @@ export const SCOPES: Record<string, Scope> = {
   profile_photos: { folder: "uid", write: "signed-in", remove: "owner", limit: imagesUpTo(5 * MB), replace: true },
   assets: { folder: "key", write: "active", remove: "admin", limit: imagesUpTo(10 * MB) },
   donation_box_visits: { folder: "key", write: "admin", remove: "admin", limit: imagesUpTo(10 * MB) },
+  /** Халамжийн бүртгэлийн зураг — гишүүн оруулна, устгахыг зөвхөн админ */
+  welfare_aids: { folder: "key", write: "active", remove: "admin", limit: imagesUpTo(10 * MB) },
   schedule_poster: { folder: "none", write: "admin", remove: "admin", limit: imagesUpTo(10 * MB), replace: true },
   handbook: {
     folder: "none",

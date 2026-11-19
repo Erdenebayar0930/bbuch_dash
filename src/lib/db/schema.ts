@@ -1066,6 +1066,11 @@ const welfareAidFields = (household: () => AnyPgColumn) => ({
   /** Зарцуулсан дүн, ₮ — 0 бол мөнгөн бус тусламж */
   amount: integer("amount").notNull().default(0),
   note: bodyText("note"),
+  /**
+   * Халамж үзүүлэх үеийн зургууд (`welfare_aids/<householdId>/`), ихдээ 3.
+   * Хадгалсны дараа засагдахгүй — зөвхөн админ файлыг устгаж чадна.
+   */
+  photos: jsonCol<VisitPhoto[]>("photos"),
   providedBy: uidCol("provided_by"),
   providedAt: utcTimestamp("provided_at").notNull().defaultNow(),
 });
