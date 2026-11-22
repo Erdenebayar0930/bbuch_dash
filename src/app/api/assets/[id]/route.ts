@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { readAsset } from "@/lib/api/assetInput";
 import { recordAssetChanges } from "@/lib/api/assetHistory";
-import { badRequest, isAdminRole, requireAdmin, serverError } from "@/lib/api/auth";
+import { badRequest, isAdminRole, serverError } from "@/lib/api/auth";
 import { ASSET_AIMAG, requireAssetEditor } from "@/lib/api/assetAccess";
 import { db } from "@/lib/db";
 import { assets } from "@/lib/db/schema";
@@ -91,32 +91,13 @@ export async function PATCH(
   }
 }
 
-/** Эд хөрөнгийг бүртгэлээс хасна (зөвхөн админ). */
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  const result = await requireAdmin(request);
-  if ("error" in result) return result.error;
-
-  const { id } = await context.params;
-
-  try {
-    // MySQL нь DELETE ... RETURNING дэмждэггүй — эхлээд байгаа эсэхийг шалгана
-    const [existing] = await db
-      .select({ id: assets.id })
-      .from(assets)
-      .where(eq(assets.id, id))
-      .limit(1);
-
-    if (!existing) {
-      return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
-    }
-
-    await db.delete(assets).where(eq(assets.id, id));
-
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    return serverError(error, "Эд хөрөнгө устгахад алдаа гарлаа");
-  }
+/**
+ * Эд хөрөнгийг устгахгүй — актална (PATCH state: "written_off"). Акталсан
+ * хөрөнгө түүх, кодтойгоо үлдэнэ. Устгах хүсэлтийг хэнээс ч хүлээж авахгүй.
+ */
+export async function DELETE() {
+  return NextResponse.json(
+    { error: "Эд хөрөнгийг устгах боломжгүй — актална уу." },
+    { status: 405 }
+  );
 }

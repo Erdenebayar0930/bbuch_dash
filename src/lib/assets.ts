@@ -139,10 +139,6 @@ export async function updateAsset(
 }
 
 /** Бүртгэлээс хасна (зөвхөн админ). */
-export async function deleteAsset(id: string): Promise<void> {
-  await apiFetch(`/api/assets/${id}`, { method: "DELETE" });
-}
-
 /**
  * Зургийг Storage-д тавиад бүртгэлд холбоно.
  * Файл эхлээд Storage руу, дараа нь мөр нь Postgres-д бичигдэнэ.

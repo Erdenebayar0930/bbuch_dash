@@ -4,6 +4,7 @@ import Image from "next/image";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  Archive,
   Boxes,
   Check,
   ChevronRight,
@@ -14,7 +15,6 @@ import {
   Plus,
   RefreshCw,
   Settings2,
-  Trash2,
 } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
@@ -29,9 +29,9 @@ import { aimags, labelOf } from "@/data/profileOptions";
 import { canManageCoding, isAdminRole } from "@/lib/permissions";
 import {
   checkStatusLabels,
-  deleteAsset,
   finishCount,
   getAssetMeta,
+  updateAsset,
   getCountState,
   listAssets,
   startCount,
@@ -330,16 +330,28 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
   /** Байршил оноогоогүй хөрөнгийн тоо — «Байршилгүй» товчонд */
   const unplacedCount = useMemo(() => scoped.filter((asset) => !asset.warehouseId).length, [scoped]);
 
-  const handleDelete = async (asset: Asset) => {
+  /**
+   * Эд хөрөнгийг устгахгүй — актална. Мөр нь «Акталсан хөрөнгийн бүртгэл»-д
+   * шилжиж, түүхэнд үлдэнэ; код нь эзэлсэн хэвээр (дахин олгогдохгүй).
+   */
+  const handleWriteOff = async (asset: Asset) => {
+    const label = [asset.code, asset.name].filter(Boolean).join(" — ");
+    if (
+      !window.confirm(
+        `«${label}»-г актлах уу?\n\nАкталсан хөрөнгө «Акталсан хөрөнгийн бүртгэл»-д шилжинэ. Устгагдахгүй, түүх нь хадгалагдана.`
+      )
+    ) {
+      return;
+    }
     setRemovingId(asset.id);
     setError("");
 
     try {
-      await deleteAsset(asset.id);
-      setAssets((prev) => prev.filter((item) => item.id !== asset.id));
+      await updateAsset(asset.id, { state: "written_off" });
+      await load();
     } catch (err) {
-      console.error("Устгахад алдаа гарлаа:", err);
-      setError(err instanceof Error ? err.message : "Устгахад алдаа гарлаа.");
+      console.error("Актлахад алдаа гарлаа:", err);
+      setError(err instanceof Error ? err.message : "Актлахад алдаа гарлаа.");
     } finally {
       setRemovingId(null);
     }
@@ -916,18 +928,18 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                       </button>
                     )}
 
-                    {isAdmin && (
-                      <>
-                        <button
-                          type="button"
-                          disabled={removingId === asset.id}
-                          onClick={() => handleDelete(asset)}
-                          aria-label={`${asset.name} устгах`}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-error-500 transition-colors hover:bg-error-50 disabled:opacity-50 dark:border-white/10 dark:hover:bg-error-500/10"
-                        >
-                          <Trash2 className="h-4 w-4" strokeWidth={1.8} />
-                        </button>
-                      </>
+                    {/* Устгахгүй — актална (акталсныг дахин актлахгүй) */}
+                    {canEdit && asset.state !== "written_off" && (
+                      <button
+                        type="button"
+                        disabled={removingId === asset.id}
+                        onClick={() => handleWriteOff(asset)}
+                        aria-label={`${asset.name} актлах`}
+                        title="Актлах"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-warning-600 transition-colors hover:bg-warning-50 disabled:opacity-50 dark:border-white/10 dark:text-warning-400 dark:hover:bg-warning-500/10"
+                      >
+                        <Archive className="h-4 w-4" strokeWidth={1.8} />
+                      </button>
                     )}
                   </div>
                 </td>
