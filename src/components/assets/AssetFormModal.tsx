@@ -272,6 +272,104 @@ export default function AssetFormModal({
         </h3>
 
         <div className="mt-5 grid gap-4">
+          {/* Ширхэг бүр тусдаа эд хөрөнгө — олноор бүртгэхэд код бүрт нэг мөр */}
+          {!asset && (
+            <div role="tablist" aria-label="Бүртгэх хэлбэр" className="flex w-fit rounded-lg border border-gray-200 p-0.5 dark:border-white/10">
+              {([false, true] as const).map((multi) => (
+                <button
+                  key={String(multi)}
+                  type="button"
+                  role="tab"
+                  aria-selected={bulk === multi}
+                  onClick={() => setBulk(multi)}
+                  className={`rounded-md px-3 py-1.5 text-theme-sm font-medium transition-colors ${
+                    bulk === multi
+                      ? "bg-accent-600 text-white"
+                      : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
+                  }`}
+                >
+                  {multi ? "Олон ширхэг" : "Нэг ширхэг"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {bulk && !asset ? (
+            <div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 dark:border-white/10">
+              <p className="text-theme-sm font-medium text-gray-700 dark:text-gray-300">
+                Код <span className="text-gray-400">(инвентарын дугаар, сериал)</span>
+              </p>
+              <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+                Ширхэг бүр өөрийн кодтой, тусдаа эд хөрөнгө болж бүртгэгдэнэ. Доорх нэр, төрөл, агуулах, ангилал, мэдээлэл
+                нь бүгдэд ижил — дараа нь ширхэг тус бүрийг засаж болно.
+              </p>
+              <div className="flex w-fit rounded-lg bg-gray-100 p-0.5 dark:bg-white/5">
+                {(["range", "list"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setCodeMode(mode)}
+                    className={`rounded-md px-2.5 py-1 text-theme-xs font-medium ${
+                      codeMode === mode ? "bg-white text-gray-900 shadow-sm dark:bg-white/10 dark:text-white" : "text-gray-500"
+                    }`}
+                  >
+                    {mode === "range" ? "Дугаарлах" : "Код бүрийг бичих"}
+                  </button>
+                ))}
+              </div>
+              {codeMode === "range" ? (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <label className="col-span-2 flex flex-col gap-1 text-theme-xs text-gray-500 sm:col-span-1 dark:text-gray-400">
+                    Угтвар
+                    <input value={prefix} onChange={(event) => setPrefix(event.target.value)} placeholder="AYG-" maxLength={60} className={`${fieldClass} h-10`} />
+                  </label>
+                  <label className="flex flex-col gap-1 text-theme-xs text-gray-500 dark:text-gray-400">
+                    Эхлэх
+                    <input type="number" min={0} value={rangeFrom} onChange={(event) => setRangeFrom(event.target.value)} className={`${fieldClass} h-10`} />
+                  </label>
+                  <label className="flex flex-col gap-1 text-theme-xs text-gray-500 dark:text-gray-400">
+                    Дуусах
+                    <input type="number" min={0} value={rangeTo} onChange={(event) => setRangeTo(event.target.value)} className={`${fieldClass} h-10`} />
+                  </label>
+                  <label className="flex flex-col gap-1 text-theme-xs text-gray-500 dark:text-gray-400">
+                    Оронгийн тоо
+                    <input type="number" min={0} max={8} value={digits} onChange={(event) => setDigits(event.target.value)} className={`${fieldClass} h-10`} />
+                  </label>
+                </div>
+              ) : (
+                <textarea
+                  value={codeText}
+                  onChange={(event) => setCodeText(event.target.value)}
+                  rows={4}
+                  placeholder={"AYG-001\nAYG-002\nAYG-003"}
+                  aria-label="Кодууд — мөр бүрт нэг"
+                  className={`${fieldClass} h-auto py-2.5 font-mono`}
+                />
+              )}
+              <p className="text-theme-xs font-medium text-gray-700 dark:text-gray-300">
+                {bulkCodes.length > 0
+                  ? `${bulkCodes.length} эд хөрөнгө бүртгэгдэнэ: ${bulkCodes.slice(0, 3).join(", ")}${
+                      bulkCodes.length > 3 ? ` … ${bulkCodes[bulkCodes.length - 1]}` : ""
+                    }`
+                  : "Код оруулна уу"}
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="asset-code" className={labelClass}>
+                Код <span className="text-gray-400">(инвентарын дугаар, сериал)</span>
+              </label>
+              <input
+                id="asset-code"
+                value={form.code}
+                onChange={(event) => update("code", event.target.value)}
+                placeholder="Жишээ нь: AYG-001"
+                className={`${fieldClass} font-mono`}
+                autoFocus
+              />
+            </div>
+          )}
+
           <div>
             <label htmlFor="asset-name" className={labelClass}>
               Нэр <span className="text-error-500">*</span>
@@ -282,7 +380,6 @@ export default function AssetFormModal({
               onChange={(event) => update("name", event.target.value)}
               placeholder="Жишээ нь: Аяга"
               className={fieldClass}
-              autoFocus
             />
           </div>
 
@@ -357,100 +454,6 @@ export default function AssetFormModal({
             </div>
 
           </div>
-
-          {/* Ширхэг бүр тусдаа эд хөрөнгө — олноор бүртгэхэд код бүрт нэг мөр */}
-          {!asset && (
-            <div role="tablist" aria-label="Бүртгэх хэлбэр" className="flex w-fit rounded-lg border border-gray-200 p-0.5 dark:border-white/10">
-              {([false, true] as const).map((multi) => (
-                <button
-                  key={String(multi)}
-                  type="button"
-                  role="tab"
-                  aria-selected={bulk === multi}
-                  onClick={() => setBulk(multi)}
-                  className={`rounded-md px-3 py-1.5 text-theme-sm font-medium transition-colors ${
-                    bulk === multi
-                      ? "bg-accent-600 text-white"
-                      : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
-                  }`}
-                >
-                  {multi ? "Олон ширхэг" : "Нэг ширхэг"}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {bulk && !asset ? (
-            <div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 dark:border-white/10">
-              <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                Ширхэг бүр өөрийн кодтой, тусдаа эд хөрөнгө болж бүртгэгдэнэ. Дээрх нэр, төрөл, агуулах, ангилал, мэдээлэл
-                нь бүгдэд ижил — дараа нь ширхэг тус бүрийг засаж болно.
-              </p>
-              <div className="flex w-fit rounded-lg bg-gray-100 p-0.5 dark:bg-white/5">
-                {(["range", "list"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setCodeMode(mode)}
-                    className={`rounded-md px-2.5 py-1 text-theme-xs font-medium ${
-                      codeMode === mode ? "bg-white text-gray-900 shadow-sm dark:bg-white/10 dark:text-white" : "text-gray-500"
-                    }`}
-                  >
-                    {mode === "range" ? "Дугаарлах" : "Код бүрийг бичих"}
-                  </button>
-                ))}
-              </div>
-              {codeMode === "range" ? (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <label className="col-span-2 flex flex-col gap-1 text-theme-xs text-gray-500 sm:col-span-1 dark:text-gray-400">
-                    Угтвар
-                    <input value={prefix} onChange={(event) => setPrefix(event.target.value)} placeholder="AYG-" maxLength={60} className={`${fieldClass} h-10`} />
-                  </label>
-                  <label className="flex flex-col gap-1 text-theme-xs text-gray-500 dark:text-gray-400">
-                    Эхлэх
-                    <input type="number" min={0} value={rangeFrom} onChange={(event) => setRangeFrom(event.target.value)} className={`${fieldClass} h-10`} />
-                  </label>
-                  <label className="flex flex-col gap-1 text-theme-xs text-gray-500 dark:text-gray-400">
-                    Дуусах
-                    <input type="number" min={0} value={rangeTo} onChange={(event) => setRangeTo(event.target.value)} className={`${fieldClass} h-10`} />
-                  </label>
-                  <label className="flex flex-col gap-1 text-theme-xs text-gray-500 dark:text-gray-400">
-                    Оронгийн тоо
-                    <input type="number" min={0} max={8} value={digits} onChange={(event) => setDigits(event.target.value)} className={`${fieldClass} h-10`} />
-                  </label>
-                </div>
-              ) : (
-                <textarea
-                  value={codeText}
-                  onChange={(event) => setCodeText(event.target.value)}
-                  rows={4}
-                  placeholder={"AYG-001\nAYG-002\nAYG-003"}
-                  aria-label="Кодууд — мөр бүрт нэг"
-                  className={`${fieldClass} h-auto py-2.5 font-mono`}
-                />
-              )}
-              <p className="text-theme-xs font-medium text-gray-700 dark:text-gray-300">
-                {bulkCodes.length > 0
-                  ? `${bulkCodes.length} эд хөрөнгө бүртгэгдэнэ: ${bulkCodes.slice(0, 3).join(", ")}${
-                      bulkCodes.length > 3 ? ` … ${bulkCodes[bulkCodes.length - 1]}` : ""
-                    }`
-                  : "Код оруулна уу"}
-              </p>
-            </div>
-          ) : (
-            <div>
-              <label htmlFor="asset-code" className={labelClass}>
-                Код <span className="text-gray-400">(инвентарын дугаар, сериал)</span>
-              </label>
-              <input
-                id="asset-code"
-                value={form.code}
-                onChange={(event) => update("code", event.target.value)}
-                placeholder="Жишээ нь: AYG-001"
-                className={`${fieldClass} font-mono`}
-              />
-            </div>
-          )}
 
           <div>
             <label htmlFor="asset-note" className={labelClass}>
