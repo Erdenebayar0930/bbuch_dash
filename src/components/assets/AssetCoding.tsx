@@ -24,7 +24,7 @@ type AssetCodingProps = {
   aimag?: string;
 };
 
-/** Нэг угтварын дугаарлалт — ТА-001 … ТА-012 */
+/** Нэг угтварын дугаарлалт — ДХГ-АШ001 … ДХГ-АШ012 */
 type PrefixSeries = {
   prefix: string;
   width: number;
@@ -85,8 +85,8 @@ const KIND_TEXT: Record<Kind, { title: string; letter: string; namePlaceholder: 
 /** Кодын аль хэсэгт орох вэ — жагсаалтын тайлбарт */
 const KIND_POSITION: Record<Kind, string> = {
   warehouse: "эхэнд",
-  category: "2 дахь хэсэгт",
-  name: "3 дахь хэсэгт (тоон дугаарын өмнө)",
+  category: "байршлын дараа, зураасны өмнө",
+  name: "зураасны дараа, тоон дугаарын өмнө",
 };
 
 /** Бүртгэлтэй кодуудыг угтвараар бүлэглэнэ (акталсных ч эзэлсэнд тооцогдоно) */
@@ -445,7 +445,7 @@ function LetterList({
 
 /**
  * «Кодчилол» — кодын бүрэлдэхүүнийг бүртгэнэ:
- *   Байршлын ангиллын эхний үсэг + Төрлийн 2 дахь үсэг + дугаар → ТА-001.
+ *   Байршлын ангилал + Төрөл, зураас, Нэр + тоон дугаар → ДХГ-АШ001.
  * Эд хөрөнгө бүртгэхэд хоёуланг нь сонгоход дараагийн код автоматаар
  * үүснэ (@see AssetFormModal). Доор нь бүртгэлтэй кодуудын тойм.
  */
@@ -531,9 +531,9 @@ export default function AssetCoding({ aimag }: AssetCodingProps) {
   return (
     <div className="flex flex-col gap-5">
       <p className="text-theme-sm text-gray-600 dark:text-gray-400">
-        Код = <b>Байршлын ангиллын эхний үсэг</b> + <b>Төрлийн 2 дахь үсэг</b> + <b>Нэрийн үсэг</b> + тоон
-        дугаар. Жишээ нь Тайз (Т) + Гал тогоо (Г) + Аяга таваг (АТ) → <span className="font-mono">ТГАТ-001</span>.
-        Эд хөрөнгө бүртгэхэд эдгээрийг сонгоход дараагийн код автоматаар үүснэ.
+        Код = <b>Байршлын ангилал</b> + <b>Төрөл</b> – <b>Нэр</b> + тоон дугаар. Жишээ нь Д + ХГ – АШ + 001 →{" "}
+        <span className="font-mono font-semibold">ДХГ-АШ001</span>. Эд хөрөнгө бүртгэхэд эдгээрийг сонгоход дараагийн
+        код автоматаар үүснэ.
       </p>
 
       {loading && warehouses.length === 0 && categories.length === 0 && names.length === 0 ? (
