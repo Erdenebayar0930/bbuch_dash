@@ -833,8 +833,9 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                       </button>
                     )}
 
-                    {/* Устгахгүй — актална (акталсныг дахин актлахгүй) */}
-                    {canEdit && asset.state !== "written_off" && (
+                    {/* Устгахгүй — актална. Зөвхөн Ерөнхий бүртгэлээс (Агуулах,
+                        Ашиглалтын байдлаас биш); акталсныг дахин актлахгүй */}
+                    {canEdit && view === "general" && asset.state !== "written_off" && (
                       <button
                         type="button"
                         onClick={() => setWritingOff(asset)}
