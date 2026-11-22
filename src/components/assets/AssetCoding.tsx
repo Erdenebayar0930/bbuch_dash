@@ -254,19 +254,20 @@ function ItemRow({
   return (
     <tr className={busy ? "opacity-50" : ""}>
       <td className="px-5 py-3 font-medium text-gray-900 dark:text-white">
-        {item.name}
+        <span className="inline-flex items-center gap-1.5">
+          {item.name}
+          {/* Бүртгэлтэй — нэр, үсэг өөрчлөгдөхгүй, устгахгүй */}
+          {inUse && (
+            <span title={`${count} эд хөрөнгө бүртгэлтэй — нэр, үсэг өөрчлөгдөхгүй, устгахгүй`}>
+              <Lock className="h-3.5 w-3.5 text-gray-400" strokeWidth={2} aria-label="Түгжээтэй" />
+            </span>
+          )}
+        </span>
         {error && <p className="mt-1 text-theme-xs font-normal text-error-600 dark:text-error-400">{error}</p>}
       </td>
       <td className="px-5 py-3">
         {item.codeLetter ? (
-          <span className="inline-flex items-center gap-1 font-mono font-semibold text-gray-800 dark:text-gray-200">
-            {item.codeLetter}
-            {inUse && (
-              <span title="Ашиглагдаж буй кодын багц — өөрчлөгдөхгүй">
-                <Lock className="h-3.5 w-3.5 text-gray-400" strokeWidth={2} aria-label="Түгжээтэй" />
-              </span>
-            )}
-          </span>
+          <span className="font-mono font-semibold text-gray-800 dark:text-gray-200">{item.codeLetter}</span>
         ) : (
           <span className="text-gray-400">Оноогоогүй</span>
         )}
@@ -275,7 +276,7 @@ function ItemRow({
       {(canEdit || canDelete) && (
         <td className="px-3 py-3">
           <div className="flex justify-end gap-1">
-            {canEdit && (
+            {canEdit && !inUse && (
               <button
                 type="button"
                 onClick={startEdit}

@@ -298,8 +298,8 @@ export const assetCategories = pgTable("asset_categories", {
 
 /**
  * Кодчилол — эд хөрөнгийн нэр (Аяга таваг гэх мэт), кодын 3 дахь хэсэг.
- * Эд хөрөнгө нэрээ мөрөөр хадгална (`assets.name`); нэр солиход тэр нэртэй
- * хөрөнгийн нэр ч хамт солигдоно (@see api/assets/meta PATCH).
+ * Эд хөрөнгө нэрээ мөрөөр хадгална (`assets.name`); бүртгэлтэй нэрийг солихгүй
+ * (@see api/assets/meta PATCH).
  */
 export const assetNames = pgTable("asset_names", {
   id: uuidPk(),

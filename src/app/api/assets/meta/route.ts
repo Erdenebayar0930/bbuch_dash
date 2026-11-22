@@ -163,9 +163,9 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Байршлын ангилал эсвэл Төрлийн нэр ба/эсвэл кодчиллын үсгийг засна (нэмэх
- * эрхтэй адил: админ болон Магтаалын аймгийн гишүүд). Бүртгэсэн кодууд
- * өөрчлөгдөхгүй.
+ * Байршлын ангилал, Төрөл, Нэрийн нэр ба/эсвэл кодчиллын үсгийг засна (нэмэх
+ * эрхтэй адил: админ болон Магтаалын аймгийн гишүүд). Эд хөрөнгө ашиглаж буй
+ * (бүртгэлтэй) бол нэр, үсэг хоёулаа түгжээтэй.
  */
 export async function PATCH(request: NextRequest) {
   const result = await requireAimag(request, "praise");
@@ -208,6 +208,15 @@ export async function PATCH(request: NextRequest) {
         .where(and(sameName(table, name), ne(table.id, id)))
         .limit(1);
       if (duplicate) return badRequest(`"${name}" аль хэдийн бүртгэгдсэн байна.`);
+      if (name !== existing.name) {
+        // Бүртгэлтэй (эд хөрөнгө ашиглаж буй) бол нэр солигдохгүй
+        const used = await usageCount(kind, id, existing.name);
+        if (used > 0) {
+          return badRequest(
+            `«${existing.name}»-г ${used} эд хөрөнгө ашиглаж байгаа тул нэрийг өөрчлөх боломжгүй.`
+          );
+        }
+      }
       patch.name = name;
     }
 
@@ -227,13 +236,7 @@ export async function PATCH(request: NextRequest) {
 
     if (Object.keys(patch).length === 0) return badRequest("Өөрчлөх талбар алга.");
 
-    await db.transaction(async (tx) => {
-      await tx.update(table).set(patch).where(eq(table.id, id));
-      // Эд хөрөнгө нэрээ мөрөөр хадгалдаг — нэр солиход хамт солино
-      if (kind === "name" && patch.name && patch.name !== existing.name) {
-        await tx.update(assets).set({ name: patch.name }).where(eq(assets.name, existing.name));
-      }
-    });
+    await db.update(table).set(patch).where(eq(table.id, id));
 
     const [updated] = await db.select().from(table).where(eq(table.id, id));
 
