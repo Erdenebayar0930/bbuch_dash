@@ -44,6 +44,7 @@ import AssetCheckModal from "./AssetCheckModal";
 import AssetFormModal from "./AssetFormModal";
 import AssetViewModal from "./AssetViewModal";
 import MetaManagerModal from "./MetaManagerModal";
+import UsageRegisterModal from "./UsageRegisterModal";
 import { dateFormat } from "@/lib/dateFormat";
 
 const checkStyles: Record<CheckStatus, string> = {
@@ -94,6 +95,8 @@ const ASSET_VIEWS: Record<AssetView, AssetState[]> = {
 
 export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
   const viewStates = view ? ASSET_VIEWS[view] : assetStates;
+  /** Ангиллын задаргаа (Бүгд / Бүртгэлтэй / Засвартай …) — Ерөнхий бүртгэл дээр харуулахгүй */
+  const showStateBreakdown = viewStates.length > 1 && view !== "general";
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
   // Агуулах/төрлийн лавлах жагсаалтыг админ болон тухайн аймгийн гишүүд
@@ -137,6 +140,8 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
   const [isMetaOpen, setMetaOpen] = useState(false);
   /** Зөвхөн харах цонхонд нээгдсэн бүртгэл */
   const [viewing, setViewing] = useState<Asset | null>(null);
+  /** «Ашиглалт бүртгэх» цонх (Ашиглалтын байдал таб) */
+  const [isUsageOpen, setUsageOpen] = useState(false);
   const [checking, setChecking] = useState<Asset | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
@@ -373,7 +378,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
 
       {/* Ангилал — сонгосон байршлын (эсвэл бүх) хөрөнгийг бүлэглэнэ. Ганц
           ангилалтай цэсэнд (Акталсан) таб хэрэггүй. */}
-      {viewStates.length > 1 && (
+      {showStateBreakdown && (
       <div
         role="tablist"
         aria-label="Ангилал"
@@ -501,6 +506,18 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
             </button>
           </>
         )}
+
+        {/* Ашиглалтын байдал — кодоор хайж олоод ашиглалтыг бүртгэнэ */}
+        {canEdit && view === "usage" && (
+          <button
+            type="button"
+            onClick={() => setUsageOpen(true)}
+            className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
+          >
+            <Plus className="h-4 w-4" strokeWidth={2.2} />
+            Ашиглалт бүртгэх
+          </button>
+        )}
       </div>
 
       {error && (
@@ -626,7 +643,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                       />
                       <span className="text-theme-sm font-semibold text-gray-900 dark:text-white">{group.name}</span>
                       <span className="text-theme-xs text-gray-500 dark:text-gray-400">{group.assets.length} ширхэг</span>
-                      {viewStates.length > 1 &&
+                      {showStateBreakdown &&
                         viewStates.map((state) => {
                           const n = group.assets.filter((asset) => asset.state === state).length;
                           return n > 0 ? (
@@ -847,6 +864,13 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
       />
 
       <AssetViewModal asset={viewing} onClose={() => setViewing(null)} />
+
+      <UsageRegisterModal
+        isOpen={isUsageOpen}
+        assets={assets}
+        onClose={() => setUsageOpen(false)}
+        onSaved={load}
+      />
 
       <MetaManagerModal
         isOpen={isMetaOpen}
