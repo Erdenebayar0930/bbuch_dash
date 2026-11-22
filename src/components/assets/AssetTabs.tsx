@@ -2,7 +2,11 @@
 
 import React, { useState } from "react";
 
+import AssetCoding from "./AssetCoding";
 import AssetRegistry, { type AssetView } from "./AssetRegistry";
+
+/** Табын түлхүүр — бүртгэлийн харагдац эсвэл «Кодчилол» */
+type TabKey = AssetView | "coding";
 
 export type AssetSection = "register" | "warehouse";
 
@@ -10,13 +14,14 @@ export type AssetSection = "register" | "warehouse";
  * Эд хөрөнгийн хоёр цэсийн табууд. Бүгд нэг бүртгэл; таб бүр өөр ангиллаар
  * шүүнэ (@see AssetRegistry ASSET_VIEWS).
  *
- * • Эд хөрөнгийн ерөнхий бүртгэл — Ерөнхий бүртгэл, Акталсан хөрөнгийн бүртгэл
+ * • Эд хөрөнгийн ерөнхий бүртгэл — Ерөнхий бүртгэл, Акталсан хөрөнгийн бүртгэл, Кодчилол
  * • Агуулахын бүртгэл — Агуулахын бүртгэл, Ашиглалтын байдал
  */
-const SECTION_TABS: Record<AssetSection, { view: AssetView; label: string }[]> = {
+const SECTION_TABS: Record<AssetSection, { view: TabKey; label: string }[]> = {
   register: [
     { view: "general", label: "Ерөнхий бүртгэл" },
     { view: "written_off", label: "Акталсан хөрөнгийн бүртгэл" },
+    { view: "coding", label: "Кодчилол" },
   ],
   warehouse: [
     { view: "warehouse", label: "Агуулахын бүртгэл" },
@@ -31,7 +36,7 @@ type AssetTabsProps = {
 
 export default function AssetTabs({ section, aimag }: AssetTabsProps) {
   const tabs = SECTION_TABS[section];
-  const [view, setView] = useState<AssetView>(tabs[0].view);
+  const [view, setView] = useState<TabKey>(tabs[0].view);
 
   return (
     <div className="flex flex-col gap-5">
@@ -62,7 +67,11 @@ export default function AssetTabs({ section, aimag }: AssetTabsProps) {
       </div>
 
       {/* key — таб солиход шүүлтүүр, сонголт шинээр эхэлнэ */}
-      <AssetRegistry key={view} aimag={aimag} view={view} />
+      {view === "coding" ? (
+        <AssetCoding aimag={aimag} />
+      ) : (
+        <AssetRegistry key={view} aimag={aimag} view={view} />
+      )}
     </div>
   );
 }
