@@ -139,7 +139,7 @@ export default function AssetViewModal({ asset, onClose }: AssetViewModalProps) 
 
         <div className="mt-5">
           <Row label="Төрөл" value={asset.categoryName ?? "—"} />
-          <Row label="Агуулах" value={asset.warehouseName ?? "—"} />
+          <Row label="Байршлын ангилал" value={asset.warehouseName ?? "—"} />
           <Row label="Ангилал" value={assetStateLabels[asset.state]} />
           {/* Ширхэг бүр нэг эд хөрөнгө — хуучин олон ширхэгтэй бүртгэлд л тоо харагдана */}
           {asset.quantity > 1 && (

@@ -24,7 +24,7 @@ import {
   type AssetInput,
   type RefItem,
 } from "@/lib/assets";
-import { nextCode } from "@/lib/assetCodes";
+import { codePrefix, nextCode } from "@/lib/assetCodes";
 import { MAX_ASSET_IMAGE_BYTES } from "@/lib/storage";
 
 /** Нэг эд хөрөнгөд зөвшөөрөх зургийн тоо — серверийн хязгаартай ижил */
@@ -174,29 +174,47 @@ export default function AssetFormModal({
   const autoCodeRef = useRef("");
 
   /**
-   * Төрөл сонгоход Кодчиллын угтвараас дараагийн кодыг бөглөнө (зөвхөн
-   * шинээр бүртгэхэд). Олон ширхэгт угтвар ба эхлэх дугаарыг тохируулна.
+   * Кодчилол — Байршлын ангиллын эхний үсэг + Төрлийн 2 дахь үсэг
+   * (@see lib/assetCodes.ts). Хоёуланг нь сонгоход дараагийн кодыг бөглөнө
+   * (зөвхөн шинээр бүртгэхэд). Олон ширхэгт угтвар ба эхлэх дугаарыг тохируулна.
    */
-  const handleCategoryChange = (categoryId: string | null) => {
-    const prefix = categories.find((item) => item.id === categoryId)?.codePrefix ?? "";
-    setForm((prev) => {
-      const patch: Partial<AssetInput> = { categoryId };
-      if (!asset && !bulk && prefix && (!prev.code.trim() || prev.code === autoCodeRef.current)) {
-        const { code } = nextCode(prefix, existingCodes);
-        autoCodeRef.current = code;
-        patch.code = code;
-      }
-      return { ...prev, ...patch };
-    });
-    if (!asset && bulk && prefix) {
-      const { number, width } = nextCode(prefix, existingCodes);
+  const applyAutoCode = (
+    warehouseId: string | null,
+    categoryId: string | null,
+    bulkMode: boolean
+  ) => {
+    if (asset) return;
+    const prefix = codePrefix(
+      warehouses.find((item) => item.id === warehouseId)?.codeLetter,
+      categories.find((item) => item.id === categoryId)?.codeLetter
+    );
+    if (!prefix) return;
+    const { code, number, width } = nextCode(prefix, existingCodes);
+
+    if (bulkMode) {
       const length = Math.max(Number(rangeTo) - Number(rangeFrom), 0);
       setCodeMode("range");
       setPrefix(prefix);
       setDigits(String(width));
       setRangeFrom(String(number));
       setRangeTo(String(number + (Number.isFinite(length) ? length : 9)));
+      return;
     }
+    setForm((prev) => {
+      // Хэрэглэгч өөрөө бичсэн кодыг дарж бичихгүй
+      if (prev.code.trim() && prev.code !== autoCodeRef.current) return prev;
+      autoCodeRef.current = code;
+      return { ...prev, code };
+    });
+  };
+
+  const handleRefChange = (key: "warehouseId" | "categoryId", value: string | null) => {
+    update(key, value);
+    applyAutoCode(
+      key === "warehouseId" ? value : form.warehouseId,
+      key === "categoryId" ? value : form.categoryId,
+      bulk
+    );
   };
 
   const totalImages = images.length + pending.length;
@@ -323,7 +341,10 @@ export default function AssetFormModal({
                   type="button"
                   role="tab"
                   aria-selected={bulk === multi}
-                  onClick={() => setBulk(multi)}
+                  onClick={() => {
+                    setBulk(multi);
+                    applyAutoCode(form.warehouseId, form.categoryId, multi);
+                  }}
                   className={`rounded-md px-3 py-1.5 text-theme-sm font-medium transition-colors ${
                     bulk === multi
                       ? "bg-accent-600 text-white"
@@ -342,7 +363,7 @@ export default function AssetFormModal({
                 Код <span className="text-gray-400">(инвентарын дугаар, сериал)</span>
               </p>
               <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                Ширхэг бүр өөрийн кодтой, тусдаа эд хөрөнгө болж бүртгэгдэнэ. Доорх төрөл, агуулах, ангилал, мэдээлэл
+                Ширхэг бүр өөрийн кодтой, тусдаа эд хөрөнгө болж бүртгэгдэнэ. Доорх байршлын ангилал, төрөл, ангилал, мэдээлэл
                 нь бүгдэд ижил — дараа нь ширхэг тус бүрийг засаж болно.
               </p>
               <div className="flex w-fit rounded-lg bg-gray-100 p-0.5 dark:bg-white/5">
@@ -449,7 +470,7 @@ export default function AssetFormModal({
               <select
                 id="asset-category"
                 value={form.categoryId ?? ""}
-                onChange={(event) => handleCategoryChange(event.target.value || null)}
+                onChange={(event) => handleRefChange("categoryId", event.target.value || null)}
                 className={fieldClass}
               >
                 <option value="">Сонгоогүй</option>
@@ -463,14 +484,12 @@ export default function AssetFormModal({
 
             <div>
               <label htmlFor="asset-warehouse" className={labelClass}>
-                Агуулах
+                Байршлын ангилал
               </label>
               <select
                 id="asset-warehouse"
                 value={form.warehouseId ?? ""}
-                onChange={(event) =>
-                  update("warehouseId", event.target.value || null)
-                }
+                onChange={(event) => handleRefChange("warehouseId", event.target.value || null)}
                 className={fieldClass}
               >
                 <option value="">Сонгоогүй</option>

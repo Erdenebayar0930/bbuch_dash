@@ -429,16 +429,16 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
         <select
           value={warehouseFilter}
           onChange={(event) => setWarehouseFilter(event.target.value)}
-          aria-label="Агуулахаар шүүх"
+          aria-label="Байршлын ангиллаар шүүх"
           className={selectClass}
         >
-          <option value={ALL}>Бүх агуулах</option>
+          <option value={ALL}>Бүх байршил</option>
           {warehouses.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
             </option>
           ))}
-          <option value={NONE}>Агуулах оноогоогүй</option>
+          <option value={NONE}>Байршил оноогоогүй</option>
         </select>
 
         <button
@@ -476,7 +476,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
             className="flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-theme-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
           >
             <Settings2 className="h-4 w-4" strokeWidth={1.8} />
-            Агуулах / төрөл
+            Байршил / төрөл
           </button>
         )}
 
@@ -564,7 +564,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
               <th className="px-5 py-3.5 font-medium">Нэр</th>
               {!aimag && <th className="px-5 py-3.5 font-medium">Аймаг</th>}
               <th className="px-5 py-3.5 font-medium">Төрөл</th>
-              <th className="px-5 py-3.5 font-medium">Агуулах</th>
+              <th className="px-5 py-3.5 font-medium">Байршлын ангилал</th>
               <th className="px-5 py-3.5 font-medium text-right">Тоо</th>
               <th className="px-5 py-3.5 font-medium">Бүрэн бүтэн байдал</th>
               <th className="px-5 py-3.5 text-right font-medium">Үйлдэл</th>

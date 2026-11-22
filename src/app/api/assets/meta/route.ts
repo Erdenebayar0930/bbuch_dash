@@ -17,32 +17,36 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_NAME = 60;
-const MAX_PREFIX = 32;
+const MAX_LETTER = 8;
 
 /**
- * Кодын угтвар — хоосон байж болно. Алдаатай бол мөр (алдааны мессеж).
- * Хоёр төрөл ижил угтвартай бол код давхцана — тиймээс давтагдахгүй.
+ * Кодчиллын үсэг — Байршлын ангилалд эхний, Төрөлд 2 дахь үсэг. Хоосон
+ * байж болно. Нэг төрөлдөө (байршил эсвэл төрөл) давтагдахгүй — эс бөгөөс
+ * код давхцана. Том үсгээр хадгална.
  */
-async function parseCodePrefix(
+async function parseCodeLetter(
+  kind: Kind,
   value: unknown,
   exceptId?: string
-): Promise<{ prefix: string } | { error: string }> {
-  const prefix = typeof value === "string" ? value.trim() : "";
-  if (prefix.length > MAX_PREFIX) {
-    return { error: `Угтвар ${MAX_PREFIX} тэмдэгтээс урт байж болохгүй.` };
+): Promise<{ letter: string } | { error: string }> {
+  const letter = typeof value === "string" ? value.trim().toUpperCase() : "";
+  if (letter.length > MAX_LETTER) {
+    return { error: `Үсэг ${MAX_LETTER} тэмдэгтээс урт байж болохгүй.` };
   }
-  if (!prefix) return { prefix };
+  if (!letter) return { letter };
+  if (/\d$/.test(letter)) return { error: "Үсэг нь тоогоор төгсөж болохгүй." };
+  const table = tables[kind];
   const [taken] = await db
-    .select({ name: assetCategories.name })
-    .from(assetCategories)
+    .select({ name: table.name })
+    .from(table)
     .where(
       exceptId
-        ? and(eq(assetCategories.codePrefix, prefix), ne(assetCategories.id, exceptId))
-        : eq(assetCategories.codePrefix, prefix)
+        ? and(eq(table.codeLetter, letter), ne(table.id, exceptId))
+        : eq(table.codeLetter, letter)
     )
     .limit(1);
-  if (taken) return { error: `"${prefix}" угтварыг "${taken.name}" төрөл ашиглаж байна.` };
-  return { prefix };
+  if (taken) return { error: `"${letter}" үсгийг "${taken.name}" ашиглаж байна.` };
+  return { letter };
 }
 
 /** Аль хүснэгтэд бичихийг заана */
@@ -112,12 +116,9 @@ export async function POST(request: NextRequest) {
 
     if (duplicate) return badRequest(`"${name}" аль хэдийн бүртгэгдсэн байна.`);
 
-    let codePrefix = "";
-    if (kind === "category") {
-      const parsed = await parseCodePrefix(body.codePrefix);
-      if ("error" in parsed) return badRequest(parsed.error);
-      codePrefix = parsed.prefix;
-    }
+    const parsedLetter = await parseCodeLetter(kind, body.codeLetter);
+    if ("error" in parsedLetter) return badRequest(parsedLetter.error);
+    const codeLetter = parsedLetter.letter;
 
     const [{ next }] = await db
       .select({ next: sql<number>`coalesce(max(${table.position}), -1) + 1` })
@@ -126,11 +127,7 @@ export async function POST(request: NextRequest) {
     // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
     const newId = crypto.randomUUID();
 
-    if (kind === "category") {
-      await db.insert(assetCategories).values({ id: newId, name, position: next, codePrefix });
-    } else {
-      await db.insert(warehouses).values({ id: newId, name, position: next });
-    }
+    await db.insert(table).values({ id: newId, name, position: next, codeLetter });
 
     const [created] = await db
       .select()
@@ -144,8 +141,8 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Кодчилол — төрлийн кодын угтварыг солино (нэмэх эрхтэй адил: админ болон
- * Магтаалын аймгийн гишүүд). Аль хэдийн бүртгэсэн кодууд өөрчлөгдөхгүй.
+ * Кодчилол — Байршлын ангилал эсвэл Төрлийн үсгийг солино (нэмэх эрхтэй
+ * адил: админ болон Магтаалын аймгийн гишүүд). Бүртгэсэн кодууд өөрчлөгдөхгүй.
  */
 export async function PATCH(request: NextRequest) {
   const result = await requireAimag(request, "praise");
@@ -156,34 +153,33 @@ export async function PATCH(request: NextRequest) {
       .json()
       .catch(() => ({}))) as Record<string, unknown>;
 
+    const kind = body.kind;
+    if (!isKind(kind)) {
+      return badRequest('kind нь "warehouse" эсвэл "category" байна.');
+    }
     const id = typeof body.id === "string" ? body.id : "";
     if (!id) return badRequest("id шаардлагатай.");
 
-    const parsed = await parseCodePrefix(body.codePrefix, id);
+    const parsed = await parseCodeLetter(kind, body.codeLetter, id);
     if ("error" in parsed) return badRequest(parsed.error);
 
+    const table = tables[kind];
     const [existing] = await db
-      .select({ id: assetCategories.id })
-      .from(assetCategories)
-      .where(eq(assetCategories.id, id))
+      .select({ id: table.id })
+      .from(table)
+      .where(eq(table.id, id))
       .limit(1);
     if (!existing) {
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
     }
 
-    await db
-      .update(assetCategories)
-      .set({ codePrefix: parsed.prefix })
-      .where(eq(assetCategories.id, id));
+    await db.update(table).set({ codeLetter: parsed.letter }).where(eq(table.id, id));
 
-    const [updated] = await db
-      .select()
-      .from(assetCategories)
-      .where(eq(assetCategories.id, id));
+    const [updated] = await db.select().from(table).where(eq(table.id, id));
 
     return NextResponse.json({ item: updated });
   } catch (error) {
-    return serverError(error, "Угтвар хадгалахад алдаа гарлаа");
+    return serverError(error, "Үсэг хадгалахад алдаа гарлаа");
   }
 }
 

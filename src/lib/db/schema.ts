@@ -273,6 +273,8 @@ export const children = pgTable(
 export const warehouses = pgTable("warehouses", {
   id: uuidPk(),
   name: varchar("name", { length: 255 }).notNull(),
+  /** Кодчилол — кодын эхний үсэг (Байршлын ангилал); хоосон бол оноогоогүй */
+  codeLetter: varchar("code_letter", { length: 8 }).notNull().default(""),
   /** Жагсаалт дахь эрэмбэ */
   position: integer("position").notNull().default(0),
   createdAt: utcTimestamp("created_at").notNull().defaultNow(),
@@ -282,8 +284,8 @@ export const warehouses = pgTable("warehouses", {
 export const assetCategories = pgTable("asset_categories", {
   id: uuidPk(),
   name: varchar("name", { length: 255 }).notNull(),
-  /** Кодчилол — энэ төрлийн кодын угтвар (AYG- гэх мэт); хоосон бол оноогоогүй */
-  codePrefix: varchar("code_prefix", { length: 32 }).notNull().default(""),
+  /** Кодчилол — кодын 2 дахь үсэг (байршлын эхний үсгийн дараа); хоосон бол оноогоогүй */
+  codeLetter: varchar("code_letter", { length: 8 }).notNull().default(""),
   position: integer("position").notNull().default(0),
   createdAt: utcTimestamp("created_at").notNull().defaultNow(),
 });

@@ -3,6 +3,16 @@
  * бүртгэх маягт хоёулаа эндээс дараагийн чөлөөтэй кодыг тооцно.
  */
 
+/**
+ * Кодын угтвар — Байршлын ангиллын эхний үсэг + Төрлийн 2 дахь үсэг + «-»
+ * (Т + А → «ТА-», код нь ТА-001). Аль нэг нь хоосон бол код үүсэхгүй.
+ */
+export function codePrefix(locationLetter?: string, typeLetter?: string): string {
+  const first = (locationLetter ?? "").trim();
+  const second = (typeLetter ?? "").trim();
+  return first && second ? `${first}${second}-` : "";
+}
+
 /** Угтвар оноосон ч код хараахан байхгүй үеийн оронгийн тоо (001) */
 export const DEFAULT_CODE_DIGITS = 3;
 

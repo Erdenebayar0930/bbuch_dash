@@ -51,7 +51,7 @@ export async function recordAssetChanges(before: AssetRow, after: AssetRow, acto
       after.categoryId ? names.category.get(after.categoryId) ?? "—" : "—",
     ],
     [
-      "Агуулах",
+      "Байршлын ангилал",
       before.warehouseId ? names.warehouse.get(before.warehouseId) ?? "—" : "—",
       after.warehouseId ? names.warehouse.get(after.warehouseId) ?? "—" : "—",
     ],

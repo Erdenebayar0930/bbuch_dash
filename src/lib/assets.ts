@@ -8,8 +8,11 @@ import { apiFetch } from "./apiClient";
 export type RefItem = {
   id: string;
   name: string;
-  /** Зөвхөн төрөлд — кодчиллын угтвар (AYG- гэх мэт), хоосон бол оноогоогүй */
-  codePrefix?: string;
+  /**
+   * Кодчиллын үсэг — Байршлын ангилалд эхний, Төрөлд 2 дахь үсэг
+   * (@see lib/assetCodes.ts). Хоосон бол оноогоогүй.
+   */
+  codeLetter?: string;
 };
 
 /** Эд хөрөнгийн зураг — файл нь Firebase Storage дээр */
@@ -298,24 +301,28 @@ export async function getAssetMeta(): Promise<AssetMeta> {
   };
 }
 
-/** Шинэ агуулах эсвэл төрөл нэмнэ — төрөлд кодын угтвартай нь. */
+/** Шинэ Байршлын ангилал эсвэл Төрөл нэмнэ — кодчиллын үсэгтэй нь. */
 export async function addMetaItem(
   kind: "warehouse" | "category",
   name: string,
-  codePrefix?: string
+  codeLetter?: string
 ): Promise<RefItem> {
   const data = await apiFetch<{ item: RefItem }>("/api/assets/meta", {
     method: "POST",
-    body: { kind, name, codePrefix },
+    body: { kind, name, codeLetter },
   });
   return data.item;
 }
 
-/** Кодчилол — төрлийн кодын угтварыг солино. */
-export async function setCategoryCodePrefix(id: string, codePrefix: string): Promise<RefItem> {
+/** Кодчилол — Байршлын ангилал эсвэл Төрлийн үсгийг солино. */
+export async function setMetaCodeLetter(
+  kind: "warehouse" | "category",
+  id: string,
+  codeLetter: string
+): Promise<RefItem> {
   const data = await apiFetch<{ item: RefItem }>("/api/assets/meta", {
     method: "PATCH",
-    body: { id, codePrefix },
+    body: { kind, id, codeLetter },
   });
   return data.item;
 }

@@ -19,7 +19,7 @@ type MetaManagerModalProps = {
 };
 
 const labels: Record<Kind, { title: string; placeholder: string }> = {
-  warehouse: { title: "Агуулах", placeholder: "Шинэ агуулахын нэр" },
+  warehouse: { title: "Байршлын ангилал", placeholder: "Шинэ байршлын нэр" },
   category: { title: "Төрөл", placeholder: "Шинэ төрлийн нэр" },
 };
 
@@ -147,7 +147,7 @@ export default function MetaManagerModal({
     <Modal isOpen={isOpen} onClose={onClose} className="max-w-lg p-0">
       <div className="p-5">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Агуулах ба төрөл
+          Байршлын ангилал ба төрөл
         </h3>
         <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
           Устгасан ч бүртгэгдсэн эд хөрөнгө арилахгүй — зөвхөн тэр талбар нь
