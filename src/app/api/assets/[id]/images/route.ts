@@ -123,6 +123,15 @@ export async function DELETE(
       return NextResponse.json({ error: "Зураг олдсонгүй." }, { status: 404 });
     }
 
+    // Эд хөрөнгө заавал зурагтай — сүүлийн зургийг устгахгүй (эхлээд шинийг нэмнэ)
+    const [{ n }] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(assetImages)
+      .where(eq(assetImages.assetId, id));
+    if (n <= 1) {
+      return badRequest("Эд хөрөнгө заавал зурагтай байна — эхлээд шинэ зураг нэмээд дараа нь энийг устгана уу.");
+    }
+
     await db
       .delete(assetImages)
       .where(and(eq(assetImages.id, imageId), eq(assetImages.assetId, id)));

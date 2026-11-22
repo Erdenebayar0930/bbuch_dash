@@ -327,6 +327,9 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
     });
   }, [scoped, warehouses, viewStates]);
 
+  /** Байршил оноогоогүй хөрөнгийн тоо — «Байршилгүй» товчонд */
+  const unplacedCount = useMemo(() => scoped.filter((asset) => !asset.warehouseId).length, [scoped]);
+
   const handleDelete = async (asset: Asset) => {
     setRemovingId(asset.id);
     setError("");
@@ -347,43 +350,46 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Агуулах тус бүрийн тойм — бүх харагдацад */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {perWarehouse.map((warehouse) => (
-          <button
-            key={warehouse.id}
-            type="button"
-            onClick={() =>
-              setWarehouseFilter((prev) =>
-                prev === warehouse.id ? ALL : warehouse.id
-              )
-            }
-            className={`rounded-xl border p-4 text-left transition-colors ${
-              warehouseFilter === warehouse.id
-                ? "border-accent-500 bg-accent-50/60 dark:border-accent-500 dark:bg-accent-500/10"
-                : "border-gray-200 bg-white hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
-            }`}
-          >
-            <span className="block truncate text-theme-sm font-medium text-gray-800 dark:text-white/90">
-              {warehouse.name}
-            </span>
-            <span className="mt-1 block text-theme-xs text-gray-500 dark:text-gray-400">
-              {warehouse.count} нэр төрөл
-            </span>
-            {warehouse.states.length > 0 && (
-              <span className="mt-2 flex flex-wrap gap-1">
-                {warehouse.states.map((item) => (
-                  <span
-                    key={item.state}
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${assetStateStyles[item.state]}`}
-                  >
-                    {assetStateLabels[item.state]} {item.count}
-                  </span>
-                ))}
+      {/* Байршлаар шүүх — «Бүгд» ба байршил бүр жижиг товчоор; сонгосон нь тод */}
+      <div role="group" aria-label="Байршлаар шүүх" className="flex flex-wrap items-center gap-1.5">
+        {[
+          { id: ALL, name: "Бүгд", count: scoped.length, states: [] as { state: AssetState; count: number }[] },
+          ...perWarehouse,
+          ...(unplacedCount > 0
+            ? [{ id: NONE, name: "Байршилгүй", count: unplacedCount, states: [] as { state: AssetState; count: number }[] }]
+            : []),
+        ].map((item) => {
+          const selected = warehouseFilter === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setWarehouseFilter(item.id === ALL || selected ? ALL : item.id)}
+              title={
+                item.states.length > 0
+                  ? item.states.map((entry) => `${assetStateLabels[entry.state]} ${entry.count}`).join(" · ")
+                  : undefined
+              }
+              className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-theme-sm font-medium transition-colors ${
+                selected
+                  ? "border-accent-600 bg-accent-600 text-white shadow-theme-xs dark:border-accent-500 dark:bg-accent-500"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:bg-white/[0.06]"
+              }`}
+            >
+              <span className="max-w-[160px] truncate">{item.name}</span>
+              <span
+                className={`rounded-full px-1.5 text-theme-xs tabular-nums ${
+                  selected
+                    ? "bg-white/20 text-white"
+                    : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
+                }`}
+              >
+                {item.count}
               </span>
-            )}
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
 
       {/* Ангилал — сонгосон байршлын (эсвэл бүх) хөрөнгийг бүлэглэнэ. Ганц

@@ -259,6 +259,9 @@ export default function AssetFormModal({
         // Хуучин, кодгүй хөрөнгө нэргүй үлдэхгүй
         const name = form.name.trim() || asset.name;
         await updateAsset(asset.id, { ...rest, name });
+      } else if (pending.length === 0) {
+        // Шинэ хөрөнгө зурагтай байх ёстой
+        throw new Error("Зураг оруулна уу.");
       } else if (missingPart) {
         throw new Error(missingPart + ".");
       } else {
@@ -291,7 +294,7 @@ export default function AssetFormModal({
               харагдахгүй — хуудасныхаа аймагт (lockedAimag) автоматаар хамаарна */}
           <div>
             <p className={labelClass}>
-              Зураг
+              Зураг {!asset && <span className="text-error-500">*</span>}
               <span className="ml-1.5 font-normal text-gray-400">
                 {totalImages}/{MAX_IMAGES}
               </span>
@@ -317,6 +320,8 @@ export default function AssetFormModal({
                       className="h-full w-full object-cover"
                     />
                   </button>
+                  {/* Заавал зурагтай — сүүлийн зургийг устгахгүй */}
+                  {images.length > 1 && (
                   <button
                     type="button"
                     onClick={() => handleRemoveImage(image)}
@@ -326,6 +331,7 @@ export default function AssetFormModal({
                   >
                     <X className="h-3 w-3" strokeWidth={2.5} />
                   </button>
+                  )}
                 </div>
               ))}
 
@@ -397,6 +403,11 @@ export default function AssetFormModal({
             {!asset && pending.length > 0 && (
               <p className="mt-2 text-theme-xs text-gray-500 dark:text-gray-400">
                 Зургууд хадгалсны дараа байршина.
+              </p>
+            )}
+            {!asset && pending.length === 0 && (
+              <p className="mt-2 text-theme-xs text-gray-500 dark:text-gray-400">
+                Дор хаяж нэг зураг заавал оруулна.
               </p>
             )}
           </div>
@@ -559,7 +570,7 @@ export default function AssetFormModal({
           </button>
           <button
             type="submit"
-            disabled={saving || (!asset && !!missingPart)}
+            disabled={saving || (!asset && (!!missingPart || pending.length === 0))}
             className="rounded-lg bg-accent-600 px-4 py-2.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? "Хадгалж байна..." : "Хадгалах"}
