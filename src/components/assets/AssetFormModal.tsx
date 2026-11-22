@@ -92,7 +92,11 @@ export default function AssetFormModal({
   onClose,
   onSaved,
 }: AssetFormModalProps) {
-  const stateOptions = !asset && createStates?.length ? createStates : assetStates;
+  // «Акталсан»-ыг маягтаар оноохгүй — шалтгаантайгаар «Актлах» товчоор л
+  // (@see WriteOffModal). Аль хэдийн акталсан бол одоогийнхоо утгыг харуулна.
+  const stateOptions = (!asset && createStates?.length ? createStates : assetStates).filter(
+    (state) => state !== "written_off" || asset?.state === "written_off"
+  );
   const initialState = stateOptions.includes(defaultState) ? defaultState : stateOptions[0];
   const [form, setForm] = useState<AssetInput>(emptyInput);
   const [saving, setSaving] = useState(false);

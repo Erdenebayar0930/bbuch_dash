@@ -11,6 +11,10 @@ import { assets } from "@/lib/db/schema";
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
+
+/** Актлах шалтгааны урт */
+const MIN_REASON = 3;
+const MAX_REASON = 500;
 export const dynamic = "force-dynamic";
 
 /** Эд хөрөнгийн бүртгэлийг засна — админ эсвэл Магтаалын аймгийн гишүүн. */
@@ -24,7 +28,8 @@ export async function PATCH(
   if ("error" in result) return result.error;
 
   try {
-    const parsed = await readAsset(await request.json().catch(() => ({})), true);
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const parsed = await readAsset(body, true);
     if (!parsed.ok) return badRequest(parsed.error);
 
     // Админ бус хүн хөрөнгийг өөр аймаг руу шилжүүлэхгүй
@@ -48,6 +53,19 @@ export async function PATCH(
 
     // Код гараар өөрчлөгдөхгүй — бүртгэхэд сервер олгосон хэвээр
     delete parsed.value.code;
+
+    // Актлах — шалтгаан заавал; шалтгаан нь ширхэгийн түүхэнд үлдэнэ
+    const extraHistory: { field: string; from: string; to: string }[] = [];
+    if (parsed.value.state === "written_off" && before.state !== "written_off") {
+      const reason = typeof body.writeOffReason === "string" ? body.writeOffReason.trim() : "";
+      if (reason.length < MIN_REASON) {
+        return badRequest("Актлах шалтгааныг заавал бичнэ үү.");
+      }
+      if (reason.length > MAX_REASON) {
+        return badRequest(`Шалтгаан ${MAX_REASON} тэмдэгтээс урт байж болохгүй.`);
+      }
+      extraHistory.push({ field: "Актласан шалтгаан", from: "—", to: reason });
+    }
 
     // Кодтой хөрөнгийн кодын багц (Байршлын ангилал, Төрөл, Нэр) түгжээтэй —
     // эс бөгөөс код нь бүрэлдэхүүнтэйгээ зөрнө
@@ -83,7 +101,7 @@ export async function PATCH(
     }
 
     // Өөрчлөгдсөн талбар бүр ширхэгийн түүхэнд үлдэнэ
-    await recordAssetChanges(before, updated, result.caller.uid);
+    await recordAssetChanges(before, updated, result.caller.uid, extraHistory);
 
     return NextResponse.json({ asset: updated });
   } catch (error) {

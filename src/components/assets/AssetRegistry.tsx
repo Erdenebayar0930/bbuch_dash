@@ -31,7 +31,6 @@ import {
   checkStatusLabels,
   finishCount,
   getAssetMeta,
-  updateAsset,
   getCountState,
   listAssets,
   startCount,
@@ -46,6 +45,7 @@ import AssetFormModal from "./AssetFormModal";
 import AssetViewModal from "./AssetViewModal";
 import MetaManagerModal from "./MetaManagerModal";
 import UsageRegisterModal from "./UsageRegisterModal";
+import WriteOffModal from "./WriteOffModal";
 import { dateFormat } from "@/lib/dateFormat";
 
 const checkStyles: Record<CheckStatus, string> = {
@@ -150,10 +150,12 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
     setHeaderSlot(document.getElementById(ASSET_HEADER_SLOT));
   }, []);
 
+  /** Актлах цонх — шалтгаан заавал (устгахгүй, актална) */
+  const [writingOff, setWritingOff] = useState<Asset | null>(null);
+
   /** «Ашиглалт бүртгэх» цонх (Ашиглалтын байдал таб) */
   const [isUsageOpen, setUsageOpen] = useState(false);
   const [checking, setChecking] = useState<Asset | null>(null);
-  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -329,33 +331,6 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
 
   /** Байршил оноогоогүй хөрөнгийн тоо — «Байршилгүй» товчонд */
   const unplacedCount = useMemo(() => scoped.filter((asset) => !asset.warehouseId).length, [scoped]);
-
-  /**
-   * Эд хөрөнгийг устгахгүй — актална. Мөр нь «Акталсан хөрөнгийн бүртгэл»-д
-   * шилжиж, түүхэнд үлдэнэ; код нь эзэлсэн хэвээр (дахин олгогдохгүй).
-   */
-  const handleWriteOff = async (asset: Asset) => {
-    const label = [asset.code, asset.name].filter(Boolean).join(" — ");
-    if (
-      !window.confirm(
-        `«${label}»-г актлах уу?\n\nАкталсан хөрөнгө «Акталсан хөрөнгийн бүртгэл»-д шилжинэ. Устгагдахгүй, түүх нь хадгалагдана.`
-      )
-    ) {
-      return;
-    }
-    setRemovingId(asset.id);
-    setError("");
-
-    try {
-      await updateAsset(asset.id, { state: "written_off" });
-      await load();
-    } catch (err) {
-      console.error("Актлахад алдаа гарлаа:", err);
-      setError(err instanceof Error ? err.message : "Актлахад алдаа гарлаа.");
-    } finally {
-      setRemovingId(null);
-    }
-  };
 
   const selectClass =
     "h-10 rounded-lg border border-gray-200 bg-white px-3 text-theme-sm text-gray-800 transition-colors focus:border-accent-400 focus:outline-hidden dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90";
@@ -767,8 +742,6 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
               <tr
                 key={asset.id}
                 className={`text-theme-sm transition-colors ${
-                  removingId === asset.id ? "opacity-50" : ""
-                } ${
                   count.checkedAssetIds.has(asset.id)
                     ? "bg-success-50 dark:bg-success-500/10"
                     : ""
@@ -932,8 +905,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                     {canEdit && asset.state !== "written_off" && (
                       <button
                         type="button"
-                        disabled={removingId === asset.id}
-                        onClick={() => handleWriteOff(asset)}
+                        onClick={() => setWritingOff(asset)}
                         aria-label={`${asset.name} актлах`}
                         title="Актлах"
                         className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-warning-600 transition-colors hover:bg-warning-50 disabled:opacity-50 dark:border-white/10 dark:text-warning-400 dark:hover:bg-warning-500/10"
@@ -970,6 +942,8 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
       />
 
       <AssetViewModal asset={viewing} onClose={() => setViewing(null)} />
+
+      <WriteOffModal asset={writingOff} onClose={() => setWritingOff(null)} onDone={load} />
 
       <UsageRegisterModal
         isOpen={isUsageOpen}

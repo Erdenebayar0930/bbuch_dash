@@ -37,7 +37,13 @@ export async function recordAssetsCreated(ids: string[], actorUid: string) {
  * Засварын өмнөх ба дараах мөрийг харьцуулж, өөрчлөгдсөн талбар бүрийг
  * түүхэнд бичнэ. Юу ч өөрчлөгдөөгүй бол бичихгүй.
  */
-export async function recordAssetChanges(before: AssetRow, after: AssetRow, actorUid: string) {
+export async function recordAssetChanges(
+  before: AssetRow,
+  after: AssetRow,
+  actorUid: string,
+  /** Талбарын харьцуулалтаас гадуурх нэмэлт мөр — жишээ нь актласан шалтгаан */
+  extra: Change[] = []
+) {
   const ids = (a: string | null, b: string | null) => [a, b].filter((value): value is string => !!value);
   const names = await namesOf(ids(before.categoryId, after.categoryId), ids(before.warehouseId, after.warehouseId));
 
@@ -63,9 +69,12 @@ export async function recordAssetChanges(before: AssetRow, after: AssetRow, acto
     ["Мэдээлэл", before.note, after.note],
   ];
 
-  const changes: Change[] = fields
-    .filter(([, from, to]) => (from ?? "") !== (to ?? ""))
-    .map(([field, from, to]) => ({ field, from: from || "—", to: to || "—" }));
+  const changes: Change[] = [
+    ...fields
+      .filter(([, from, to]) => (from ?? "") !== (to ?? ""))
+      .map(([field, from, to]) => ({ field, from: from || "—", to: to || "—" })),
+    ...extra,
+  ];
 
   if (changes.length === 0) return;
   await db.insert(assetHistory).values({ assetId: after.id, action: "updated", changes, actorUid });

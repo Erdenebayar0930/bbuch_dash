@@ -130,6 +130,16 @@ export async function createAsset(input: Omit<AssetInput, "code">): Promise<stri
   return data.asset.id;
 }
 
+/**
+ * Эд хөрөнгийг актална — устгахгүй. Шалтгаан заавал (түүхэнд үлдэнэ).
+ */
+export async function writeOffAsset(id: string, reason: string): Promise<void> {
+  await apiFetch(`/api/assets/${id}`, {
+    method: "PATCH",
+    body: { state: "written_off", writeOffReason: reason },
+  });
+}
+
 /** Бүртгэлийг засна (зөвхөн админ). */
 export async function updateAsset(
   id: string,
