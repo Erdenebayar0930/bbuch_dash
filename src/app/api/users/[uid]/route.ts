@@ -294,6 +294,15 @@ export async function PATCH(
       patch.canNotify = body.canNotify;
     }
 
+    if (body.canCode !== undefined) {
+      if (typeof body.canCode !== "boolean") {
+        return badRequest("canCode нь true/false байна.");
+      }
+
+      checks.push(canAssignGroups(actor, target));
+      patch.canCode = body.canCode;
+    }
+
     if (Object.keys(patch).length === 1) {
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }

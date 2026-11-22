@@ -15,7 +15,7 @@ import {
   type MetaKind,
   type RefItem,
 } from "@/lib/assets";
-import { isAdminRole } from "@/lib/permissions";
+import { canManageCoding } from "@/lib/permissions";
 
 type Kind = MetaKind;
 
@@ -451,10 +451,9 @@ function LetterList({
  */
 export default function AssetCoding({ aimag }: AssetCodingProps) {
   const { user } = useUser();
-  const isAdmin = isAdminRole(user?.role);
-  const canEdit = isAdmin || (!!aimag && (user?.aimags ?? []).includes(aimag));
-  /** Устгах нь системийн хэмжээнд зөвхөн админд */
-  const canDelete = isAdmin;
+  /** Кодчиллыг админ, эсвэл админаас «Кодчилол удирдах эрх» авсан хүн удирдана */
+  const canEdit = canManageCoding(user?.role, user?.can_code);
+  const canDelete = canEdit;
 
   const [assets, setAssets] = useState<Asset[]>([]);
   const [warehouses, setWarehouses] = useState<RefItem[]>([]);

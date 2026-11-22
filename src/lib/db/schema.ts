@@ -159,6 +159,8 @@ export const users = pgTable(
      * Админ/супер бол энэ талбараас үл хамааран үргэлж илгээх боломжтой.
      */
     canNotify: boolean("can_notify").notNull().default(false),
+    /** Эд хөрөнгийн Кодчилол (Байршил, Төрөл, Нэр, үсэг) удирдах эрх — админ олгоно */
+    canCode: boolean("can_code").notNull().default(false),
     /** super | admin | user */
     role: varchar("role", { length: 32 }).notNull().default("user"),
     /** active | pending | blocked */

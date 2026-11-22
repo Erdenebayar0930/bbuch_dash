@@ -27,6 +27,8 @@ type UserType = {
   aimags?: string[];
   /** Админ бус ч мэдэгдэл илгээх эрх авсан эсэх */
   can_notify?: boolean;
+  /** Админ бус ч эд хөрөнгийн Кодчилол удирдах эрх авсан эсэх */
+  can_code?: boolean;
 };
 
 type UserContextType = {

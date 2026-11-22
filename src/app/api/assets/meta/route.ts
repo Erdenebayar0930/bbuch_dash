@@ -4,8 +4,7 @@ import { NextResponse } from "next/server";
 import {
   badRequest,
   requireActiveUser,
-  requireAdmin,
-  requireAimag,
+  requireCoder,
   serverError,
 } from "@/lib/api/auth";
 import { db } from "@/lib/db";
@@ -103,12 +102,12 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Шинэ агуулах эсвэл төрөл нэмнэ (админ болон Магтаалын аймгийн гишүүд —
- * эд хөрөнгийн бүртгэл өөр аймагт нээгдвэл энд мөн нэмэх шаардлагатай).
+ * Шинэ Байршлын ангилал, Төрөл эсвэл Нэр нэмнэ — Кодчилол удирдах эрхтэй
+ * хүн (админ, эсвэл админаас `canCode` эрх авсан).
  * Эрэмбийг сүүлд нь тавина — одоо байгаа дараалал өөрчлөгдөхгүй.
  */
 export async function POST(request: NextRequest) {
-  const result = await requireAimag(request, "praise");
+  const result = await requireCoder(request);
   if ("error" in result) return result.error;
 
   try {
@@ -163,12 +162,12 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Байршлын ангилал, Төрөл, Нэрийн нэр ба/эсвэл кодчиллын үсгийг засна (нэмэх
- * эрхтэй адил: админ болон Магтаалын аймгийн гишүүд). Эд хөрөнгө ашиглаж буй
+ * Байршлын ангилал, Төрөл, Нэрийн нэр ба/эсвэл кодчиллын үсгийг засна
+ * (Кодчилол удирдах эрхтэй хүн). Эд хөрөнгө ашиглаж буй
  * (бүртгэлтэй) бол нэр, үсэг хоёулаа түгжээтэй.
  */
 export async function PATCH(request: NextRequest) {
-  const result = await requireAimag(request, "praise");
+  const result = await requireCoder(request);
   if ("error" in result) return result.error;
 
   try {
@@ -247,12 +246,11 @@ export async function PATCH(request: NextRequest) {
 }
 
 /**
- * Агуулах эсвэл төрлийг устгана (зөвхөн админ, супер админ — устгах эрх
- * системийн хэмжээнд зөвхөн тэдэнд байна; нэмэхийг аймгийн гишүүд хийнэ).
+ * Байршлын ангилал, Төрөл эсвэл Нэрийг устгана (Кодчилол удирдах эрхтэй хүн).
  * Эд хөрөнгө ашиглаж буй бол устгахгүй (кодын багц түгжээтэй).
  */
 export async function DELETE(request: NextRequest) {
-  const result = await requireAdmin(request);
+  const result = await requireCoder(request);
   if ("error" in result) return result.error;
 
   try {

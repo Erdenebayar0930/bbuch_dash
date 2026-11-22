@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { devices, users } from "@/lib/db/schema";
 import { adminAuth } from "@/lib/firebaseAdmin";
-import { asRole, canSendNotifications, isAdminRole, isSuperRole } from "@/lib/permissions";
+import { asRole, canManageCoding, canSendNotifications, isAdminRole, isSuperRole } from "@/lib/permissions";
 import { backfillClaimsIfStale } from "./claims";
 
 import type { NextRequest } from "next/server";
@@ -287,6 +287,22 @@ export async function requireNotifier(request: NextRequest) {
 
   if (!canSendNotifications(result.caller.user?.role, result.caller.user?.canNotify)) {
     return { error: forbidden("Мэдэгдэл илгээх эрхгүй байна.") } as const;
+  }
+
+  return result;
+}
+
+/**
+ * Эд хөрөнгийн Кодчилол удирдах эрхийг шаардана — админ/супер, эсвэл
+ * админаас `canCode` эрх авсан хэрэглэгч.
+ */
+export async function requireCoder(request: NextRequest) {
+  const result = await requireActiveUser(request);
+
+  if ("error" in result) return result;
+
+  if (!canManageCoding(result.caller.user?.role, result.caller.user?.canCode)) {
+    return { error: forbidden("Кодчилол удирдах эрхгүй байна. Админаас эрх авна уу.") } as const;
   }
 
   return result;

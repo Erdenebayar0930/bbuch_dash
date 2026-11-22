@@ -31,6 +31,16 @@ export const canSendNotifications = (
 ): boolean => isAdminRole(role) || !!canNotify;
 
 /**
+ * Эд хөрөнгийн Кодчилол удирдах эрх (Байршлын ангилал, Төрөл, Нэр ба
+ * тэдгээрийн үсгийг нэмэх, засах, устгах) — админ/супер үргэлж, бусад
+ * хэрэглэгч зөвхөн админаас `canCode` эрх авсан бол.
+ */
+export const canManageCoding = (
+  role?: string | null,
+  canCode?: boolean | null
+): boolean => isAdminRole(role) || !!canCode;
+
+/**
  * Халамж бүртгэх (өрх нэмэх/засах, халамж бүртгэх) эрх — админ, эсвэл
  * Халамжийн хэсгийг үзэх аймгийн гишүүн бүр. Устгах нь админд хэвээр.
  */

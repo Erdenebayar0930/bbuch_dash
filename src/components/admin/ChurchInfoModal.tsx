@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Bell, BellOff, Plus, X } from "lucide-react";
+import { Bell, BellOff, Hash, Plus, X } from "lucide-react";
 
 import Checkbox from "@/components/form/input/Checkbox";
 import { Modal } from "@/components/ui/modal";
 import { aimags as aimagOptions } from "@/data/profileOptions";
-import { setUserCanNotify, setUserChurchInfo, type AppUser } from "@/lib/users";
+import { setUserCanCode, setUserCanNotify, setUserChurchInfo, type AppUser } from "@/lib/users";
 
 const MAX_CALLINGS = 5;
 
@@ -15,11 +15,11 @@ type ChurchInfoModalProps = {
   onClose: () => void;
   onSaved: (
     uid: string,
-    patch: { aimags: string[]; callings: string[]; can_notify: boolean }
+    patch: { aimags: string[]; callings: string[]; can_notify: boolean; can_code: boolean }
   ) => void;
 };
 
-/** Тухайн хэрэглэгчийн дуудлага, аймаг, мэдэгдэл илгээх эрхийг оноох админы цонх. */
+/** Тухайн хэрэглэгчийн дуудлага, аймаг, мэдэгдэл илгээх ба Кодчиллын эрхийг оноох админы цонх. */
 export default function ChurchInfoModal({
   user,
   onClose,
@@ -28,6 +28,7 @@ export default function ChurchInfoModal({
   const [aimags, setAimags] = useState<string[]>([]);
   const [callings, setCallings] = useState<string[]>([]);
   const [canNotify, setCanNotify] = useState(false);
+  const [canCode, setCanCode] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -37,6 +38,7 @@ export default function ChurchInfoModal({
       setAimags(user.aimags);
       setCallings(user.callings);
       setCanNotify(user.can_notify);
+      setCanCode(user.can_code);
       setDraft("");
       setError("");
     }
@@ -79,8 +81,9 @@ export default function ChurchInfoModal({
         canNotify !== user.can_notify
           ? setUserCanNotify(user.uid, canNotify)
           : Promise.resolve(),
+        canCode !== user.can_code ? setUserCanCode(user.uid, canCode) : Promise.resolve(),
       ]);
-      onSaved(user.uid, { aimags, callings, can_notify: canNotify });
+      onSaved(user.uid, { aimags, callings, can_notify: canNotify, can_code: canCode });
       onClose();
     } catch (err) {
       console.error("Чуулганы мэдээлэл хадгалахад алдаа гарлаа:", err);
@@ -212,6 +215,53 @@ export default function ChurchInfoModal({
           <span
             className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
               canNotify ? "translate-x-5" : "translate-x-0.5"
+            }`}
+          />
+        </button>
+      </div>
+
+      {/* Эд хөрөнгийн Кодчилол удирдах эрх */}
+      <div className="mt-3 flex items-center gap-3 rounded-lg border border-gray-200 p-3 dark:border-white/10">
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+            canCode
+              ? "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400"
+              : "bg-gray-100 text-gray-400 dark:bg-white/10 dark:text-gray-500"
+          }`}
+        >
+          <Hash className="h-4 w-4" strokeWidth={1.8} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-theme-sm font-medium text-gray-800 dark:text-white/90">
+            Кодчилол удирдах эрх
+          </p>
+          <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+            Эд хөрөнгийн Байршлын ангилал, Төрөл, Нэр ба үсгийг нэмэх, засах, устгах
+          </p>
+        </div>
+
+        <span
+          className={`text-theme-xs font-semibold ${
+            canCode ? "text-success-600 dark:text-success-400" : "text-gray-400"
+          }`}
+        >
+          {canCode ? "Нээлттэй" : "Хаалттай"}
+        </span>
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={canCode}
+          aria-label={`Кодчилол удирдах эрх: ${canCode ? "нээлттэй" : "хаалттай"}`}
+          onClick={() => setCanCode((prev) => !prev)}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-hidden focus-visible:ring-3 focus-visible:ring-accent-500/30 ${
+            canCode ? "bg-success-500" : "bg-gray-300 dark:bg-white/20"
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              canCode ? "translate-x-5" : "translate-x-0.5"
             }`}
           />
         </button>

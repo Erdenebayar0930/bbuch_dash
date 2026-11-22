@@ -68,6 +68,8 @@ export type AppUser = {
   status: UserStatus;
   /** Админ бус ч мэдэгдэл илгээх эрх авсан эсэх (зөвхөн админ оноодог) */
   can_notify: boolean;
+  /** Эд хөрөнгийн Кодчилол удирдах эрх */
+  can_code: boolean;
   createdAt: Date | null;
 };
 
@@ -108,6 +110,7 @@ export type UserRow = {
   role: string;
   status: string;
   canNotify: boolean | null;
+  canCode?: boolean | null;
   createdAt: string | null;
 };
 
@@ -149,6 +152,7 @@ export function toAppUser(row: UserRow): AppUser {
     role: asRole(row.role),
     status: (row.status ?? "active") as UserStatus,
     can_notify: row.canNotify ?? false,
+    can_code: row.canCode ?? false,
     createdAt: row.createdAt ? new Date(row.createdAt) : null,
   };
 }
@@ -393,6 +397,11 @@ export async function deleteUser(uid: string) {
 /** Админ бус хэрэглэгчид мэдэгдэл илгээх эрх олгох/хасах (зөвхөн админ). */
 export async function setUserCanNotify(uid: string, canNotify: boolean) {
   await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: { canNotify } });
+}
+
+/** Эд хөрөнгийн Кодчилол удирдах эрхийг олгох / хаах (админ). */
+export async function setUserCanCode(uid: string, canCode: boolean) {
+  await apiFetch(`/api/users/${uid}`, { method: "PATCH", body: { canCode } });
 }
 
 /**

@@ -254,6 +254,7 @@ export default function UserReportView() {
               ["Ариун Сүнсний баптисм", dateWithYears(user.holy_spirit_baptism_date)],
               ["Албан тушаал", dash(user.position)],
               ["Мэдэгдэл илгээх эрх", user.can_notify ? "Тийм" : "Үгүй"],
+              ["Кодчилол удирдах эрх", user.can_code ? "Тийм" : "Үгүй"],
             ]}
           />
         </Section>

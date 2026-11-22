@@ -25,7 +25,7 @@ import {
   type AssetState,
 } from "@/data/assetStates";
 import { aimags, labelOf } from "@/data/profileOptions";
-import { isAdminRole } from "@/lib/permissions";
+import { canManageCoding, isAdminRole } from "@/lib/permissions";
 import {
   checkStatusLabels,
   deleteAsset,
@@ -100,6 +100,8 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
   // (жишээ нь Магтаалын аймаг) удирдана.
   const canManageMeta =
     isAdmin || (!!aimag && (user?.aimags ?? []).includes(aimag));
+  /** Байршил / Төрөл / Нэрийн жагсаалт — Кодчилол удирдах эрхтэй хүн (админ олгоно) */
+  const canCoding = canManageCoding(user?.role, user?.can_code);
   /**
    * Бүртгэл нэмэх, засах, шалгалт бүртгэх — админ эсвэл тухайн аймгийн
    * гишүүн (Магтаал). Устгах нь зөвхөн админд.
@@ -471,7 +473,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
         )}
 
         {/* Агуулах, төрлийн жагсаалтыг админ болон тухайн аймгийн гишүүд тохируулна */}
-        {canManageMeta && (
+        {canCoding && (
           <button
             type="button"
             onClick={() => setMetaOpen(true)}
@@ -850,7 +852,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
         categories={categories}
         onClose={() => setMetaOpen(false)}
         onChanged={load}
-        canDelete={isAdmin}
+        canDelete={canCoding}
       />
 
       <AssetCheckModal
