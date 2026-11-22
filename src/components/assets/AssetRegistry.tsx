@@ -616,8 +616,22 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
         <table className="w-full min-w-[760px] text-left">
           <thead>
             <tr className="border-b border-gray-200 text-theme-xs uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
-              {/* Дараалал: Байршлын ангилал → Төрөл → Нэр (кодын бүтэцтэй адил).
-                  Ерөнхий бүртгэл дээр сонголтууд (шүүлтүүр) гарчиг дээрээ */}
+              {/* Дараалал: Нэр (код) → Байршлын ангилал → Төрөл. Ерөнхий бүртгэл дээр
+                  сонголтууд (шүүлтүүр) гарчиг дээрээ */}
+              <th className="px-5 py-3.5 font-medium">
+                {view === "general" ? (
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Нэр, код хайх"
+                    aria-label="Нэр, кодоор хайх"
+                    className="h-9 w-full min-w-[140px] rounded-lg border border-gray-200 bg-white px-2.5 text-theme-sm font-normal normal-case tracking-normal text-gray-800 focus:border-accent-400 focus:outline-hidden dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 min-w-[180px] placeholder:text-gray-400"
+                  />
+                ) : (
+                  "Нэр"
+                )}
+              </th>
+              {!aimag && <th className="px-5 py-3.5 font-medium">Аймаг</th>}
               <th className="px-5 py-3.5 font-medium">
                 {view === "general" ? (
                   <select
@@ -658,20 +672,6 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                   "Төрөл"
                 )}
               </th>
-              <th className="px-5 py-3.5 font-medium">
-                {view === "general" ? (
-                  <input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Нэр, код хайх"
-                    aria-label="Нэр, кодоор хайх"
-                    className="h-9 w-full min-w-[140px] rounded-lg border border-gray-200 bg-white px-2.5 text-theme-sm font-normal normal-case tracking-normal text-gray-800 focus:border-accent-400 focus:outline-hidden dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 min-w-[180px] placeholder:text-gray-400"
-                  />
-                ) : (
-                  "Нэр"
-                )}
-              </th>
-              {!aimag && <th className="px-5 py-3.5 font-medium">Аймаг</th>}
               <th className="px-5 py-3.5 font-medium text-right">Тоо</th>
               <th className="px-5 py-3.5 font-medium">Бүрэн бүтэн байдал</th>
               <th className="px-5 py-3.5 text-right font-medium">Үйлдэл</th>
@@ -750,14 +750,6 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                     : ""
                 }`}
               >
-                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">
-                  {asset.warehouseName ?? "—"}
-                </td>
-
-                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">
-                  {asset.categoryName ?? "—"}
-                </td>
-
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
                     {/* Зураг дээр дарахад засварлахгүй, зөвхөн харах цонх нээнэ */}
@@ -818,6 +810,14 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                     {asset.aimag ? labelOf(aimags, asset.aimag) : "—"}
                   </td>
                 )}
+
+                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">
+                  {asset.warehouseName ?? "—"}
+                </td>
+
+                <td className="px-5 py-4 text-gray-600 dark:text-gray-400">
+                  {asset.categoryName ?? "—"}
+                </td>
 
                 <td className="px-5 py-4 text-right text-gray-800 dark:text-gray-200">
                   {asset.quantity}
