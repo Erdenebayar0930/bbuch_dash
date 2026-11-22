@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Boxes,
   Check,
@@ -77,6 +78,9 @@ type AssetRegistryProps = {
 
 export type AssetView = "general" | "written_off" | "warehouse" | "usage";
 
+/** Хуудасны гарчгийн хажуу дахь үйлдлийн товчнуудын байрны id */
+export const ASSET_HEADER_SLOT = "asset-header-actions";
+
 /**
  * Цэс бүрийн харагдац — ямар ангиллын хөрөнгө харуулах вэ. Агуулах тус
  * бүрийн карт бүх харагдацад байна (тухайн ангиллын тоогоор).
@@ -140,6 +144,12 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
   const [isMetaOpen, setMetaOpen] = useState(false);
   /** Зөвхөн харах цонхонд нээгдсэн бүртгэл */
   const [viewing, setViewing] = useState<Asset | null>(null);
+  /** Хуудасны гарчгийн хажуу дахь үйлдлийн байр (@see PraiseAssetsPage) */
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setHeaderSlot(document.getElementById(ASSET_HEADER_SLOT));
+  }, []);
+
   /** «Ашиглалт бүртгэх» цонх (Ашиглалтын байдал таб) */
   const [isUsageOpen, setUsageOpen] = useState(false);
   const [checking, setChecking] = useState<Asset | null>(null);
@@ -411,7 +421,50 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
       </div>
       )}
 
-      {/* Шүүлтүүр ба үйлдэл */}
+      {/* Ерөнхий бүртгэл — Бүртгэх, Сэргээх, Excel татах л; хуудасны хамгийн дээр гарчгийн хажууд */}
+      {view === "general" && headerSlot &&
+        createPortal(
+          <>
+            {/* Шинээр бүртгэх нь зөвхөн Ерөнхий бүртгэл дээр — Агуулахын бүртгэл,
+                Ашиглалтын байдал, Акталсан нь харах, засах л */}
+            {canEdit && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(null);
+                    setFormOpen(true);
+                  }}
+                  className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2.2} />
+                  Бүртгэх
+                </button>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={load}
+              disabled={loading}
+              className="flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-theme-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                strokeWidth={1.8}
+              />
+              Сэргээх
+            </button>
+
+            <ExportButton dataset="assets" />
+
+          </>,
+          headerSlot
+        )}
+
+      {/* Шүүлтүүр ба үйлдэл — Ерөнхий бүртгэл дээр шүүлтүүр нь хүснэгтийн
+          гарчигт, үйлдэл нь хуудасны дээд хэсэгт тул энэ мөр харагдахгүй */}
+      {view !== "general" && (
       <div className="flex flex-wrap items-center gap-2">
         <input
           value={query}
@@ -489,24 +542,6 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
           </button>
         )}
 
-        {/* Шинээр бүртгэх нь зөвхөн Ерөнхий бүртгэл дээр — Агуулахын бүртгэл,
-            Ашиглалтын байдал, Акталсан нь харах, засах л */}
-        {canEdit && view === "general" && (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setEditing(null);
-                setFormOpen(true);
-              }}
-              className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
-            >
-              <Plus className="h-4 w-4" strokeWidth={2.2} />
-              Бүртгэх
-            </button>
-          </>
-        )}
-
         {/* Ашиглалтын байдал — кодоор хайж олоод ашиглалтыг бүртгэнэ */}
         {canEdit && view === "usage" && (
           <button
@@ -519,6 +554,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
           </button>
         )}
       </div>
+      )}
 
       {error && (
         <p className="rounded-lg bg-error-50 px-4 py-3 text-theme-sm text-error-600 dark:bg-error-500/10 dark:text-error-400">
@@ -584,10 +620,61 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
         <table className="w-full min-w-[760px] text-left">
           <thead>
             <tr className="border-b border-gray-200 text-theme-xs uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
-              <th className="px-5 py-3.5 font-medium">Нэр</th>
+              {/* Ерөнхий бүртгэл — сонголтууд (шүүлтүүр) гарчиг дээрээ */}
+              <th className="px-5 py-3.5 font-medium">
+                {view === "general" ? (
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Нэр, код хайх"
+                    aria-label="Нэр, кодоор хайх"
+                    className="h-9 w-full min-w-[140px] rounded-lg border border-gray-200 bg-white px-2.5 text-theme-sm font-normal normal-case tracking-normal text-gray-800 focus:border-accent-400 focus:outline-hidden dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 min-w-[180px] placeholder:text-gray-400"
+                  />
+                ) : (
+                  "Нэр"
+                )}
+              </th>
               {!aimag && <th className="px-5 py-3.5 font-medium">Аймаг</th>}
-              <th className="px-5 py-3.5 font-medium">Төрөл</th>
-              <th className="px-5 py-3.5 font-medium">Байршлын ангилал</th>
+              <th className="px-5 py-3.5 font-medium">
+                {view === "general" ? (
+                  <select
+                    value={categoryFilter}
+                    onChange={(event) => setCategoryFilter(event.target.value)}
+                    aria-label="Төрлөөр шүүх"
+                    className="h-9 w-full min-w-[140px] rounded-lg border border-gray-200 bg-white px-2.5 text-theme-sm font-normal normal-case tracking-normal text-gray-800 focus:border-accent-400 focus:outline-hidden dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90"
+                  >
+                    <option value={ALL}>Бүх төрөл</option>
+                    {categories.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                    <option value={NONE}>Төрөл оноогоогүй</option>
+                  </select>
+                ) : (
+                  "Төрөл"
+                )}
+              </th>
+              <th className="px-5 py-3.5 font-medium">
+                {view === "general" ? (
+                  <select
+                    value={warehouseFilter}
+                    onChange={(event) => setWarehouseFilter(event.target.value)}
+                    aria-label="Байршлын ангиллаар шүүх"
+                    className="h-9 w-full min-w-[140px] rounded-lg border border-gray-200 bg-white px-2.5 text-theme-sm font-normal normal-case tracking-normal text-gray-800 focus:border-accent-400 focus:outline-hidden dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90"
+                  >
+                    <option value={ALL}>Бүх байршил</option>
+                    {warehouses.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                    <option value={NONE}>Байршил оноогоогүй</option>
+                  </select>
+                ) : (
+                  "Байршлын ангилал"
+                )}
+              </th>
               <th className="px-5 py-3.5 font-medium text-right">Тоо</th>
               <th className="px-5 py-3.5 font-medium">Бүрэн бүтэн байдал</th>
               <th className="px-5 py-3.5 text-right font-medium">Үйлдэл</th>
