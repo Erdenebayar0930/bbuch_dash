@@ -81,18 +81,19 @@ export type AssetView = "general" | "written_off" | "warehouse" | "usage";
 export const ASSET_HEADER_SLOT = "asset-header-actions";
 
 /**
- * Цэс бүрийн харагдац — ямар ангиллын хөрөнгө харуулах вэ. Агуулах тус
- * бүрийн карт бүх харагдацад байна (тухайн ангиллын тоогоор).
+ * Цэс бүрийн харагдац — ямар ангиллын хөрөнгө харуулах вэ.
  *
  * • Ерөнхий бүртгэл — акталснаас бусад бүх хөрөнгө
  * • Акталсан хөрөнгийн бүртгэл — зөвхөн акталсан
- * • Агуулахын бүртгэл — акталснаас бусад
+ * • Агуулахын бүртгэл — зөвхөн агуулахад байгаа («Бүртгэлтэй»). Ашиглалтад
+ *   гармагц эндээс хасагдаж Ашиглалтын байдал руу шилжинэ; «Агуулахад
+ *   буцаах»-аар эргэж орно (@see UsageRegisterModal)
  * • Ашиглалтын байдал — ашиглалтад ба засварт байгаа
  */
 const ASSET_VIEWS: Record<AssetView, AssetState[]> = {
   general: ["registered", "repair", "in_use"],
   written_off: ["written_off"],
-  warehouse: ["registered", "repair", "in_use"],
+  warehouse: ["registered"],
   usage: ["in_use", "repair"],
 };
 
