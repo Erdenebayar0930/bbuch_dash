@@ -130,18 +130,6 @@ export async function createAsset(input: Omit<AssetInput, "code">): Promise<stri
   return data.asset.id;
 }
 
-/**
- * Олон ширхгийг нэг дор бүртгэнэ — ширхэг бүр тусдаа эд хөрөнгө, кодыг
- * сервер дараалуулан олгоно (ТГАТ-001 … ТГАТ-050). Бусад талбар бүгдэд ижил.
- */
-export async function createAssets(input: Omit<AssetInput, "code">, count: number): Promise<number> {
-  const data = await apiFetch<{ count: number }>("/api/assets", {
-    method: "POST",
-    body: { ...input, count },
-  });
-  return data.count;
-}
-
 /** Бүртгэлийг засна (зөвхөн админ). */
 export async function updateAsset(
   id: string,

@@ -26,8 +26,6 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Нэг удаад олноор бүртгэх ширхэгийн дээд тоо */
-const MAX_BULK = 500;
 
 /**
  * Бүх эд хөрөнгө — агуулах, төрлийн нэртэй хамт.
@@ -149,18 +147,12 @@ export async function POST(request: NextRequest) {
     if (!isAdminRole(result.caller.user?.role)) parsed.value.aimag = ASSET_AIMAG;
 
     // Кодыг гараар оруулахгүй — Байршлын ангилал + Төрөл + Нэрийн үсгээс
-    // сервер өөрөө олгоно (ирсэн code/codes-ыг тооцохгүй). `count` нь хэдэн
-    // ширхэг — ширхэг бүр тусдаа эд хөрөнгө, өөрийн кодтой.
+    // сервер өөрөө олгоно (ирсэн code/codes-ыг тооцохгүй).
     const parts = await resolveCodeParts(parsed.value.warehouseId, parsed.value.categoryId, parsed.value.name);
     if (!parts.ok) return badRequest(parts.error);
 
-    const count = body.count === undefined ? 1 : Number(body.count);
-    if (!Number.isInteger(count) || count < 1) return badRequest("Ширхэгийн тоо буруу байна.");
-    if (count > MAX_BULK) {
-      return badRequest(`Нэг удаад хамгийн ихдээ ${MAX_BULK} ширхэг бүртгэнэ.`);
-    }
-
-    const rows = await allocateCodes(parts.prefix, count, async (tx, codes) => {
+    // Нэг удаад нэг ширхэг — олноор бүртгэхгүй
+    const rows = await allocateCodes(parts.prefix, 1, async (tx, codes) => {
       const values = codes.map((code) => ({
         ...parsed.value,
         id: crypto.randomUUID(),

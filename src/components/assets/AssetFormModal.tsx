@@ -16,7 +16,6 @@ import {
 import {
   attachAssetImage,
   createAsset,
-  createAssets,
   removeAssetImage,
   updateAsset,
   type Asset,
@@ -24,14 +23,12 @@ import {
   type AssetInput,
   type RefItem,
 } from "@/lib/assets";
-import { codePrefix, formatCode, nextCode } from "@/lib/assetCodes";
+import { codePrefix, nextCode } from "@/lib/assetCodes";
 import { MAX_ASSET_IMAGE_BYTES } from "@/lib/storage";
 
 /** Нэг эд хөрөнгөд зөвшөөрөх зургийн тоо — серверийн хязгаартай ижил */
 const MAX_IMAGES = 10;
 
-/** Нэг удаад олноор бүртгэх ширхэгийн дээд тоо — серверийнхтэй ижил */
-const MAX_BULK = 500;
 
 /** Хадгалахыг хүлээж буй файл — урьдчилж харуулах blob URL-тэй нь хамт */
 type PendingImage = { file: File; url: string };
@@ -112,11 +109,6 @@ export default function AssetFormModal({
   /** Бүтнээр нь томоор харуулж буй зургийн хаяг */
   const [viewer, setViewer] = useState<string | null>(null);
 
-  /** Олон ширхэг — ширхэг бүр тусдаа эд хөрөнгө, өөрийн кодтой (зөвхөн шинээр бүртгэхэд) */
-  const [bulk, setBulk] = useState(false);
-  const [countText, setCountText] = useState("10");
-  const count = bulk ? Math.min(Math.max(Math.floor(Number(countText)) || 0, 0), MAX_BULK) : 1;
-
   /**
    * Кодчилол — код гараар оруулахгүй: Байршлын ангилал + Төрөл + Нэрийн
    * үсгээс сервер олгоно. Энд зөвхөн урьдчилан харуулна (эцсийн дугаарыг
@@ -136,13 +128,7 @@ export default function AssetFormModal({
         : !prefix
           ? "Сонгосон зүйлсийн аль нэгэнд үсэг оноогоогүй байна (Кодчилол)"
           : "";
-  const preview = useMemo(() => {
-    if (!prefix || count < 1) return [];
-    const first = nextCode(prefix, existingCodes);
-    return Array.from({ length: count }, (_, index) =>
-      formatCode(prefix, first.number + index, first.width)
-    );
-  }, [prefix, count, existingCodes]);
+  const preview = useMemo(() => (prefix ? nextCode(prefix, existingCodes).code : ""), [prefix, existingCodes]);
 
   /** Кодтой хөрөнгийн кодын багц (Байршил, Төрөл, Нэр) засагдахгүй */
   const partsLocked = !!asset?.code;
@@ -157,8 +143,6 @@ export default function AssetFormModal({
     });
     setQueue([]);
     setViewer(null);
-    setBulk(false);
-    setCountText("10");
     setForm(
       asset
         ? {
@@ -277,9 +261,6 @@ export default function AssetFormModal({
         await updateAsset(asset.id, { ...rest, name });
       } else if (missingPart) {
         throw new Error(missingPart + ".");
-      } else if (bulk) {
-        if (count < 1) throw new Error("Ширхэгийн тоог оруулна уу.");
-        await createAssets(rest, count);
       } else {
         // Зураг байршуулахад id хэрэгтэй тул эхлээд мөрийг үүсгэнэ
         const id = await createAsset(rest);
@@ -306,202 +287,8 @@ export default function AssetFormModal({
         </h3>
 
         <div className="mt-5 grid gap-4">
-          {/* Ширхэг бүр тусдаа эд хөрөнгө — олноор бүртгэхэд код бүрт нэг мөр */}
-          {!asset && (
-            <div role="tablist" aria-label="Бүртгэх хэлбэр" className="flex w-fit rounded-lg border border-gray-200 p-0.5 dark:border-white/10">
-              {([false, true] as const).map((multi) => (
-                <button
-                  key={String(multi)}
-                  type="button"
-                  role="tab"
-                  aria-selected={bulk === multi}
-                  onClick={() => setBulk(multi)}
-                  className={`rounded-md px-3 py-1.5 text-theme-sm font-medium transition-colors ${
-                    bulk === multi
-                      ? "bg-accent-600 text-white"
-                      : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
-                  }`}
-                >
-                  {multi ? "Олон ширхэг" : "Нэг ширхэг"}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Код — гараар оруулахгүй, сонголтоос автоматаар (зөвхөн харагдана) */}
-          <div>
-            <p className={labelClass}>
-              Код <span className="text-gray-400">(автоматаар үүснэ)</span>
-            </p>
-            {asset ? (
-              <p className="rounded-lg bg-gray-50 px-3.5 py-2.5 font-mono text-theme-sm text-gray-800 dark:bg-white/[0.03] dark:text-gray-200">
-                {asset.code || <span className="font-sans text-gray-400">Кодгүй</span>}
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {bulk && (
-                  <label className="flex items-center gap-2 text-theme-sm text-gray-600 dark:text-gray-400">
-                    Ширхэг
-                    <input
-                      type="number"
-                      min={1}
-                      max={MAX_BULK}
-                      value={countText}
-                      onChange={(event) => setCountText(event.target.value)}
-                      className={`${fieldClass} h-10 w-28`}
-                    />
-                  </label>
-                )}
-                <p
-                  aria-live="polite"
-                  className={`rounded-lg px-3.5 py-2.5 text-theme-sm ${
-                    missingPart
-                      ? "bg-gray-50 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400"
-                      : "bg-accent-50 font-mono font-semibold text-accent-700 dark:bg-accent-500/10 dark:text-accent-300"
-                  }`}
-                >
-                  {missingPart
-                    ? missingPart
-                    : preview.length > 1
-                      ? `${preview[0]} … ${preview[preview.length - 1]} (${preview.length} ширхэг)`
-                      : preview[0]}
-                </p>
-                {bulk && (
-                  <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                    Ширхэг бүр өөрийн кодтой, тусдаа эд хөрөнгө болж бүртгэгдэнэ. Доорх мэдээлэл бүгдэд ижил.
-                  </p>
-                )}
-              </div>
-            )}
-            {partsLocked && (
-              <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">
-                Кодтой тул Байршлын ангилал, Төрөл, Нэр түгжээтэй.
-              </p>
-            )}
-          </div>
-
-          {/* Аймаг маягтад харагдахгүй — хуудасныхаа аймагт (lockedAimag) автоматаар хамаарна */}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <span className={labelClass}>Ангилал</span>
-              <div role="radiogroup" aria-label="Ангилал" className="flex flex-wrap gap-1.5">
-                {stateOptions.map((state) => {
-                  const selected = form.state === state;
-                  return (
-                    <button
-                      key={state}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => update("state", state)}
-                      className={`h-9 rounded-lg px-3.5 text-theme-sm font-medium transition-colors ${
-                        selected
-                          ? "bg-accent-600 text-white"
-                          : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-400"
-                      }`}
-                    >
-                      {assetStateLabels[state]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="asset-category" className={labelClass}>
-                Төрөл {!asset && <span className="text-error-500">*</span>}
-              </label>
-              <select
-                id="asset-category"
-                value={form.categoryId ?? ""}
-                onChange={(event) => handleRefChange("categoryId", event.target.value || null)}
-                disabled={partsLocked}
-                className={`${fieldClass} disabled:opacity-60`}
-              >
-                <option value="">Сонгоогүй</option>
-                {categories.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                    {item.codeLetter ? ` (${item.codeLetter})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="asset-warehouse" className={labelClass}>
-                Байршлын ангилал {!asset && <span className="text-error-500">*</span>}
-              </label>
-              <select
-                id="asset-warehouse"
-                value={form.warehouseId ?? ""}
-                onChange={(event) => handleRefChange("warehouseId", event.target.value || null)}
-                disabled={partsLocked}
-                className={`${fieldClass} disabled:opacity-60`}
-              >
-                <option value="">Сонгоогүй</option>
-                {warehouses.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                    {item.codeLetter ? ` (${item.codeLetter})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Нэр — Кодчилол табд бүртгэсэн нэрсээс (Аяга таваг …) */}
-            <div className="sm:col-span-2">
-              <label htmlFor="asset-name" className={labelClass}>
-                Нэр {!asset && <span className="text-error-500">*</span>}
-              </label>
-              <select
-                id="asset-name"
-                value={form.name}
-                onChange={(event) => handleRefChange("name", event.target.value)}
-                disabled={partsLocked}
-                className={`${fieldClass} disabled:opacity-60`}
-              >
-                <option value="">Сонгоогүй</option>
-                {/* Засаж буй хөрөнгийн нэр жагсаалтад байхгүй бол алдагдуулахгүй */}
-                {form.name && !names.some((item) => item.name === form.name) && (
-                  <option value={form.name}>{form.name}</option>
-                )}
-                {names.map((item) => (
-                  <option key={item.id} value={item.name}>
-                    {item.name}
-                    {item.codeLetter ? ` (${item.codeLetter})` : ""}
-                  </option>
-                ))}
-              </select>
-              {names.length === 0 && (
-                <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">
-                  Нэрсийг «Кодчилол» табд бүртгэнэ.
-                </p>
-              )}
-            </div>
-
-          </div>
-
-          <div>
-            <label htmlFor="asset-note" className={labelClass}>
-              Мэдээлэл <span className="text-gray-400">(өнгө, байдал, хаана, хэнд байгаа …)</span>
-            </label>
-            <textarea
-              id="asset-note"
-              value={form.note}
-              onChange={(event) => update("note", event.target.value)}
-              rows={2}
-              className={`${fieldClass} h-auto py-2.5`}
-            />
-          </div>
-
-          {/* Зургууд — олон ширхэг бүртгэхэд биш (ширхэг тус бүр дээр дараа нь нэмнэ) */}
-          {bulk && !asset ? (
-            <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-              Зургийг бүртгэсний дараа ширхэг тус бүрийг засаж нэмнэ.
-            </p>
-          ) : (
+          {/* Дараалал: Зураг → Байршлын ангилал → Төрөл → Нэр → Код. Аймаг маягтад
+              харагдахгүй — хуудасныхаа аймагт (lockedAimag) автоматаар хамаарна */}
           <div>
             <p className={labelClass}>
               Зураг
@@ -613,7 +400,147 @@ export default function AssetFormModal({
               </p>
             )}
           </div>
-          )}
+
+          <div>
+            <label htmlFor="asset-warehouse" className={labelClass}>
+              Байршлын ангилал {!asset && <span className="text-error-500">*</span>}
+            </label>
+            <select
+              id="asset-warehouse"
+              value={form.warehouseId ?? ""}
+              onChange={(event) => handleRefChange("warehouseId", event.target.value || null)}
+              disabled={partsLocked}
+              className={`${fieldClass} disabled:opacity-60`}
+            >
+              <option value="">Сонгоогүй</option>
+              {warehouses.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                  {item.codeLetter ? ` (${item.codeLetter})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="asset-category" className={labelClass}>
+              Төрөл {!asset && <span className="text-error-500">*</span>}
+            </label>
+            <select
+              id="asset-category"
+              value={form.categoryId ?? ""}
+              onChange={(event) => handleRefChange("categoryId", event.target.value || null)}
+              disabled={partsLocked}
+              className={`${fieldClass} disabled:opacity-60`}
+            >
+              <option value="">Сонгоогүй</option>
+              {categories.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                  {item.codeLetter ? ` (${item.codeLetter})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Нэр — Кодчилол табд бүртгэсэн нэрсээс (Аяга таваг …) */}
+          <div>
+            <label htmlFor="asset-name" className={labelClass}>
+              Нэр {!asset && <span className="text-error-500">*</span>}
+            </label>
+            <select
+              id="asset-name"
+              value={form.name}
+              onChange={(event) => handleRefChange("name", event.target.value)}
+              disabled={partsLocked}
+              className={`${fieldClass} disabled:opacity-60`}
+            >
+              <option value="">Сонгоогүй</option>
+              {/* Засаж буй хөрөнгийн нэр жагсаалтад байхгүй бол алдагдуулахгүй */}
+              {form.name && !names.some((item) => item.name === form.name) && (
+                <option value={form.name}>{form.name}</option>
+              )}
+              {names.map((item) => (
+                <option key={item.id} value={item.name}>
+                  {item.name}
+                  {item.codeLetter ? ` (${item.codeLetter})` : ""}
+                </option>
+              ))}
+            </select>
+            {names.length === 0 && (
+              <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">
+                Нэрсийг «Кодчилол» табд бүртгэнэ.
+              </p>
+            )}
+          </div>
+
+
+          {/* Код — гараар оруулахгүй, Байршил + Төрөл + Нэрээс автоматаар (зөвхөн харагдана) */}
+          <div>
+            <p className={labelClass}>
+              Код <span className="text-gray-400">(автоматаар үүснэ)</span>
+            </p>
+            {asset ? (
+              <p className="rounded-lg bg-gray-50 px-3.5 py-2.5 font-mono text-theme-sm text-gray-800 dark:bg-white/[0.03] dark:text-gray-200">
+                {asset.code || <span className="font-sans text-gray-400">Кодгүй</span>}
+              </p>
+            ) : (
+              <p
+                aria-live="polite"
+                className={`rounded-lg px-3.5 py-2.5 text-theme-sm ${
+                  missingPart
+                    ? "bg-gray-50 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400"
+                    : "bg-accent-50 font-mono font-semibold text-accent-700 dark:bg-accent-500/10 dark:text-accent-300"
+                }`}
+              >
+                {missingPart || preview}
+              </p>
+            )}
+            {partsLocked && (
+              <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">
+                Кодтой тул Байршлын ангилал, Төрөл, Нэр түгжээтэй.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <span className={labelClass}>Ангилал</span>
+            <div role="radiogroup" aria-label="Ангилал" className="flex flex-wrap gap-1.5">
+              {stateOptions.map((state) => {
+                const selected = form.state === state;
+                return (
+                  <button
+                    key={state}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => update("state", state)}
+                    className={`h-9 rounded-lg px-3.5 text-theme-sm font-medium transition-colors ${
+                      selected
+                        ? "bg-accent-600 text-white"
+                        : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-400"
+                    }`}
+                  >
+                    {assetStateLabels[state]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="asset-note" className={labelClass}>
+              Мэдээлэл <span className="text-gray-400">(өнгө, байдал, хаана, хэнд байгаа …)</span>
+            </label>
+            <textarea
+              id="asset-note"
+              value={form.note}
+              onChange={(event) => update("note", event.target.value)}
+              rows={2}
+              className={`${fieldClass} h-auto py-2.5`}
+            />
+          </div>
+
         </div>
 
         {error && (
@@ -632,10 +559,10 @@ export default function AssetFormModal({
           </button>
           <button
             type="submit"
-            disabled={saving || (!asset && (!!missingPart || count < 1))}
+            disabled={saving || (!asset && !!missingPart)}
             className="rounded-lg bg-accent-600 px-4 py-2.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? "Хадгалж байна..." : bulk && !asset ? `${count} эд хөрөнгө бүртгэх` : "Хадгалах"}
+            {saving ? "Хадгалж байна..." : "Хадгалах"}
           </button>
         </div>
       </form>
