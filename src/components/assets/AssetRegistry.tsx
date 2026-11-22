@@ -880,15 +880,18 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                       <Eye className="h-4 w-4" strokeWidth={1.8} />
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setChecking(asset)}
-                      aria-label={`${asset.name} шалгах`}
-                      title="Бүрэн бүтэн байдлын шалгалт"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/5"
-                    >
-                      <ClipboardCheck className="h-4 w-4" strokeWidth={1.8} />
-                    </button>
+                    {/* Бүрэн бүтэн байдал оруулах — Агуулахын бүртгэл дээр биш */}
+                    {view !== "warehouse" && (
+                      <button
+                        type="button"
+                        onClick={() => setChecking(asset)}
+                        aria-label={`${asset.name} шалгах`}
+                        title="Бүрэн бүтэн байдлын шалгалт"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50 dark:border-white/10 dark:text-gray-400 dark:hover:bg-white/5"
+                      >
+                        <ClipboardCheck className="h-4 w-4" strokeWidth={1.8} />
+                      </button>
+                    )}
 
                     {canEdit && (
                       <button
