@@ -34,6 +34,24 @@ type PrefixSeries = {
   missing: string[];
 };
 
+/** Нэрийг харьцуулах хэлбэр — том жижиг үсэг, илүү зайг үл тооно */
+const normName = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+
+/**
+ * Жагсаалт дотор давхцал — үсэг ба нэр. Олдвол алдааны мессеж, үгүй бол "".
+ * Сервер ч мөн шалгана; энд бичих үед нь шууд сануулна.
+ */
+function findClash(items: RefItem[], selfId: string | null, name: string, letter: string): string {
+  const others = items.filter((item) => item.id !== selfId);
+  const code = letter.trim().toUpperCase();
+  const byLetter = code ? others.find((item) => (item.codeLetter ?? "") === code) : undefined;
+  if (byLetter) return `«${code}» үсгийг «${byLetter.name}» ашиглаж байна.`;
+  const key = normName(name);
+  const byName = key ? others.find((item) => normName(item.name) === key) : undefined;
+  if (byName) return `«${byName.name}» аль хэдийн бүртгэлтэй.`;
+  return "";
+}
+
 /** Алгассан дугаарыг хэт олноор харуулахгүй */
 const MAX_MISSING_SHOWN = 20;
 
@@ -118,6 +136,7 @@ function buildSeries(assets: Asset[]): { series: PrefixSeries[]; freeform: strin
 function ItemRow({
   kind,
   item,
+  items,
   count,
   canEdit,
   canDelete,
@@ -126,6 +145,8 @@ function ItemRow({
 }: {
   kind: Kind;
   item: RefItem;
+  /** Тухайн жагсаалтын бүх мөр — давхцал шалгахад */
+  items: RefItem[];
   count: number;
   canEdit: boolean;
   canDelete: boolean;
@@ -146,8 +167,11 @@ function ItemRow({
     setEditing(true);
   };
 
+  const clash = editing ? findClash(items, item.id, name, letter) : "";
+
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (clash) return;
     const patch: { name?: string; codeLetter?: string } = {};
     if (name.trim() !== item.name) patch.name = name.trim();
     if (letter.trim().toUpperCase() !== (item.codeLetter ?? "")) patch.codeLetter = letter.trim();
@@ -205,7 +229,7 @@ function ItemRow({
               aria-label={`${text.title} — ${text.letter}`}
               className={`${fieldClass} w-20 text-center font-mono font-semibold`}
             />
-            <button type="submit" disabled={busy} className={buttonClass}>
+            <button type="submit" disabled={busy || !!clash} className={buttonClass}>
               {busy ? "..." : "Хадгалах"}
             </button>
             <button
@@ -217,7 +241,9 @@ function ItemRow({
               Болих
             </button>
           </form>
-          {error && <p className="mt-1 text-theme-xs text-error-600 dark:text-error-400">{error}</p>}
+          {(clash || error) && (
+            <p className="mt-1 text-theme-xs text-error-600 dark:text-error-400">{clash || error}</p>
+          )}
         </td>
       </tr>
     );
@@ -298,8 +324,12 @@ function LetterList({
   /** Нэрээс санал болгох үсэг — Байршил, Төрөлд эхний үсэг; Нэрд үг бүрийн эхний үсэг */
   const suggested = kind === "name" ? initials(name) : initials(name).slice(0, 1);
 
+  const effectiveLetter = letterTouched ? letter : suggested;
+  const clash = findClash(items, null, name, effectiveLetter);
+
   const handleAdd = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (clash) return;
     if (!name.trim()) {
       setError("Нэрийг оруулна уу.");
       return;
@@ -350,6 +380,7 @@ function LetterList({
               key={item.id}
               kind={kind}
               item={item}
+              items={items}
               count={counts.get(item.id) ?? 0}
               canEdit={canEdit}
               canDelete={canDelete}
@@ -384,12 +415,18 @@ function LetterList({
               aria-label={`Шинэ ${text.title.toLowerCase()} — ${text.letter}`}
               className={`${fieldClass} w-20 text-center font-mono font-semibold`}
             />
-            <button type="submit" disabled={adding} className={`${buttonClass} flex items-center gap-1`}>
+            <button
+              type="submit"
+              disabled={adding || !!clash}
+              className={`${buttonClass} flex items-center gap-1`}
+            >
               <Plus className="h-4 w-4" strokeWidth={2} />
               {adding ? "..." : "Нэмэх"}
             </button>
           </div>
-          {error && <p className="mt-1.5 text-theme-xs text-error-600 dark:text-error-400">{error}</p>}
+          {(clash || error) && (
+            <p className="mt-1.5 text-theme-xs text-error-600 dark:text-error-400">{clash || error}</p>
+          )}
         </form>
       )}
     </section>

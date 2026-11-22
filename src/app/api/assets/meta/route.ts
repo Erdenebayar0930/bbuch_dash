@@ -49,6 +49,10 @@ async function parseCodeLetter(
   return { letter };
 }
 
+/** Нэрийг харьцуулах — том жижиг үсэг, илүү зайг үл тооно («аяга  таваг» = «Аяга таваг») */
+const sameName = (table: (typeof tables)[Kind], name: string) =>
+  sql`lower(regexp_replace(trim(${table.name}), '[[:space:]]+', ' ', 'g')) = lower(regexp_replace(trim(${name}), '[[:space:]]+', ' ', 'g'))`;
+
 /** Аль хүснэгтэд бичихийг заана */
 const tables = {
   warehouse: warehouses,
@@ -114,7 +118,7 @@ export async function POST(request: NextRequest) {
     const [duplicate] = await db
       .select({ id: table.id })
       .from(table)
-      .where(eq(table.name, name))
+      .where(sameName(table, name))
       .limit(1);
 
     if (duplicate) return badRequest(`"${name}" аль хэдийн бүртгэгдсэн байна.`);
@@ -186,7 +190,7 @@ export async function PATCH(request: NextRequest) {
       const [duplicate] = await db
         .select({ id: table.id })
         .from(table)
-        .where(and(eq(table.name, name), ne(table.id, id)))
+        .where(and(sameName(table, name), ne(table.id, id)))
         .limit(1);
       if (duplicate) return badRequest(`"${name}" аль хэдийн бүртгэгдсэн байна.`);
       patch.name = name;

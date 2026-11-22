@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   decimal,
@@ -278,7 +279,10 @@ export const warehouses = pgTable("warehouses", {
   /** Жагсаалт дахь эрэмбэ */
   position: integer("position").notNull().default(0),
   createdAt: utcTimestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  // Жагсаалт дотор үсэг давхцахгүй (хоосныг тооцохгүй)
+  uniqueIndex("warehouses_code_letter_idx").on(table.codeLetter).where(sql`${table.codeLetter} <> ''`),
+]);
 
 /** Эд хөрөнгийн төрөл — админ чөлөөтэй нэмнэ */
 export const assetCategories = pgTable("asset_categories", {
@@ -288,7 +292,9 @@ export const assetCategories = pgTable("asset_categories", {
   codeLetter: varchar("code_letter", { length: 8 }).notNull().default(""),
   position: integer("position").notNull().default(0),
   createdAt: utcTimestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("asset_categories_code_letter_idx").on(table.codeLetter).where(sql`${table.codeLetter} <> ''`),
+]);
 
 /**
  * Кодчилол — эд хөрөнгийн нэр (Аяга таваг гэх мэт), кодын 3 дахь хэсэг.
@@ -301,7 +307,9 @@ export const assetNames = pgTable("asset_names", {
   codeLetter: varchar("code_letter", { length: 8 }).notNull().default(""),
   position: integer("position").notNull().default(0),
   createdAt: utcTimestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("asset_names_code_letter_idx").on(table.codeLetter).where(sql`${table.codeLetter} <> ''`),
+]);
 
 /**
  * Эд хөрөнгийн нэгж бүртгэл.
