@@ -163,6 +163,9 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
     load();
   }, [load]);
 
+  /** Кодчилол — маягт дараагийн кодыг тооцоход (акталсных ч эзэлсэн) */
+  const assetCodes = useMemo(() => assets.map((asset) => asset.code).filter(Boolean), [assets]);
+
   /** Энэ цэсийн ангиллуудад багтах хөрөнгө */
   const scoped = useMemo(
     () => assets.filter((asset) => viewStates.includes(asset.state)),
@@ -831,6 +834,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
         defaultState={stateFilter === ALL ? viewStates[0] : stateFilter}
         // Ерөнхий бүртгэл дээр шинэ хөрөнгө зөвхөн «Бүртгэлтэй» ангилалтай
         createStates={view === "general" ? ["registered"] : undefined}
+        existingCodes={assetCodes}
         onClose={() => setFormOpen(false)}
         onSaved={load}
       />

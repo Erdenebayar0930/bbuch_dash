@@ -24,6 +24,7 @@ import {
   type AssetInput,
   type RefItem,
 } from "@/lib/assets";
+import { nextCode } from "@/lib/assetCodes";
 import { MAX_ASSET_IMAGE_BYTES } from "@/lib/storage";
 
 /** Нэг эд хөрөнгөд зөвшөөрөх зургийн тоо — серверийн хязгаартай ижил */
@@ -54,6 +55,8 @@ type AssetFormModalProps = {
    * «Бүртгэлтэй». Өгөхгүй бол бүгд. Засахад үргэлж бүгд.
    */
   createStates?: AssetState[];
+  /** Бүртгэлтэй бүх код — Төрлийн угтвараас дараагийн кодыг тооцоход */
+  existingCodes?: string[];
   onClose: () => void;
   onSaved: () => void;
 };
@@ -85,6 +88,7 @@ export default function AssetFormModal({
   defaultWarehouseId = null,
   defaultState = DEFAULT_ASSET_STATE,
   createStates,
+  existingCodes = [],
   onClose,
   onSaved,
 }: AssetFormModalProps) {
@@ -164,6 +168,35 @@ export default function AssetFormModal({
 
   const update = <K extends keyof AssetInput>(key: K, value: AssetInput[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  /** Сүүлд автоматаар бөглөсөн код — хэрэглэгч өөрөө бичсэнийг дарахгүй */
+  const autoCodeRef = useRef("");
+
+  /**
+   * Төрөл сонгоход Кодчиллын угтвараас дараагийн кодыг бөглөнө (зөвхөн
+   * шинээр бүртгэхэд). Олон ширхэгт угтвар ба эхлэх дугаарыг тохируулна.
+   */
+  const handleCategoryChange = (categoryId: string | null) => {
+    const prefix = categories.find((item) => item.id === categoryId)?.codePrefix ?? "";
+    setForm((prev) => {
+      const patch: Partial<AssetInput> = { categoryId };
+      if (!asset && !bulk && prefix && (!prev.code.trim() || prev.code === autoCodeRef.current)) {
+        const { code } = nextCode(prefix, existingCodes);
+        autoCodeRef.current = code;
+        patch.code = code;
+      }
+      return { ...prev, ...patch };
+    });
+    if (!asset && bulk && prefix) {
+      const { number, width } = nextCode(prefix, existingCodes);
+      const length = Math.max(Number(rangeTo) - Number(rangeFrom), 0);
+      setCodeMode("range");
+      setPrefix(prefix);
+      setDigits(String(width));
+      setRangeFrom(String(number));
+      setRangeTo(String(number + (Number.isFinite(length) ? length : 9)));
+    }
   };
 
   const totalImages = images.length + pending.length;
@@ -416,9 +449,7 @@ export default function AssetFormModal({
               <select
                 id="asset-category"
                 value={form.categoryId ?? ""}
-                onChange={(event) =>
-                  update("categoryId", event.target.value || null)
-                }
+                onChange={(event) => handleCategoryChange(event.target.value || null)}
                 className={fieldClass}
               >
                 <option value="">Сонгоогүй</option>

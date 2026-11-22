@@ -8,6 +8,8 @@ import { apiFetch } from "./apiClient";
 export type RefItem = {
   id: string;
   name: string;
+  /** Зөвхөн төрөлд — кодчиллын угтвар (AYG- гэх мэт), хоосон бол оноогоогүй */
+  codePrefix?: string;
 };
 
 /** Эд хөрөнгийн зураг — файл нь Firebase Storage дээр */
@@ -296,14 +298,24 @@ export async function getAssetMeta(): Promise<AssetMeta> {
   };
 }
 
-/** Шинэ агуулах эсвэл төрөл нэмнэ (зөвхөн админ). */
+/** Шинэ агуулах эсвэл төрөл нэмнэ — төрөлд кодын угтвартай нь. */
 export async function addMetaItem(
   kind: "warehouse" | "category",
-  name: string
+  name: string,
+  codePrefix?: string
 ): Promise<RefItem> {
   const data = await apiFetch<{ item: RefItem }>("/api/assets/meta", {
     method: "POST",
-    body: { kind, name },
+    body: { kind, name, codePrefix },
+  });
+  return data.item;
+}
+
+/** Кодчилол — төрлийн кодын угтварыг солино. */
+export async function setCategoryCodePrefix(id: string, codePrefix: string): Promise<RefItem> {
+  const data = await apiFetch<{ item: RefItem }>("/api/assets/meta", {
+    method: "PATCH",
+    body: { id, codePrefix },
   });
   return data.item;
 }

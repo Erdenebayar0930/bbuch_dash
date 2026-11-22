@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import {
@@ -17,6 +17,33 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_NAME = 60;
+const MAX_PREFIX = 32;
+
+/**
+ * Кодын угтвар — хоосон байж болно. Алдаатай бол мөр (алдааны мессеж).
+ * Хоёр төрөл ижил угтвартай бол код давхцана — тиймээс давтагдахгүй.
+ */
+async function parseCodePrefix(
+  value: unknown,
+  exceptId?: string
+): Promise<{ prefix: string } | { error: string }> {
+  const prefix = typeof value === "string" ? value.trim() : "";
+  if (prefix.length > MAX_PREFIX) {
+    return { error: `Угтвар ${MAX_PREFIX} тэмдэгтээс урт байж болохгүй.` };
+  }
+  if (!prefix) return { prefix };
+  const [taken] = await db
+    .select({ name: assetCategories.name })
+    .from(assetCategories)
+    .where(
+      exceptId
+        ? and(eq(assetCategories.codePrefix, prefix), ne(assetCategories.id, exceptId))
+        : eq(assetCategories.codePrefix, prefix)
+    )
+    .limit(1);
+  if (taken) return { error: `"${prefix}" угтварыг "${taken.name}" төрөл ашиглаж байна.` };
+  return { prefix };
+}
 
 /** Аль хүснэгтэд бичихийг заана */
 const tables = {
@@ -85,6 +112,13 @@ export async function POST(request: NextRequest) {
 
     if (duplicate) return badRequest(`"${name}" аль хэдийн бүртгэгдсэн байна.`);
 
+    let codePrefix = "";
+    if (kind === "category") {
+      const parsed = await parseCodePrefix(body.codePrefix);
+      if ("error" in parsed) return badRequest(parsed.error);
+      codePrefix = parsed.prefix;
+    }
+
     const [{ next }] = await db
       .select({ next: sql<number>`coalesce(max(${table.position}), -1) + 1` })
       .from(table);
@@ -92,7 +126,11 @@ export async function POST(request: NextRequest) {
     // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
     const newId = crypto.randomUUID();
 
-    await db.insert(table).values({ id: newId, name, position: next });
+    if (kind === "category") {
+      await db.insert(assetCategories).values({ id: newId, name, position: next, codePrefix });
+    } else {
+      await db.insert(warehouses).values({ id: newId, name, position: next });
+    }
 
     const [created] = await db
       .select()
@@ -102,6 +140,50 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ item: created });
   } catch (error) {
     return serverError(error, "Нэмэхэд алдаа гарлаа");
+  }
+}
+
+/**
+ * Кодчилол — төрлийн кодын угтварыг солино (нэмэх эрхтэй адил: админ болон
+ * Магтаалын аймгийн гишүүд). Аль хэдийн бүртгэсэн кодууд өөрчлөгдөхгүй.
+ */
+export async function PATCH(request: NextRequest) {
+  const result = await requireAimag(request, "praise");
+  if ("error" in result) return result.error;
+
+  try {
+    const body = (await request
+      .json()
+      .catch(() => ({}))) as Record<string, unknown>;
+
+    const id = typeof body.id === "string" ? body.id : "";
+    if (!id) return badRequest("id шаардлагатай.");
+
+    const parsed = await parseCodePrefix(body.codePrefix, id);
+    if ("error" in parsed) return badRequest(parsed.error);
+
+    const [existing] = await db
+      .select({ id: assetCategories.id })
+      .from(assetCategories)
+      .where(eq(assetCategories.id, id))
+      .limit(1);
+    if (!existing) {
+      return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
+    }
+
+    await db
+      .update(assetCategories)
+      .set({ codePrefix: parsed.prefix })
+      .where(eq(assetCategories.id, id));
+
+    const [updated] = await db
+      .select()
+      .from(assetCategories)
+      .where(eq(assetCategories.id, id));
+
+    return NextResponse.json({ item: updated });
+  } catch (error) {
+    return serverError(error, "Угтвар хадгалахад алдаа гарлаа");
   }
 }
 
