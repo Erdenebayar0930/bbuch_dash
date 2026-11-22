@@ -15,7 +15,6 @@ import {
   Pencil,
   Plus,
   RefreshCw,
-  Settings2,
 } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
@@ -27,7 +26,7 @@ import {
   type AssetState,
 } from "@/data/assetStates";
 import { aimags, labelOf } from "@/data/profileOptions";
-import { canManageCoding, isAdminRole } from "@/lib/permissions";
+import { isAdminRole } from "@/lib/permissions";
 import {
   checkStatusLabels,
   finishCount,
@@ -44,7 +43,6 @@ import {
 import AssetCheckModal from "./AssetCheckModal";
 import AssetFormModal from "./AssetFormModal";
 import AssetViewModal from "./AssetViewModal";
-import MetaManagerModal from "./MetaManagerModal";
 import UsageRegisterModal from "./UsageRegisterModal";
 import WriteOffModal from "./WriteOffModal";
 import { dateFormat } from "@/lib/dateFormat";
@@ -100,16 +98,15 @@ const ASSET_VIEWS: Record<AssetView, AssetState[]> = {
 
 export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
   const viewStates = view ? ASSET_VIEWS[view] : assetStates;
-  /** Ангиллын задаргаа (Бүгд / Бүртгэлтэй / Засвартай …) — Ерөнхий бүртгэл дээр харуулахгүй */
-  const showStateBreakdown = viewStates.length > 1 && view !== "general";
+  /** Ангиллын задаргаа (Бүгд / Бүртгэлтэй / Засвартай …) — аль ч табд харуулахгүй
+   * (Ерөнхий бүртгэлийн загвар); мөр бүр ангиллын шошготой. */
+  const showStateBreakdown = false;
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
   // Агуулах/төрлийн лавлах жагсаалтыг админ болон тухайн аймгийн гишүүд
   // (жишээ нь Магтаалын аймаг) удирдана.
   const canManageMeta =
     isAdmin || (!!aimag && (user?.aimags ?? []).includes(aimag));
-  /** Байршил / Төрөл / Нэрийн жагсаалт — Кодчилол удирдах эрхтэй хүн (админ олгоно) */
-  const canCoding = canManageCoding(user?.role, user?.can_code);
   /**
    * Бүртгэл нэмэх, засах, шалгалт бүртгэх — админ эсвэл тухайн аймгийн
    * гишүүн (Магтаал). Устгах нь зөвхөн админд.
@@ -142,7 +139,6 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
 
   const [isFormOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Asset | null>(null);
-  const [isMetaOpen, setMetaOpen] = useState(false);
   /** Зөвхөн харах цонхонд нээгдсэн бүртгэл */
   const [viewing, setViewing] = useState<Asset | null>(null);
   /** Хуудасны гарчгийн хажуу дахь үйлдлийн байр (@see PraiseAssetsPage) */
@@ -335,9 +331,6 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
   /** Байршил оноогоогүй хөрөнгийн тоо — «Байршилгүй» товчонд */
   const unplacedCount = useMemo(() => scoped.filter((asset) => !asset.warehouseId).length, [scoped]);
 
-  const selectClass =
-    "h-10 rounded-lg border border-gray-200 bg-white px-3 text-theme-sm text-gray-800 transition-colors focus:border-accent-400 focus:outline-hidden dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90";
-
   return (
     <div className="flex flex-col gap-5">
       {/* Байршлаар шүүх — «Бүгд» ба байршил бүр жижиг товчоор; сонгосон нь тод */}
@@ -417,13 +410,13 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
       </div>
       )}
 
-      {/* Ерөнхий бүртгэл — Бүртгэх, Сэргээх, Excel татах л; хуудасны хамгийн дээр гарчгийн хажууд */}
-      {view === "general" && headerSlot &&
+      {/* Үйлдлүүд хуудасны хамгийн дээр, гарчгийн баруун захад — бүх табд ижил:
+          таб бүрийн гол үйлдэл (Бүртгэх / Ашиглалт бүртгэх), Сэргээх, Excel татах */}
+      {headerSlot &&
         createPortal(
           <>
-            {/* Шинээр бүртгэх нь зөвхөн Ерөнхий бүртгэл дээр — Агуулахын бүртгэл,
-                Ашиглалтын байдал, Акталсан нь харах, засах л */}
-            {canEdit && (
+            {/* Шинээр бүртгэх нь зөвхөн Ерөнхий бүртгэл дээр */}
+            {canEdit && view === "general" && (
               <>
                 <button
                   type="button"
@@ -437,6 +430,32 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                   Бүртгэх
                 </button>
               </>
+            )}
+
+
+            {/* Ашиглалтын байдал — кодоор хайж олоод ашиглалтыг бүртгэнэ */}
+            {canEdit && view === "usage" && (
+              <button
+                type="button"
+                onClick={() => setUsageOpen(true)}
+                className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
+              >
+                <Plus className="h-4 w-4" strokeWidth={2.2} />
+                Ашиглалт бүртгэх
+              </button>
+            )}
+
+            {/* Тооллого — шалгалт хийдэг Ашиглалтын байдал дээр */}
+            {canManageMeta && view === "usage" && !count.session && (
+              <button
+                type="button"
+                onClick={handleStartCount}
+                disabled={countBusy || loading}
+                className="flex h-10 items-center gap-2 rounded-lg border border-success-200 bg-success-50 px-3.5 text-theme-sm font-medium text-success-700 transition-colors hover:bg-success-100 disabled:opacity-60 dark:border-success-500/30 dark:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20"
+              >
+                <ListChecks className="h-4 w-4" strokeWidth={1.8} />
+                Тооллого эхлүүлэх
+              </button>
             )}
 
             <button
@@ -453,104 +472,9 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
             </button>
 
             <ExportButton dataset="assets" />
-
           </>,
           headerSlot
         )}
-
-      {/* Шүүлтүүр ба үйлдэл — Ерөнхий бүртгэл дээр шүүлтүүр нь хүснэгтийн
-          гарчигт, үйлдэл нь хуудасны дээд хэсэгт тул энэ мөр харагдахгүй */}
-      {view !== "general" && (
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Нэр, код, тэмдэглэлээр хайх"
-          className="h-10 min-w-[200px] flex-1 rounded-lg border border-gray-200 bg-white px-3.5 text-theme-sm text-gray-800 placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90"
-        />
-
-        <select
-          value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value)}
-          aria-label="Төрлөөр шүүх"
-          className={selectClass}
-        >
-          <option value={ALL}>Бүх төрөл</option>
-          {categories.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-          <option value={NONE}>Төрөл оноогоогүй</option>
-        </select>
-
-        <select
-          value={warehouseFilter}
-          onChange={(event) => setWarehouseFilter(event.target.value)}
-          aria-label="Байршлын ангиллаар шүүх"
-          className={selectClass}
-        >
-          <option value={ALL}>Бүх байршил</option>
-          {warehouses.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-          <option value={NONE}>Байршил оноогоогүй</option>
-        </select>
-
-        <button
-          type="button"
-          onClick={load}
-          disabled={loading}
-          className="flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-theme-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
-        >
-          <RefreshCw
-            className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-            strokeWidth={1.8}
-          />
-          Сэргээх
-        </button>
-
-        <ExportButton dataset="assets" />
-
-        {canManageMeta && !count.session && (
-          <button
-            type="button"
-            onClick={handleStartCount}
-            disabled={countBusy || loading}
-            className="flex h-10 items-center gap-2 rounded-lg border border-success-200 bg-success-50 px-3.5 text-theme-sm font-medium text-success-700 transition-colors hover:bg-success-100 disabled:opacity-60 dark:border-success-500/30 dark:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20"
-          >
-            <ListChecks className="h-4 w-4" strokeWidth={1.8} />
-            Тооллого эхлүүлэх
-          </button>
-        )}
-
-        {/* Агуулах, төрлийн жагсаалтыг админ болон тухайн аймгийн гишүүд тохируулна */}
-        {canCoding && (
-          <button
-            type="button"
-            onClick={() => setMetaOpen(true)}
-            className="flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 text-theme-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
-          >
-            <Settings2 className="h-4 w-4" strokeWidth={1.8} />
-            Байршил / төрөл
-          </button>
-        )}
-
-        {/* Ашиглалтын байдал — кодоор хайж олоод ашиглалтыг бүртгэнэ */}
-        {canEdit && view === "usage" && (
-          <button
-            type="button"
-            onClick={() => setUsageOpen(true)}
-            className="flex h-10 items-center gap-2 rounded-lg bg-accent-600 px-3.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.2} />
-            Ашиглалт бүртгэх
-          </button>
-        )}
-      </div>
-      )}
 
       {error && (
         <p className="rounded-lg bg-error-50 px-4 py-3 text-theme-sm text-error-600 dark:bg-error-500/10 dark:text-error-400">
@@ -616,25 +540,20 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
         <table className="w-full min-w-[760px] text-left">
           <thead>
             <tr className="border-b border-gray-200 text-theme-xs uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
-              {/* Дараалал: Нэр (код) → Байршлын ангилал → Төрөл. Ерөнхий бүртгэл дээр
-                  сонголтууд (шүүлтүүр) гарчиг дээрээ */}
+              {/* Дараалал: Нэр (код) → Байршлын ангилал → Төрөл. Сонголтууд
+                  (шүүлтүүр) гарчиг дээрээ — бүх табд ижил */}
               <th className="px-5 py-3.5 font-medium">
-                {view === "general" ? (
-                  <input
+                                  <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Нэр, код хайх"
                     aria-label="Нэр, кодоор хайх"
                     className="h-9 w-full min-w-[140px] rounded-lg border border-gray-200 bg-white px-2.5 text-theme-sm font-normal normal-case tracking-normal text-gray-800 focus:border-accent-400 focus:outline-hidden dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 min-w-[180px] placeholder:text-gray-400"
                   />
-                ) : (
-                  "Нэр"
-                )}
               </th>
               {!aimag && <th className="px-5 py-3.5 font-medium">Аймаг</th>}
               <th className="px-5 py-3.5 font-medium">
-                {view === "general" ? (
-                  <select
+                                  <select
                     value={warehouseFilter}
                     onChange={(event) => setWarehouseFilter(event.target.value)}
                     aria-label="Байршлын ангиллаар шүүх"
@@ -648,13 +567,9 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                     ))}
                     <option value={NONE}>Байршил оноогоогүй</option>
                   </select>
-                ) : (
-                  "Байршлын ангилал"
-                )}
               </th>
               <th className="px-5 py-3.5 font-medium">
-                {view === "general" ? (
-                  <select
+                                  <select
                     value={categoryFilter}
                     onChange={(event) => setCategoryFilter(event.target.value)}
                     aria-label="Төрлөөр шүүх"
@@ -668,9 +583,6 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                     ))}
                     <option value={NONE}>Төрөл оноогоогүй</option>
                   </select>
-                ) : (
-                  "Төрөл"
-                )}
               </th>
               <th className="px-5 py-3.5 font-medium text-right">Тоо</th>
               <th className="px-5 py-3.5 font-medium">Бүрэн бүтэн байдал</th>
@@ -974,14 +886,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
         onSaved={load}
       />
 
-      <MetaManagerModal
-        isOpen={isMetaOpen}
-        warehouses={warehouses}
-        categories={categories}
-        onClose={() => setMetaOpen(false)}
-        onChanged={load}
-        canDelete={canCoding}
-      />
+
 
       <AssetCheckModal
         asset={checking}
