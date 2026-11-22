@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { readAsset } from "@/lib/api/assetInput";
 import { recordAssetChanges } from "@/lib/api/assetHistory";
-import { badRequest, isAdminRole, serverError } from "@/lib/api/auth";
+import { badRequest, forbidden, isAdminRole, serverError } from "@/lib/api/auth";
 import { ASSET_AIMAG, requireAssetEditor } from "@/lib/api/assetAccess";
 import { db } from "@/lib/db";
 import { assets } from "@/lib/db/schema";
@@ -65,6 +65,22 @@ export async function PATCH(
         return badRequest(`Шалтгаан ${MAX_REASON} тэмдэгтээс урт байж болохгүй.`);
       }
       extraHistory.push({ field: "Актласан шалтгаан", from: "—", to: reason });
+    }
+
+    // Акталсныг буцаах — зөвхөн админ, шалтгаан заавал; «Бүртгэлтэй» болж бүртгэл рүү орно
+    if (before.state === "written_off" && parsed.value.state !== undefined && parsed.value.state !== "written_off") {
+      if (!isAdminRole(result.caller.user?.role)) {
+        return forbidden("Акталсан хөрөнгийг зөвхөн админ буцаана.");
+      }
+      const reason = typeof body.restoreReason === "string" ? body.restoreReason.trim() : "";
+      if (reason.length < MIN_REASON) {
+        return badRequest("Буцаах шалтгааныг заавал бичнэ үү.");
+      }
+      if (reason.length > MAX_REASON) {
+        return badRequest(`Шалтгаан ${MAX_REASON} тэмдэгтээс урт байж болохгүй.`);
+      }
+      parsed.value.state = "registered";
+      extraHistory.push({ field: "Буцаасан шалтгаан", from: "—", to: reason });
     }
 
     // Кодтой хөрөнгийн кодын багц (Байршлын ангилал, Төрөл, Нэр) түгжээтэй —

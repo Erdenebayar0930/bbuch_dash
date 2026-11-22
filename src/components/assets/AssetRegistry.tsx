@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Archive,
+  RotateCcw,
   Boxes,
   Check,
   ChevronRight,
@@ -152,6 +153,8 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
 
   /** Актлах цонх — шалтгаан заавал (устгахгүй, актална) */
   const [writingOff, setWritingOff] = useState<Asset | null>(null);
+  /** Акталсныг буцаах цонх — зөвхөн админ, шалтгаан заавал */
+  const [restoring, setRestoring] = useState<Asset | null>(null);
 
   /** «Ашиглалт бүртгэх» цонх (Ашиглалтын байдал таб) */
   const [isUsageOpen, setUsageOpen] = useState(false);
@@ -901,6 +904,19 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                       </button>
                     )}
 
+                    {/* Акталсныг буцаах — зөвхөн админ, шалтгаантай */}
+                    {isAdmin && asset.state === "written_off" && (
+                      <button
+                        type="button"
+                        onClick={() => setRestoring(asset)}
+                        aria-label={`${asset.name} буцаах`}
+                        title="Бүртгэл рүү буцаах"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-accent-600 transition-colors hover:bg-accent-50 dark:border-white/10 dark:text-accent-400 dark:hover:bg-accent-500/10"
+                      >
+                        <RotateCcw className="h-4 w-4" strokeWidth={1.8} />
+                      </button>
+                    )}
+
                     {/* Устгахгүй — актална (акталсныг дахин актлахгүй) */}
                     {canEdit && asset.state !== "written_off" && (
                       <button
@@ -944,6 +960,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
       <AssetViewModal asset={viewing} onClose={() => setViewing(null)} />
 
       <WriteOffModal asset={writingOff} onClose={() => setWritingOff(null)} onDone={load} />
+      <WriteOffModal mode="restore" asset={restoring} onClose={() => setRestoring(null)} onDone={load} />
 
       <UsageRegisterModal
         isOpen={isUsageOpen}

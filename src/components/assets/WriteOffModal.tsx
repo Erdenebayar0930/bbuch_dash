@@ -2,14 +2,16 @@
 
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import { Archive, Boxes } from "lucide-react";
+import { Archive, Boxes, RotateCcw } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
-import { writeOffAsset, type Asset } from "@/lib/assets";
+import { restoreAsset, writeOffAsset, type Asset } from "@/lib/assets";
 
 type WriteOffModalProps = {
   /** null бол хаалттай */
   asset: Asset | null;
+  /** writeOff — актлах; restore — акталсныг буцаах (зөвхөн админ) */
+  mode?: "writeOff" | "restore";
   onClose: () => void;
   onDone: () => void;
 };
@@ -18,11 +20,35 @@ type WriteOffModalProps = {
 const MIN_REASON = 3;
 const MAX_REASON = 500;
 
+const TEXT = {
+  writeOff: {
+    title: "Эд хөрөнгө актлах",
+    label: "Актлах шалтгаан",
+    placeholder: "Жишээ нь: Хагарсан, засварлах боломжгүй",
+    hint: "Акталсан хөрөнгө «Акталсан хөрөнгийн бүртгэл»-д шилжинэ. Устгагдахгүй; шалтгаан нь түүхэнд хадгалагдана.",
+    submit: "Актлах",
+    busy: "Актлаж байна...",
+    button: "bg-warning-600 hover:bg-warning-700",
+    icon: "text-warning-600 dark:text-warning-400",
+  },
+  restore: {
+    title: "Акталсныг буцаах",
+    label: "Буцаах шалтгаан",
+    placeholder: "Жишээ нь: Алдаагаар акталсан",
+    hint: "Хөрөнгө «Бүртгэлтэй» болж Ерөнхий бүртгэл рүү орно. Шалтгаан нь түүхэнд хадгалагдана.",
+    submit: "Бүртгэл рүү буцаах",
+    busy: "Буцааж байна...",
+    button: "bg-accent-600 hover:bg-accent-700",
+    icon: "text-accent-600 dark:text-accent-400",
+  },
+} as const;
+
 /**
- * Актлах цонх — эд хөрөнгийг устгахгүй, актална. Шалтгааныг заавал бичнэ;
- * шалтгаан нь ширхэгийн түүхэнд «Актласан шалтгаан»-аар үлдэнэ.
+ * Актлах / буцаах цонх — эд хөрөнгийг устгахгүй, актална; акталсныг зөвхөн
+ * админ буцаана. Аль алинд нь шалтгаан заавал, ширхэгийн түүхэнд үлдэнэ.
  */
-export default function WriteOffModal({ asset, onClose, onDone }: WriteOffModalProps) {
+export default function WriteOffModal({ asset, mode = "writeOff", onClose, onDone }: WriteOffModalProps) {
+  const text = TEXT[mode];
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -40,11 +66,12 @@ export default function WriteOffModal({ asset, onClose, onDone }: WriteOffModalP
     setSaving(true);
     setError("");
     try {
-      await writeOffAsset(asset.id, reason.trim());
+      if (mode === "restore") await restoreAsset(asset.id, reason.trim());
+      else await writeOffAsset(asset.id, reason.trim());
       onDone();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Актлахад алдаа гарлаа.");
+      setError(err instanceof Error ? err.message : "Хадгалахад алдаа гарлаа.");
     } finally {
       setSaving(false);
     }
@@ -55,8 +82,12 @@ export default function WriteOffModal({ asset, onClose, onDone }: WriteOffModalP
       {asset && (
         <form onSubmit={handleSubmit} className="p-5">
           <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
-            <Archive className="h-5 w-5 text-warning-600 dark:text-warning-400" strokeWidth={1.8} />
-            Эд хөрөнгө актлах
+            {mode === "restore" ? (
+              <RotateCcw className={`h-5 w-5 ${text.icon}`} strokeWidth={1.8} />
+            ) : (
+              <Archive className={`h-5 w-5 ${text.icon}`} strokeWidth={1.8} />
+            )}
+            {text.title}
           </h3>
 
           <div className="mt-4 flex items-center gap-3 rounded-lg border border-gray-200 p-3 dark:border-white/10">
@@ -79,7 +110,7 @@ export default function WriteOffModal({ asset, onClose, onDone }: WriteOffModalP
           </div>
 
           <label htmlFor="write-off-reason" className="mt-4 mb-1.5 block text-theme-sm font-medium text-gray-700 dark:text-gray-300">
-            Актлах шалтгаан <span className="text-error-500">*</span>
+            {text.label} <span className="text-error-500">*</span>
           </label>
           <textarea
             id="write-off-reason"
@@ -88,11 +119,11 @@ export default function WriteOffModal({ asset, onClose, onDone }: WriteOffModalP
             rows={3}
             maxLength={MAX_REASON}
             autoFocus
-            placeholder="Жишээ нь: Хагарсан, засварлах боломжгүй"
+            placeholder={text.placeholder}
             className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-theme-sm text-gray-800 placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90"
           />
           <p className="mt-1.5 text-theme-xs text-gray-500 dark:text-gray-400">
-            Акталсан хөрөнгө «Акталсан хөрөнгийн бүртгэл»-д шилжинэ. Устгагдахгүй; шалтгаан нь түүхэнд хадгалагдана.
+            {text.hint}
           </p>
 
           {error && (
@@ -112,9 +143,9 @@ export default function WriteOffModal({ asset, onClose, onDone }: WriteOffModalP
             <button
               type="submit"
               disabled={saving || tooShort}
-              className="rounded-lg bg-warning-600 px-4 py-2.5 text-theme-sm font-medium text-white transition-colors hover:bg-warning-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className={`rounded-lg px-4 py-2.5 text-theme-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${text.button}`}
             >
-              {saving ? "Актлаж байна..." : "Актлах"}
+              {saving ? text.busy : text.submit}
             </button>
           </div>
         </form>

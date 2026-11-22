@@ -140,6 +140,17 @@ export async function writeOffAsset(id: string, reason: string): Promise<void> {
   });
 }
 
+/**
+ * Акталсан хөрөнгийг буцаана (зөвхөн админ) — шалтгаан заавал, «Бүртгэлтэй»
+ * болж Ерөнхий бүртгэл рүү орно.
+ */
+export async function restoreAsset(id: string, reason: string): Promise<void> {
+  await apiFetch(`/api/assets/${id}`, {
+    method: "PATCH",
+    body: { state: "registered", restoreReason: reason },
+  });
+}
+
 /** Бүртгэлийг засна (зөвхөн админ). */
 export async function updateAsset(
   id: string,
