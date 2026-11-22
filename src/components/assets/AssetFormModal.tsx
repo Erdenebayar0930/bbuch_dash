@@ -54,6 +54,12 @@ type AssetFormModalProps = {
    * «Бүртгэлтэй». Өгөхгүй бол бүгд. Засахад үргэлж бүгд.
    */
   createStates?: AssetState[];
+  /**
+   * Ангилал сонгох хэсгийг харуулах эсэх. Ерөнхий бүртгэл дээр false — зөвхөн
+   * үндсэн мэдээлэл засна; ангилал нь Ашиглалт бүртгэх / Актлах цонхоор л
+   * солигдоно (шинэ хөрөнгө «Бүртгэлтэй»).
+   */
+  showState?: boolean;
   /** Бүртгэлтэй бүх код — Төрлийн угтвараас дараагийн кодыг тооцоход */
   existingCodes?: string[];
   onClose: () => void;
@@ -88,6 +94,7 @@ export default function AssetFormModal({
   defaultWarehouseId = null,
   defaultState = DEFAULT_ASSET_STATE,
   createStates,
+  showState = true,
   existingCodes = [],
   onClose,
   onSaved,
@@ -520,6 +527,7 @@ export default function AssetFormModal({
             )}
           </div>
 
+          {showState && (
           <div>
             <span className={labelClass}>Ангилал</span>
             <div role="radiogroup" aria-label="Ангилал" className="flex flex-wrap gap-1.5">
@@ -544,6 +552,7 @@ export default function AssetFormModal({
               })}
             </div>
           </div>
+          )}
 
           <div>
             <label htmlFor="asset-note" className={labelClass}>

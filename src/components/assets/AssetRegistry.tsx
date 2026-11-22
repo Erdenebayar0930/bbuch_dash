@@ -952,6 +952,8 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
         defaultState={stateFilter === ALL ? viewStates[0] : stateFilter}
         // Ерөнхий бүртгэл дээр шинэ хөрөнгө зөвхөн «Бүртгэлтэй» ангилалтай
         createStates={view === "general" ? ["registered"] : undefined}
+        // Ерөнхий бүртгэл дээр засахад үндсэн мэдээлэл л — ангилал сонгохгүй
+        showState={view !== "general"}
         existingCodes={assetCodes}
         onClose={() => setFormOpen(false)}
         onSaved={load}
