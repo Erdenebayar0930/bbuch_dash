@@ -85,16 +85,17 @@ export const ASSET_HEADER_SLOT = "asset-header-actions";
  *
  * • Ерөнхий бүртгэл — акталснаас бусад бүх хөрөнгө
  * • Акталсан хөрөнгийн бүртгэл — зөвхөн акталсан
- * • Агуулахын бүртгэл — зөвхөн агуулахад байгаа («Бүртгэлтэй»). Ашиглалтад
- *   гармагц эндээс хасагдаж Ашиглалтын байдал руу шилжинэ; «Агуулахад
- *   буцаах»-аар эргэж орно (@see UsageRegisterModal)
- * • Ашиглалтын байдал — ашиглалтад ба засварт байгаа
+ * • Агуулахын бүртгэл — агуулахад байгаа: «Бүртгэлтэй» ба «Засвартай» (шар
+ *   шошготой). Ашиглалтад гармагц эндээс хасагдаж Ашиглалтын байдал руу
+ *   шилжинэ; «Агуулахад буцаах» / «Засварт өгөх»-өөр эргэж орно
+ *   (@see UsageRegisterModal)
+ * • Ашиглалтын байдал — зөвхөн ашиглалтад байгаа
  */
 const ASSET_VIEWS: Record<AssetView, AssetState[]> = {
   general: ["registered", "repair", "in_use"],
   written_off: ["written_off"],
-  warehouse: ["registered"],
-  usage: ["in_use", "repair"],
+  warehouse: ["registered", "repair"],
+  usage: ["in_use"],
 };
 
 export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {

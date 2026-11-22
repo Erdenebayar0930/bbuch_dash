@@ -21,7 +21,8 @@ export const assetStateLabels: Record<AssetState, string> = {
 /** Шошгоны өнгө — өнгө нь өөрөө мэдээлэл тул шошгыг нь ч бас бичнэ */
 export const assetStateStyles: Record<AssetState, string> = {
   registered: "bg-blue-light-50 text-blue-light-700 dark:bg-blue-light-500/15 dark:text-blue-light-400",
-  repair: "bg-warning-50 text-warning-700 dark:bg-warning-500/15 dark:text-warning-400",
+  // Засвартай — шар (агуулахад байгаа ч ашиглах боломжгүй)
+  repair: "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300",
   in_use: "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400",
   written_off: "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400",
 };
