@@ -6,6 +6,7 @@ import { Boxes } from "lucide-react";
 
 import ImageViewer from "@/components/common/ImageViewer";
 import { Modal } from "@/components/ui/modal";
+import { assetStateLabels } from "@/data/assetStates";
 import {
   checkStatusLabels,
   listAssetChecks,
@@ -127,6 +128,7 @@ export default function AssetViewModal({ asset, onClose }: AssetViewModalProps) 
         <div className="mt-5">
           <Row label="Төрөл" value={asset.categoryName ?? "—"} />
           <Row label="Агуулах" value={asset.warehouseName ?? "—"} />
+          <Row label="Ангилал" value={assetStateLabels[asset.state]} />
           <Row
             label="Тоо хэмжээ"
             value={`${asset.quantity} ${asset.unit}`.trim()}

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { assetStateLabels, isAssetState } from "@/data/assetStates";
 import { asc, desc, eq } from "drizzle-orm";
 
 import { labelOf, aimags, welfareAimags } from "@/data/profileOptions";
@@ -217,6 +218,7 @@ const assetDataset: Dataset = {
         aimag: assets.aimag,
         categoryName: assetCategories.name,
         warehouseName: warehouses.name,
+        state: assets.state,
         quantity: assets.quantity,
         unit: assets.unit,
         code: assets.code,
@@ -243,6 +245,14 @@ const assetDataset: Dataset = {
           {
             header: "Агуулах",
             value: (row) => row.warehouseName ?? "—",
+            width: 18,
+          },
+          {
+            header: "Ангилал",
+            value: (row) => {
+              const state: unknown = row.state;
+              return isAssetState(state) ? assetStateLabels[state] : "—";
+            },
             width: 18,
           },
           { header: "Тоо", value: (row) => row.quantity },
@@ -436,9 +446,9 @@ const scheduleDatasets: Dataset[] = scheduleKinds.map((kind) => {
 
   return {
     key: `schedule-${kind}`,
-    label: `${config.label} — хуваарь`,
+    label: kind === "care" ? config.label : `${config.label} — хуваарь`,
     adminOnly: false,
-    aimag: "commission",
+    aimag: config.aimag,
     build: async () => {
       const rows = await db
         .select({

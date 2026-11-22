@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         warehouseId: assets.warehouseId,
         warehouseName: warehouses.name,
         quantity: assets.quantity,
+        state: assets.state,
         unit: assets.unit,
         code: assets.code,
         note: assets.note,

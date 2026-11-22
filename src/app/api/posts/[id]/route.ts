@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import { TAGGABLE_BOARDS, isPostBoard } from "@/data/postOptions";
 import { badRequest, forbidden, requireActiveUser, serverError } from "@/lib/api/auth";
 import { periodDate, readPost, readPostRow } from "@/lib/api/postInput";
 import { canApprovePosts, notifyPostApprovers, readPostApprovers } from "@/lib/api/postReview";
@@ -49,7 +50,8 @@ export async function PATCH(
     const parsed = readPost(
       await request.json().catch(() => ({})),
       caller.uid,
-      (existing.media ?? []).map((item) => item.path)
+      (existing.media ?? []).map((item) => item.path),
+      isPostBoard(existing.board) && TAGGABLE_BOARDS.has(existing.board)
     );
     if (!parsed.ok) return badRequest(parsed.error);
 

@@ -19,9 +19,6 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Мод услах ба Дулаанхаан нь Агуу захирамжийн аймгийн хариуцлага */
-const AIMAG = "commission";
-
 const isDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 /**
@@ -30,18 +27,19 @@ const isDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
  * `?kind=watering|dulaankhaan` заавал: хоёр хуваарь нэг хүснэгтэд сууна.
  * `?from=YYYY-MM-DD&to=YYYY-MM-DD` — хугацааны хязгаар. Огноо нь текст боловч
  * ISO хэлбэр лексикографаар зөв эрэмбэлэгддэг тул шууд харьцуулж болно.
- * Зөвхөн Агуу захирамжийн аймгийн гишүүд ба админ уншина.
+ * Зөвхөн тухайн хуваарийн аймгийн гишүүд ба админ уншина.
  */
 export async function GET(request: NextRequest) {
-  const result = await requireAimag(request, AIMAG);
-  if ("error" in result) return result.error;
-
   const { searchParams } = new URL(request.url);
   const kind = searchParams.get("kind");
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
   if (!isScheduleKind(kind)) return badRequest("Хуваарийн төрөл буруу байна.");
+
+  // Хуваарь бүр өөрийн аймагт харьяалагдана (@see scheduleConfigs.aimag)
+  const result = await requireAimag(request, scheduleConfigs[kind].aimag);
+  if ("error" in result) return result.error;
 
   if ((from && !isDate(from)) || (to && !isDate(to))) {
     return badRequest("Огноог YYYY-MM-DD хэлбэрээр оруулна уу.");

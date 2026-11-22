@@ -1,6 +1,8 @@
 "use client";
 
-import type { PostBoard } from "@/data/postOptions";
+import type { PostBoard, PostTag } from "@/data/postOptions";
+
+export type { PostTag };
 
 import { apiFetch } from "./apiClient";
 
@@ -21,6 +23,8 @@ export type Post = {
   body: string;
   media: PostMedia[];
   videoLink: string;
+  /** Цохсон нэрс — нэр цохож болдог самбарт л (@see TAGGABLE_BOARDS) */
+  tags: PostTag[];
   /** `YYYY-MM-DD` — аль өдрийн мэдээлэл вэ, хоосон бол нийтэлсэн огноо */
   period: string;
   /** pending — зөвшөөрөл хүлээж буй, approved — бүгдэд, rejected — буцаасан */
@@ -41,6 +45,7 @@ type PostRow = {
   body: string | null;
   media: PostMedia[] | null;
   videoLink: string | null;
+  tags?: PostTag[] | null;
   period: string | null;
   status: string | null;
   reviewNote: string | null;
@@ -53,6 +58,8 @@ export type PostInput = {
   videoLink: string;
   /** `YYYY-MM-DD` — хоосон бол одоо */
   period: string;
+  /** Цохсон нэрс — нэр цохдоггүй самбарт хоосон */
+  tags: PostTag[];
   /** Засварт үлдээх хуучин файлууд */
   keep: PostMedia[];
   files: File[];
@@ -73,6 +80,7 @@ const toPost = (row: PostRow): Post => {
     body: row.body ?? "",
     media: row.media ?? [],
     videoLink: row.videoLink ?? "",
+    tags: row.tags ?? [],
     period: row.period ?? "",
     status: row.status === "approved" || row.status === "rejected" ? row.status : "pending",
     reviewNote: row.reviewNote ?? "",
@@ -170,7 +178,13 @@ export async function createPost(uid: string, board: PostBoard, input: PostInput
   try {
     const data = await apiFetch<{ post: PostRow }>(`/api/posts?board=${board}`, {
       method: "POST",
-      body: { body: input.body, videoLink: input.videoLink, period: input.period, media: uploaded },
+      body: {
+        body: input.body,
+        videoLink: input.videoLink,
+        period: input.period,
+        tags: input.tags,
+        media: uploaded,
+      },
     });
     return toPost(data.post);
   } catch (error) {
@@ -190,6 +204,7 @@ export async function updatePost(uid: string, post: Post, input: PostInput): Pro
         body: input.body,
         videoLink: input.videoLink,
         period: input.period,
+        tags: input.tags,
         media: [...input.keep, ...uploaded],
       },
     });

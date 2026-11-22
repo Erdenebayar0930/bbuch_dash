@@ -11,7 +11,10 @@ import {
   MAX_POST_FILE_NAME,
   MAX_POST_LINK_LENGTH,
   MAX_POST_MEDIA,
+  MAX_POST_TAG_NAME,
+  MAX_POST_TAGS,
   parseVideoLink,
+  type PostTag,
 } from "@/data/postOptions";
 import { db } from "@/lib/db";
 import { posts, users } from "@/lib/db/schema";
@@ -43,7 +46,7 @@ export function periodDate(period: string, now = new Date()): Date {
 }
 
 type Parsed =
-  | { ok: true; value: { body: string; media: PostMedia[]; videoLink: string; period: string } }
+  | { ok: true; value: { body: string; media: PostMedia[]; videoLink: string; period: string; tags: PostTag[] } }
   | { ok: false; error: string };
 
 /**
@@ -53,7 +56,13 @@ type Parsed =
  * файлыг холбож, дараа нь устгуулахаас сэргийлнэ. Засварт өмнө нь
  * хавсаргасан файлаа (`keepPaths`) хэвээр үлдээж болно.
  */
-export function readPost(input: unknown, uid: string, keepPaths: readonly string[] = []): Parsed {
+export function readPost(
+  input: unknown,
+  uid: string,
+  keepPaths: readonly string[] = [],
+  /** Нэр цохож болдог самбар эсэх (@see TAGGABLE_BOARDS) — үгүй бол нэрс хадгалагдахгүй */
+  allowTags = false
+): Parsed {
   if (typeof input !== "object" || input === null) {
     return { ok: false, error: "Хүсэлтийн бие буруу байна." };
   }
@@ -115,11 +124,33 @@ export function readPost(input: unknown, uid: string, keepPaths: readonly string
     }
   }
 
-  if (!body && media.length === 0 && !videoLink) {
+  const rawTags: unknown[] = allowTags && Array.isArray(raw.tags) ? raw.tags : [];
+  if (rawTags.length > MAX_POST_TAGS) {
+    return { ok: false, error: `Хамгийн ихдээ ${MAX_POST_TAGS} нэр цохоно.` };
+  }
+
+  // Нэг хүнийг (uid эсвэл ижил нэрээр) хоёр дахин цохохгүй
+  const tags: PostTag[] = [];
+  const seen = new Set<string>();
+  for (const item of rawTags) {
+    const { uid: tagUid, name } = (item ?? {}) as Record<string, unknown>;
+    const cleanName =
+      typeof name === "string"
+        ? name.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_POST_TAG_NAME)
+        : "";
+    const cleanUid = typeof tagUid === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(tagUid) ? tagUid : null;
+    if (!cleanName) continue;
+    const key = cleanUid ?? `name:${cleanName.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push({ uid: cleanUid, name: cleanName });
+  }
+
+  if (!body && media.length === 0 && !videoLink && tags.length === 0) {
     return { ok: false, error: "Бичвэр, зураг эсвэл бичлэг оруулна уу." };
   }
 
-  return { ok: true, value: { body, media, videoLink, period } };
+  return { ok: true, value: { body, media, videoLink, period, tags } };
 }
 
 /** Жагсаалтын багана — бичсэн хүний нэр, зурагтай хамт */
@@ -132,6 +163,7 @@ export const postColumns = {
   body: posts.body,
   media: posts.media,
   videoLink: posts.videoLink,
+  tags: posts.tags,
   period: posts.period,
   status: posts.status,
   reviewNote: posts.reviewNote,

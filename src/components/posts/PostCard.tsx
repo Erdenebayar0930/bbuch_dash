@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Check, Clock, Download, FileText, MoreHorizontal, Pencil, Trash2, Undo2 } from "lucide-react";
+import { Check, Clock, Download, FileText, MoreHorizontal, Pencil, Trash2, Undo2, Users } from "lucide-react";
 
 import PostAvatar from "@/components/posts/PostAvatar";
 import VideoPlayer from "@/components/posts/VideoPlayer";
@@ -180,6 +180,29 @@ export default function PostCard({
               {expanded ? "Хураах" : "Цааш унших"}
             </button>
           )}
+        </div>
+      )}
+
+      {post.tags.length > 0 && (
+        <div className="px-4 pt-3">
+          <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-gray-500 dark:text-gray-400">
+            <Users className="h-4 w-4" strokeWidth={1.8} />
+            Нэрс ({post.tags.length})
+          </p>
+          <ul className="flex flex-wrap gap-1.5">
+            {post.tags.map((tag) => (
+              <li
+                key={tag.uid ?? `name:${tag.name}`}
+                className={`rounded-full px-2.5 py-0.5 text-[13px] ${
+                  tag.uid
+                    ? "bg-accent-50 text-accent-700 dark:bg-accent-500/10 dark:text-accent-300"
+                    : "bg-gray-100 text-gray-700 dark:bg-white/5 dark:text-gray-300"
+                }`}
+              >
+                {tag.name}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

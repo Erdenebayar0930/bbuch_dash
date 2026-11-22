@@ -7,9 +7,12 @@
  * хүснэгт, API, UI бүгд хуваалцсан.
  */
 
-export type ScheduleKind = "watering" | "dulaankhaan";
+export type ScheduleKind = "watering" | "dulaankhaan" | "care";
 
-export const scheduleKinds: ScheduleKind[] = ["watering", "dulaankhaan"];
+export const scheduleKinds: ScheduleKind[] = ["watering", "dulaankhaan", "care"];
+
+/** Агуу захирамжийн «Хуваарь» хуудасны табууд — асрын хуваарь Магтаалынх */
+export const commissionScheduleKinds: ScheduleKind[] = ["watering", "dulaankhaan"];
 
 export type ScheduleConfig = {
   /** Хуудасны нэр */
@@ -22,6 +25,8 @@ export type ScheduleConfig = {
   doneLabel: string;
   /** Мэдэгдэл дэх холбоос */
   path: string;
+  /** Харах эрхтэй аймаг (profileOptions.aimags) — API нь `requireAimag`-аар шалгана */
+  aimag: string;
 };
 
 export const scheduleConfigs: Record<ScheduleKind, ScheduleConfig> = {
@@ -31,6 +36,7 @@ export const scheduleConfigs: Record<ScheduleKind, ScheduleConfig> = {
     areaPlaceholder: "Жишээ нь: Урд талбай",
     doneLabel: "Услсан",
     path: "/aimag/commission/watering",
+    aimag: "commission",
   },
   dulaankhaan: {
     label: "Дулаанхаан",
@@ -38,6 +44,15 @@ export const scheduleConfigs: Record<ScheduleKind, ScheduleConfig> = {
     areaPlaceholder: "Жишээ нь: Айлчлал, айл эргэх",
     doneLabel: "Гүйцэтгэсэн",
     path: "/aimag/commission/dulaankhaan",
+    aimag: "commission",
+  },
+  care: {
+    label: "Асрын үйлчлэлийн хуваарь",
+    areaLabel: "Үйлчлэл",
+    areaPlaceholder: "Жишээ нь: Асар цэвэрлэх, тохижуулах",
+    doneLabel: "Гүйцэтгэсэн",
+    path: "/aimag/praise/hall",
+    aimag: "praise",
   },
 };
 

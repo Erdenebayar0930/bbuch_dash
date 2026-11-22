@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { scheduleConfigs, scheduleKinds } from "@/data/scheduleOptions";
+import { commissionScheduleKinds as scheduleKinds, scheduleConfigs } from "@/data/scheduleOptions";
 
 import ScheduleBoard from "./ScheduleBoard";
 

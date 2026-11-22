@@ -1,10 +1,12 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import { isScheduleKind, scheduleConfigs } from "@/data/scheduleOptions";
 import {
   badRequest,
   forbidden,
   isAdminRole,
+  requireActiveUser,
   requireAdmin,
   requireAimag,
   serverError,
@@ -19,8 +21,9 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Мод услах ба Дулаанхаан нь Агуу захирамжийн аймгийн хариуцлага */
-const AIMAG = "commission";
+/** Хуваарийн аймаг — мөрийн `kind`-аас (@see scheduleConfigs.aimag) */
+const aimagOf = (kind: string) =>
+  isScheduleKind(kind) ? scheduleConfigs[kind].aimag : "commission";
 
 const notFound = () => NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
 
@@ -35,11 +38,10 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const result = await requireAimag(request, AIMAG);
-  if ("error" in result) return result.error;
+  const active = await requireActiveUser(request);
+  if ("error" in active) return active.error;
 
   const { id } = await context.params;
-  const isAdmin = isAdminRole(result.caller.user?.role);
 
   try {
     const body = (await request.json().catch(() => ({}))) as Record<
@@ -54,6 +56,10 @@ export async function PATCH(
       .limit(1);
 
     if (!existing) return notFound();
+
+    const result = await requireAimag(request, aimagOf(existing.kind));
+    if ("error" in result) return result.error;
+    const isAdmin = isAdminRole(result.caller.user?.role);
 
     // Гүйцэтгэлийн тэмдэглэгээ — админ ба хариуцагч хоёулаа хийж болно
     const patch: Record<string, unknown> = {};

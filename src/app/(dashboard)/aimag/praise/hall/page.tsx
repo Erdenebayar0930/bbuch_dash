@@ -1,16 +1,16 @@
 import { Metadata } from "next";
 
 import AimagGuard from "@/components/AimagGuard";
-import PostFeed from "@/components/posts/PostFeed";
+import PraiseHallTabs from "@/components/praise/PraiseHallTabs";
 
 export const metadata: Metadata = {
   title: "Асрын үйлчлэл | ББУЧ",
-  description: "Магтаалын аймгийн Асрын үйлчлэл — нийтлэлүүд",
+  description: "Асрын үйлчлэлийн талаар, тушаал ба онцлогууд, хуваарь",
 };
 
 /**
- * Магтаалын аймгийн «Асрын үйлчлэл» — нийтлэлийн самбар (бичвэр, зураг,
- * бичлэг, файл). Бусад нийтлэлийн самбартай ижил, `board = praise-hall`.
+ * Магтаалын аймгийн «Асрын үйлчлэл» — гурван таб (@see PraiseHallTabs):
+ * талаарх нийтлэл, нэр цохож болдог тушаал ба онцлогууд, ээлжийн хуваарь.
  */
 export default function PraiseHallPage() {
   return (
@@ -18,7 +18,7 @@ export default function PraiseHallPage() {
       <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Асрын үйлчлэл</h1>
 
       <AimagGuard aimag="praise">
-        <PostFeed board="praise-hall" />
+        <PraiseHallTabs />
       </AimagGuard>
     </div>
   );

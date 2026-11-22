@@ -122,7 +122,8 @@ export const POST_BOARDS = {
   "guard-map-revealed": { url: "/aimag/guard/map", label: "Илчлэгдсэн үйлчлэл" },
   "guard-map-done": { url: "/aimag/guard/map", label: "Гүйцэтгэсэн үйлчлэл" },
   "guard-duty": { url: "/aimag/guard/duty", label: "Харуулын үүрэгт зогсох" },
-  "praise-hall": { url: "/aimag/praise/hall", label: "Асрын үйлчлэл" },
+  "praise-hall": { url: "/aimag/praise/hall", label: "Асрын үйлчлэлийн талаар" },
+  "praise-hall-orders": { url: "/aimag/praise/hall", label: "Асарт үйлчлэх тушаал ба онцлогууд" },
   "commission-az": { url: "/aimag/commission/az", label: "АЗ-ийн үйлчлэл" },
   "commission-aah": { url: "/aimag/commission/aah", label: "ААХ-ийн үйлчлэл" },
   "service-services": { url: "/aimag/service/services", label: "Туслах үйлчлэлүүд" },
@@ -142,6 +143,21 @@ export type PostBoard = keyof typeof POST_BOARDS;
  * (profileOptions.aimags). API нь `requireAimag`-аар шалгана; админ бүгдийг.
  */
 export const RESTRICTED_BOARDS: Partial<Record<PostBoard, string>> = { dut: "dut" };
+
+/**
+ * Нэр цохож болдог самбар — нийтлэл бүрт гишүүдийн (эсвэл системд бүртгэлгүй
+ * хүний) нэрийг жагсааж тэмдэглэнэ. Бусад самбарт нэрийн талбар гарахгүй.
+ */
+export const TAGGABLE_BOARDS: ReadonlySet<PostBoard> = new Set<PostBoard>(["praise-hall-orders"]);
+
+/** Цохсон нэр — `uid` нь системийн гишүүн бол, гараар бичсэн нэр бол null */
+export type PostTag = { uid: string | null; name: string };
+
+/** Нэг нийтлэлд цохох нэрийн дээд тоо */
+export const MAX_POST_TAGS = 60;
+
+/** Нэг нэрийн дээд урт */
+export const MAX_POST_TAG_NAME = 80;
 
 export const isPostBoard =(value: unknown): value is PostBoard =>
   typeof value === "string" && Object.prototype.hasOwnProperty.call(POST_BOARDS, value);

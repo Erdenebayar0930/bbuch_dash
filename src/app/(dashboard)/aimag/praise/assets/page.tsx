@@ -1,32 +1,13 @@
 import { Metadata } from "next";
 
-import AimagGuard from "@/components/AimagGuard";
-import AssetRegistry from "@/components/assets/AssetRegistry";
-import { aimags, labelOf } from "@/data/profileOptions";
-
-/** profileOptions доторх түлхүүр — өөрчлөгдвөл энэ хуудас ч дагах ёстой */
-const AIMAG = "praise";
+import PraiseAssetsPage from "@/components/assets/PraiseAssetsPage";
 
 export const metadata: Metadata = {
-  title: "Магтаалын аймаг — Эд хөрөнгө | ББУЧ",
-  description: "Магтаалын аймгийн эд хөрөнгийн бүртгэл",
+  title: "Эд хөрөнгийн ерөнхий бүртгэл | ББУЧ",
+  description: "Магтаалын аймгийн эд хөрөнгийн ерөнхий бүртгэл ба акталсан хөрөнгө",
 };
 
-export default function PraiseAssetsPage() {
-  return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          Эд хөрөнгө бүртгэл
-        </h1>
-        <p className="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          {labelOf(aimags, AIMAG)}-т харьяалагдах эд хөрөнгө
-        </p>
-      </div>
-
-      <AimagGuard aimag={AIMAG}>
-        <AssetRegistry aimag={AIMAG} />
-      </AimagGuard>
-    </div>
-  );
+/** Табууд: Ерөнхий бүртгэл, Акталсан хөрөнгийн бүртгэл (@see AssetTabs) */
+export default function PraiseAssetRegisterPage() {
+  return <PraiseAssetsPage title="Эд хөрөнгийн ерөнхий бүртгэл" section="register" />;
 }

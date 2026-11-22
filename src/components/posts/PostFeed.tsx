@@ -9,7 +9,7 @@ import CampaignApproversModal from "@/components/finance/CampaignApproversModal"
 import PostAvatar from "@/components/posts/PostAvatar";
 import PostCard from "@/components/posts/PostCard";
 import PostComposer from "@/components/posts/PostComposer";
-import { postDateKey, type PostBoard } from "@/data/postOptions";
+import { TAGGABLE_BOARDS, postDateKey, type PostBoard } from "@/data/postOptions";
 import { isAdminRole } from "@/lib/permissions";
 import {
   createPost,
@@ -41,6 +41,7 @@ const newestFirst = (a: Post, b: Post) => b.createdAt.getTime() - a.createdAt.ge
 export default function PostFeed({ board = "home" }: { board?: PostBoard }) {
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
+  const tagging = TAGGABLE_BOARDS.has(board);
 
   const [items, setItems] = useState<Post[]>([]);
   const [queue, setQueue] = useState<Post[]>([]);
@@ -145,6 +146,8 @@ export default function PostFeed({ board = "home" }: { board?: PostBoard }) {
           initialVideoLink={post.videoLink}
           initialPeriod={post.period || postDateKey(post.createdAt)}
           initialMedia={post.media}
+          tagging={tagging}
+          initialTags={post.tags}
           submitLabel="Хадгалах"
           onCancel={() => setEditingId(null)}
           onSubmit={(input) => saveEdit(post, input)}
@@ -174,7 +177,7 @@ export default function PostFeed({ board = "home" }: { board?: PostBoard }) {
       <div className="surface mx-auto flex w-full max-w-3xl gap-3 p-4">
         <PostAvatar name={authorName} photoUrl={user?.photoURL} />
         <div className="min-w-0 flex-1">
-          <PostComposer submitLabel="Нийтлэх" onSubmit={publish} />
+          <PostComposer tagging={tagging} submitLabel="Нийтлэх" onSubmit={publish} />
         </div>
       </div>
 

@@ -294,6 +294,11 @@ export const assets = pgTable(
       onDelete: "set null",
     }),
     quantity: integer("quantity").notNull().default(1),
+    /**
+     * Ангилал — registered | repair | in_use | written_off (@see data/assetStates.ts).
+     * Байршил бүрийн хөрөнгийг эдгээрээр бүлэглэнэ.
+     */
+    state: varchar("state", { length: 32 }).notNull().default("registered"),
     /** Хэмжих нэгж — ш, ком, кг гэх мэт */
     unit: varchar("unit", { length: 32 }).notNull().default("ш"),
     /** Дугаар, сериал, инвентарын код */
@@ -1309,6 +1314,13 @@ export const posts = pgTable(
       .$defaultFn(() => []),
     /** YouTube/Facebook видеоны холбоос — хоосон бол байхгүй */
     videoLink: varchar("video_link", { length: 500 }).notNull().default(""),
+    /**
+     * Цохсон нэрс — зөвхөн TAGGABLE_BOARDS (@see data/postOptions.ts) самбарт.
+     * Нэрийг нийтлэх үеийнхээр нь хадгална: гишүүн уствал ч нэр нь үлдэнэ.
+     */
+    tags: jsonCol<{ uid: string | null; name: string }[]>("tags")
+      .notNull()
+      .default([]),
     /**
      * Аль өдрийн мэдээлэл вэ — `YYYY-MM-DD` (хуучин нь `YYYY-MM`), хоосон бол нийтэлсэн огноо.
      * Хуучин мэдээллийг нөхөж оруулахад: `created_at` нь тэр сар руу шилжиж,

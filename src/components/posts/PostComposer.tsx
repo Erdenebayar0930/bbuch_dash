@@ -16,9 +16,11 @@ import {
   formatFileSize,
   todayKey,
   parseVideoLink,
+  type PostTag,
 } from "@/data/postOptions";
 import type { PostInput, PostMedia } from "@/lib/posts";
 import DateInput from "@/components/form/DateInput";
+import PostTagPicker from "@/components/posts/PostTagPicker";
 
 /** Зарим утас/хөтөч Office файлын төрлийг хоосон өгдөг — өргөтгөлөөр нь нөхнө */
 const TYPE_BY_EXTENSION: Record<string, string> = {
@@ -49,6 +51,9 @@ type PostComposerProps = {
   /** `YYYY-MM-DD` — нийтлэлийн огноо; хоосон бол өнөөдөр */
   initialPeriod?: string;
   initialMedia?: PostMedia[];
+  /** Нэр цохох талбар гаргах эсэх (@see TAGGABLE_BOARDS) */
+  tagging?: boolean;
+  initialTags?: PostTag[];
   submitLabel: string;
   /** Засвар үед «Болих» товч гаргана */
   onCancel?: () => void;
@@ -68,6 +73,8 @@ export default function PostComposer({
   initialVideoLink = "",
   initialPeriod = "",
   initialMedia = [],
+  tagging = false,
+  initialTags = [],
   submitLabel,
   onCancel,
   onSubmit,
@@ -81,6 +88,7 @@ export default function PostComposer({
     initialPeriod.length === 7 ? `${initialPeriod}-01` : initialPeriod || todayKey()
   );
   const [keep, setKeep] = useState<PostMedia[]>(initialMedia);
+  const [tags, setTags] = useState<PostTag[]>(initialTags);
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -136,7 +144,7 @@ export default function PostComposer({
   };
 
   const canSubmit =
-    !busy && !linkInvalid && !periodIncomplete && (body.trim().length > 0 || total > 0 || linkTrimmed.length > 0);
+    !busy && !linkInvalid && !periodIncomplete && (body.trim().length > 0 || total > 0 || linkTrimmed.length > 0 || (tagging && tags.length > 0));
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -151,6 +159,7 @@ export default function PostComposer({
         body: body.trim(),
         videoLink: linkTrimmed,
         period,
+        tags: tagging ? tags : [],
         keep,
         files,
         onProgress: setProgress,
@@ -161,6 +170,7 @@ export default function PostComposer({
         setShowLink(false);
         setPeriodDay(todayKey());
         setKeep([]);
+        setTags([]);
         setFiles([]);
       }
     } catch (err) {
@@ -216,11 +226,13 @@ export default function PostComposer({
         ref={textarea}
         value={body}
         onChange={(event) => setBody(event.target.value)}
-        placeholder="Юу хуваалцах вэ?"
+        placeholder={tagging ? "Тушаал, онцлогийг бичнэ үү" : "Юу хуваалцах вэ?"}
         maxLength={MAX_POST_LENGTH}
         rows={3}
         className={`${fieldClass} font-reading min-h-[88px] resize-none py-3 text-[15px] leading-7`}
       />
+
+      {tagging && <PostTagPicker value={tags} onChange={setTags} disabled={busy} />}
 
       {showLink && (
         <div className="flex flex-col gap-1">

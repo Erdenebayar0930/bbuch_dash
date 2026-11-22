@@ -17,6 +17,12 @@ import {
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import ExportButton from "@/components/common/ExportButton";
+import {
+  assetStateLabels,
+  assetStateStyles,
+  assetStates,
+  type AssetState,
+} from "@/data/assetStates";
 import { aimags, labelOf } from "@/data/profileOptions";
 import { isAdminRole } from "@/lib/permissions";
 import {
@@ -60,9 +66,33 @@ type AssetRegistryProps = {
    * бүртгэсэн нь ч мөн тэр аймагт хамаарна. Өгөхгүй бол бүх бүртгэл.
    */
   aimag?: string;
+  /**
+   * Аль цэсийн харагдац вэ (@see ASSET_VIEWS) — тухайн ангиллуудын хөрөнгийг
+   * л харуулна. Өгөхгүй бол бүх ангилал, байршлын карттай.
+   */
+  view?: AssetView;
 };
 
-export default function AssetRegistry({ aimag }: AssetRegistryProps) {
+export type AssetView = "general" | "written_off" | "warehouse" | "usage";
+
+/**
+ * Цэс бүрийн харагдац — ямар ангиллын хөрөнгө харуулах вэ. Агуулах тус
+ * бүрийн карт бүх харагдацад байна (тухайн ангиллын тоогоор).
+ *
+ * • Ерөнхий бүртгэл — акталснаас бусад бүх хөрөнгө
+ * • Акталсан хөрөнгийн бүртгэл — зөвхөн акталсан
+ * • Агуулахын бүртгэл — акталснаас бусад
+ * • Ашиглалтын байдал — ашиглалтад ба засварт байгаа
+ */
+const ASSET_VIEWS: Record<AssetView, AssetState[]> = {
+  general: ["registered", "repair", "in_use"],
+  written_off: ["written_off"],
+  warehouse: ["registered", "repair", "in_use"],
+  usage: ["in_use", "repair"],
+};
+
+export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
+  const viewStates = view ? ASSET_VIEWS[view] : assetStates;
   const { user } = useUser();
   const isAdmin = isAdminRole(user?.role);
   // Агуулах/төрлийн лавлах жагсаалтыг админ болон тухайн аймгийн гишүүд
@@ -85,6 +115,8 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
 
   const [warehouseFilter, setWarehouseFilter] = useState(ALL);
   const [categoryFilter, setCategoryFilter] = useState(ALL);
+  /** Ангиллын таб — ALL эсвэл AssetState */
+  const [stateFilter, setStateFilter] = useState<AssetState | typeof ALL>(ALL);
   const [query, setQuery] = useState("");
 
   /** Идэвхтэй тооллого ба түүний явцад тоологдсон хөрөнгүүд */
@@ -130,20 +162,39 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
     load();
   }, [load]);
 
+  /** Энэ цэсийн ангиллуудад багтах хөрөнгө */
+  const scoped = useMemo(
+    () => assets.filter((asset) => viewStates.includes(asset.state)),
+    [assets, viewStates]
+  );
+
+  /** Сонгосон байршлын хөрөнгө — ангиллын табын тоо үүнээс тоологдоно */
+  const inWarehouse = useMemo(
+    () =>
+      scoped.filter((asset) =>
+        warehouseFilter === ALL
+          ? true
+          : warehouseFilter === NONE
+            ? asset.warehouseId === null
+            : asset.warehouseId === warehouseFilter
+      ),
+    [scoped, warehouseFilter]
+  );
+
+  const stateCounts = useMemo(() => {
+    const counts = Object.fromEntries(assetStates.map((state) => [state, 0])) as Record<
+      AssetState,
+      number
+    >;
+    for (const asset of inWarehouse) counts[asset.state] += 1;
+    return counts;
+  }, [inWarehouse]);
+
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
-    return assets.filter((asset) => {
-      if (warehouseFilter === NONE ? asset.warehouseId !== null : false) {
-        return false;
-      }
-      if (
-        warehouseFilter !== ALL &&
-        warehouseFilter !== NONE &&
-        asset.warehouseId !== warehouseFilter
-      ) {
-        return false;
-      }
+    return inWarehouse.filter((asset) => {
+      if (stateFilter !== ALL && asset.state !== stateFilter) return false;
       // Тооллогын үед аль хэдийн тоологдсоныг нуух сонголт
       if (onlyUncounted && count.checkedAssetIds.has(asset.id)) return false;
 
@@ -163,7 +214,7 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
         .toLowerCase()
         .includes(needle);
     });
-  }, [assets, warehouseFilter, categoryFilter, query, onlyUncounted, count]);
+  }, [inWarehouse, stateFilter, categoryFilter, query, onlyUncounted, count]);
 
   /** Тооллогын явц — бүртгэлийн нийт мөрөөс хэд нь тоологдсон бэ */
   const counted = useMemo(
@@ -210,13 +261,19 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
     }
   };
 
-  /** Агуулах тус бүрийн нийт нэр төрлийн тоо — дээд талын тойм */
+  /** Агуулах тус бүрийн нийт нэр төрөл ба ангилал тус бүрийн тоо — дээд талын тойм */
   const perWarehouse = useMemo(() => {
-    return warehouses.map((warehouse) => ({
-      ...warehouse,
-      count: assets.filter((asset) => asset.warehouseId === warehouse.id).length,
-    }));
-  }, [assets, warehouses]);
+    return warehouses.map((warehouse) => {
+      const own = scoped.filter((asset) => asset.warehouseId === warehouse.id);
+      return {
+        ...warehouse,
+        count: own.length,
+        states: viewStates
+          .map((state) => ({ state, count: own.filter((asset) => asset.state === state).length }))
+          .filter((item) => item.count > 0),
+      };
+    });
+  }, [scoped, warehouses, viewStates]);
 
   const handleDelete = async (asset: Asset) => {
     setRemovingId(asset.id);
@@ -238,7 +295,7 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Агуулах тус бүрийн тойм */}
+      {/* Агуулах тус бүрийн тойм — бүх харагдацад */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {perWarehouse.map((warehouse) => (
           <button
@@ -261,9 +318,56 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
             <span className="mt-1 block text-theme-xs text-gray-500 dark:text-gray-400">
               {warehouse.count} нэр төрөл
             </span>
+            {warehouse.states.length > 0 && (
+              <span className="mt-2 flex flex-wrap gap-1">
+                {warehouse.states.map((item) => (
+                  <span
+                    key={item.state}
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${assetStateStyles[item.state]}`}
+                  >
+                    {assetStateLabels[item.state]} {item.count}
+                  </span>
+                ))}
+              </span>
+            )}
           </button>
         ))}
       </div>
+
+      {/* Ангилал — сонгосон байршлын (эсвэл бүх) хөрөнгийг бүлэглэнэ. Ганц
+          ангилалтай цэсэнд (Акталсан) таб хэрэггүй. */}
+      {viewStates.length > 1 && (
+      <div
+        role="tablist"
+        aria-label="Ангилал"
+        className="flex gap-x-1 overflow-x-auto overflow-y-hidden no-scrollbar border-b border-gray-200 dark:border-white/10"
+      >
+        {([ALL, ...viewStates] as const).map((key) => {
+          const selected = stateFilter === key;
+          const label = key === ALL ? "Бүгд" : assetStateLabels[key];
+          const total = key === ALL ? inWarehouse.length : stateCounts[key];
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setStateFilter(key)}
+              className={`-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-2.5 text-theme-sm font-medium transition-colors ${
+                selected
+                  ? "border-accent-600 text-accent-700 dark:border-accent-400 dark:text-accent-300"
+                  : "border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
+            >
+              {label}
+              <span className="rounded-full bg-gray-100 px-1.5 text-theme-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
+                {total}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      )}
 
       {/* Шүүлтүүр ба үйлдэл */}
       <div className="flex flex-wrap items-center gap-2">
@@ -455,8 +559,10 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
                       strokeWidth={1.5}
                     />
                     <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-                      {assets.length === 0
-                        ? "Эд хөрөнгө бүртгэгдээгүй байна."
+                      {scoped.length === 0
+                        ? view === "written_off"
+                          ? "Акталсан хөрөнгө алга."
+                          : "Эд хөрөнгө бүртгэгдээгүй байна."
                         : "Шүүлтүүрт тохирох бичлэг олдсонгүй."}
                     </p>
                   </div>
@@ -504,6 +610,11 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
 
                     <div className="min-w-0">
                       <p className="font-medium text-gray-900 dark:text-white">
+                        <span
+                          className={`mr-1.5 inline-block rounded-full px-2 py-0.5 align-middle text-[11px] font-medium ${assetStateStyles[asset.state]}`}
+                        >
+                          {assetStateLabels[asset.state]}
+                        </span>
                         {asset.name}
                         {asset.images.length > 1 && (
                           <span className="ml-1.5 text-theme-xs font-normal text-gray-400">
@@ -646,6 +757,10 @@ export default function AssetRegistry({ aimag }: AssetRegistryProps) {
         warehouses={warehouses}
         categories={categories}
         lockedAimag={aimag}
+        defaultWarehouseId={
+          warehouseFilter !== ALL && warehouseFilter !== NONE ? warehouseFilter : null
+        }
+        defaultState={stateFilter === ALL ? viewStates[0] : stateFilter}
         onClose={() => setFormOpen(false)}
         onSaved={load}
       />

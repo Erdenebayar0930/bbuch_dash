@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_ASSET_STATE, isAssetState, type AssetState } from "@/data/assetStates";
+
 import { apiFetch } from "./apiClient";
 
 /** Агуулах эсвэл эд хөрөнгийн төрөл — хоёулаа ижил бүтэцтэй */
@@ -55,14 +57,17 @@ export type Asset = {
   warehouseId: string | null;
   warehouseName: string | null;
   quantity: number;
+  /** Ангилал — Бүртгэлтэй, Засвартай, Ашиглалтын байдал, Акталсан */
+  state: AssetState;
   unit: string;
   code: string;
   note: string;
   createdAt: Date;
 };
 
-type AssetRow = Omit<Asset, "createdAt" | "images" | "lastCheck"> & {
+type AssetRow = Omit<Asset, "createdAt" | "images" | "lastCheck" | "state"> & {
   createdAt: string;
+  state?: string | null;
   images?: AssetImage[];
   lastCheck?: {
     status: CheckStatus;
@@ -74,6 +79,7 @@ type AssetRow = Omit<Asset, "createdAt" | "images" | "lastCheck"> & {
 const toAsset = (row: AssetRow): Asset => ({
   ...row,
   aimag: row.aimag ?? "",
+  state: isAssetState(row.state) ? row.state : DEFAULT_ASSET_STATE,
   unit: row.unit ?? "",
   code: row.code ?? "",
   note: row.note ?? "",
@@ -101,6 +107,7 @@ export type AssetInput = {
   categoryId: string | null;
   warehouseId: string | null;
   quantity: number;
+  state: AssetState;
   unit: string;
   code: string;
   note: string;

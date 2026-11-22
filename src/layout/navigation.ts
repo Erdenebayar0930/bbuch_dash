@@ -34,6 +34,7 @@ import {
   Users,
   UsersRound,
   Wallet,
+  Warehouse,
   Wheat,
   Workflow,
   type LucideIcon,
@@ -190,11 +191,10 @@ export const navItems: NavItem[] = [
       revelationMenu("praise"),
       { ...planMenu("praise"), name: "Тушаал" },
       { name: "Асрын үйлчлэл", path: "/aimag/praise/hall", icon: Tent },
-      {
-        name: "Эд хөрөнгө бүртгэл",
-        path: "/aimag/praise/assets",
-        icon: Boxes,
-      },
+      // Эд хөрөнгө — нэг бүртгэл, цэс бүр өөр ангиллаар шүүнэ (@see AssetRegistry ASSET_VIEWS)
+      // Эд хөрөнгө — хоёр цэс, дотроо таб (@see AssetTabs). Нэг л бүртгэл.
+      { name: "Эд хөрөнгийн ерөнхий бүртгэл", path: "/aimag/praise/assets", icon: Boxes },
+      { name: "Агуулахын бүртгэл", path: "/aimag/praise/warehouse", icon: Warehouse },
       gospelMenu("praise"),
       welfareMenu("praise"),
     ],

@@ -7,6 +7,12 @@ import { ImagePlus, Loader2, X } from "lucide-react";
 import ImageCropModal from "@/components/common/ImageCropModal";
 import ImageViewer from "@/components/common/ImageViewer";
 import { Modal } from "@/components/ui/modal";
+import {
+  DEFAULT_ASSET_STATE,
+  assetStateLabels,
+  assetStates,
+  type AssetState,
+} from "@/data/assetStates";
 import { aimags, labelOf } from "@/data/profileOptions";
 import {
   attachAssetImage,
@@ -37,6 +43,9 @@ type AssetFormModalProps = {
    * аймаг нь сонголт биш — маягт үүнийг бэхэлж, зөвхөн мэдээлэл болгон харуулна.
    */
   lockedAimag?: string;
+  /** Шинэ бүртгэлийн анхдагч байршил ба ангилал — сонгосон шүүлтүүрээс */
+  defaultWarehouseId?: string | null;
+  defaultState?: AssetState;
   onClose: () => void;
   onSaved: () => void;
 };
@@ -47,6 +56,7 @@ const emptyInput: AssetInput = {
   categoryId: null,
   warehouseId: null,
   quantity: 1,
+  state: DEFAULT_ASSET_STATE,
   unit: "ш",
   code: "",
   note: "",
@@ -64,6 +74,8 @@ export default function AssetFormModal({
   warehouses,
   categories,
   lockedAimag,
+  defaultWarehouseId = null,
+  defaultState = DEFAULT_ASSET_STATE,
   onClose,
   onSaved,
 }: AssetFormModalProps) {
@@ -100,15 +112,21 @@ export default function AssetFormModal({
             categoryId: asset.categoryId,
             warehouseId: asset.warehouseId,
             quantity: asset.quantity,
+            state: asset.state,
             unit: asset.unit,
             code: asset.code,
             note: asset.note,
           }
         : // Аймгийн хуудсанд шинээр бүртгэвэл тухайн аймагт нь шууд хамаарна
-          { ...emptyInput, aimag: lockedAimag ?? "" }
+          {
+            ...emptyInput,
+            aimag: lockedAimag ?? "",
+            warehouseId: defaultWarehouseId,
+            state: defaultState,
+          }
     );
     setError(null);
-  }, [asset, isOpen, lockedAimag]);
+  }, [asset, isOpen, lockedAimag, defaultWarehouseId, defaultState]);
 
   const update = <K extends keyof AssetInput>(key: K, value: AssetInput[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -261,6 +279,31 @@ export default function AssetFormModal({
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <span className={labelClass}>Ангилал</span>
+              <div role="radiogroup" aria-label="Ангилал" className="flex flex-wrap gap-1.5">
+                {assetStates.map((state) => {
+                  const selected = form.state === state;
+                  return (
+                    <button
+                      key={state}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => update("state", state)}
+                      className={`h-9 rounded-lg px-3.5 text-theme-sm font-medium transition-colors ${
+                        selected
+                          ? "bg-accent-600 text-white"
+                          : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-400"
+                      }`}
+                    >
+                      {assetStateLabels[state]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <label htmlFor="asset-category" className={labelClass}>
                 Төрөл

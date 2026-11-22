@@ -2,6 +2,7 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
+import { isAssetState, type AssetState } from "@/data/assetStates";
 import { aimags, isValidOption } from "@/data/profileOptions";
 import { db } from "@/lib/db";
 import { assetCategories, warehouses } from "@/lib/db/schema";
@@ -15,6 +16,7 @@ export type AssetPatch = {
   categoryId?: string | null;
   warehouseId?: string | null;
   quantity?: number;
+  state?: AssetState;
   unit?: string;
   code?: string;
   note?: string;
@@ -68,6 +70,11 @@ export async function readAsset(
       return { ok: false, error: `${key} нь текст байх ёстой.` };
     }
     patch[key] = (input[key] as string).trim();
+  }
+
+  if (input.state !== undefined) {
+    if (!isAssetState(input.state)) return { ok: false, error: "Ангилал буруу байна." };
+    patch.state = input.state;
   }
 
   if (input.quantity !== undefined) {

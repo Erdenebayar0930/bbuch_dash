@@ -2,7 +2,7 @@ import { and, desc, eq, lt, ne, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { badRequest, isAdminRole, requireActiveUser, requireAimag, serverError } from "@/lib/api/auth";
-import { RESTRICTED_BOARDS, isPostBoard, type PostBoard } from "@/data/postOptions";
+import { RESTRICTED_BOARDS, TAGGABLE_BOARDS, isPostBoard, type PostBoard } from "@/data/postOptions";
 import { periodDate, postColumns, readPost, readPostRow } from "@/lib/api/postInput";
 import { canApprovePosts, notifyPostApprovers, readPostApprovers } from "@/lib/api/postReview";
 import { db } from "@/lib/db";
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
   if (!board) return badRequest("board буруу байна.");
 
   try {
-    const parsed = readPost(await request.json().catch(() => ({})), caller.uid);
+    const parsed = readPost(await request.json().catch(() => ({})), caller.uid, [], TAGGABLE_BOARDS.has(board));
     if (!parsed.ok) return badRequest(parsed.error);
 
     const approver = canApprovePosts(caller, await readPostApprovers());
