@@ -314,15 +314,15 @@ export async function addMetaItem(
   return data.item;
 }
 
-/** Кодчилол — Байршлын ангилал эсвэл Төрлийн үсгийг солино. */
-export async function setMetaCodeLetter(
+/** Байршлын ангилал эсвэл Төрлийн нэр ба/эсвэл кодчиллын үсгийг засна. */
+export async function updateMetaItem(
   kind: "warehouse" | "category",
   id: string,
-  codeLetter: string
+  patch: { name?: string; codeLetter?: string }
 ): Promise<RefItem> {
   const data = await apiFetch<{ item: RefItem }>("/api/assets/meta", {
     method: "PATCH",
-    body: { kind, id, codeLetter },
+    body: { kind, id, ...patch },
   });
   return data.item;
 }

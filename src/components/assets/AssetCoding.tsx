@@ -1,15 +1,16 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Hash, Plus } from "lucide-react";
+import { Hash, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import { CODE_RE, codePrefix, formatCode, nextCode } from "@/lib/assetCodes";
 import {
   addMetaItem,
+  deleteMetaItem,
   getAssetMeta,
   listAssets,
-  setMetaCodeLetter,
+  updateMetaItem,
   type Asset,
   type RefItem,
 } from "@/lib/assets";
@@ -96,72 +97,163 @@ function buildSeries(assets: Asset[]): { series: PrefixSeries[]; freeform: strin
   return { series, freeform: freeform.sort(), codeless };
 }
 
-/** Үсгийг засах нүд — өөрчилсөн үед л «Хадгалах» гарна */
-function LetterEditor({
+/**
+ * Жагсаалтын нэг мөр — нэр, үсэг, ширхэг. «Засах»-аар нэр ба үсгийг засна,
+ * «Устгах» нь зөвхөн админд (холбогдох хөрөнгө устахгүй, талбар нь хоосорно).
+ */
+function ItemRow({
   kind,
   item,
+  count,
   canEdit,
+  canDelete,
   onSaved,
+  onDeleted,
 }: {
   kind: Kind;
   item: RefItem;
+  count: number;
   canEdit: boolean;
+  canDelete: boolean;
   onSaved: (item: RefItem) => void;
+  onDeleted: (id: string) => void;
 }) {
-  const current = item.codeLetter ?? "";
-  const [value, setValue] = useState(current);
-  const [saving, setSaving] = useState(false);
+  const text = KIND_TEXT[kind];
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(item.name);
+  const [letter, setLetter] = useState(item.codeLetter ?? "");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => setValue(current), [current]);
+  const startEdit = () => {
+    setName(item.name);
+    setLetter(item.codeLetter ?? "");
+    setError("");
+    setEditing(true);
+  };
 
-  if (!canEdit) {
-    return current ? (
-      <span className="font-mono font-semibold text-gray-800 dark:text-gray-200">{current}</span>
-    ) : (
-      <span className="text-gray-400">Оноогоогүй</span>
-    );
-  }
-
-  const dirty = value.trim().toUpperCase() !== current;
-
-  const save = async () => {
-    setSaving(true);
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const patch: { name?: string; codeLetter?: string } = {};
+    if (name.trim() !== item.name) patch.name = name.trim();
+    if (letter.trim().toUpperCase() !== (item.codeLetter ?? "")) patch.codeLetter = letter.trim();
+    if (Object.keys(patch).length === 0) {
+      setEditing(false);
+      return;
+    }
+    setBusy(true);
     setError("");
     try {
-      onSaved(await setMetaCodeLetter(kind, item.id, value.trim()));
+      onSaved(await updateMetaItem(kind, item.id, patch));
+      setEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Хадгалж чадсангүй.");
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   };
 
+  const remove = async () => {
+    const warning =
+      count > 0
+        ? `«${item.name}»-г устгах уу? Үүнд хамаарах ${count} эд хөрөнгийн ${text.title.toLowerCase()} хоосон болно (хөрөнгө, код нь устахгүй).`
+        : `«${item.name}»-г устгах уу?`;
+    if (!window.confirm(warning)) return;
+    setBusy(true);
+    setError("");
+    try {
+      await deleteMetaItem(kind, item.id);
+      onDeleted(item.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Устгаж чадсангүй.");
+      setBusy(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <tr>
+        <td colSpan={4} className="px-5 py-3">
+          <form onSubmit={save} className="flex flex-wrap items-center gap-2">
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={60}
+              aria-label={`${text.title} — нэр`}
+              className={`${fieldClass} min-w-0 flex-1`}
+              autoFocus
+            />
+            <input
+              value={letter}
+              onChange={(event) => setLetter(event.target.value.toUpperCase())}
+              placeholder="—"
+              maxLength={8}
+              aria-label={`${text.title} — ${text.letter}`}
+              className={`${fieldClass} w-20 text-center font-mono font-semibold`}
+            />
+            <button type="submit" disabled={busy} className={buttonClass}>
+              {busy ? "..." : "Хадгалах"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              disabled={busy}
+              className="h-9 rounded-lg border border-gray-200 px-3 text-theme-sm text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/5"
+            >
+              Болих
+            </button>
+          </form>
+          {error && <p className="mt-1 text-theme-xs text-error-600 dark:text-error-400">{error}</p>}
+        </td>
+      </tr>
+    );
+  }
+
   return (
-    <div>
-      <form
-        className="flex items-center gap-1.5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (dirty) save();
-        }}
-      >
-        <input
-          value={value}
-          onChange={(event) => setValue(event.target.value.toUpperCase())}
-          placeholder="—"
-          maxLength={8}
-          aria-label={`${item.name} — ${KIND_TEXT[kind].letter}`}
-          className={`${fieldClass} w-20 text-center font-mono font-semibold`}
-        />
-        {dirty && (
-          <button type="submit" disabled={saving} className={buttonClass}>
-            {saving ? "..." : "Хадгалах"}
-          </button>
+    <tr className={busy ? "opacity-50" : ""}>
+      <td className="px-5 py-3 font-medium text-gray-900 dark:text-white">
+        {item.name}
+        {error && <p className="mt-1 text-theme-xs font-normal text-error-600 dark:text-error-400">{error}</p>}
+      </td>
+      <td className="px-5 py-3">
+        {item.codeLetter ? (
+          <span className="font-mono font-semibold text-gray-800 dark:text-gray-200">{item.codeLetter}</span>
+        ) : (
+          <span className="text-gray-400">Оноогоогүй</span>
         )}
-      </form>
-      {error && <p className="mt-1 text-theme-xs text-error-600 dark:text-error-400">{error}</p>}
-    </div>
+      </td>
+      <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{count}</td>
+      {(canEdit || canDelete) && (
+        <td className="px-3 py-3">
+          <div className="flex justify-end gap-1">
+            {canEdit && (
+              <button
+                type="button"
+                onClick={startEdit}
+                disabled={busy}
+                aria-label={`${item.name} засах`}
+                title="Засах"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
+              >
+                <Pencil className="h-4 w-4" strokeWidth={1.8} />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={remove}
+                disabled={busy}
+                aria-label={`${item.name} устгах`}
+                title="Устгах"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-error-50 hover:text-error-600 dark:text-gray-400 dark:hover:bg-error-500/10 dark:hover:text-error-400"
+              >
+                <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+              </button>
+            )}
+          </div>
+        </td>
+      )}
+    </tr>
   );
 }
 
@@ -171,12 +263,14 @@ function LetterList({
   items,
   counts,
   canEdit,
+  canDelete,
   onChange,
 }: {
   kind: Kind;
   items: RefItem[];
   counts: Map<string, number>;
   canEdit: boolean;
+  canDelete: boolean;
   onChange: (items: RefItem[]) => void;
 }) {
   const text = KIND_TEXT[kind];
@@ -220,31 +314,30 @@ function LetterList({
             <th className="px-5 py-2.5 font-medium">Нэр</th>
             <th className="px-5 py-2.5 font-medium">{text.letter}</th>
             <th className="px-5 py-2.5 text-right font-medium">Ширхэг</th>
+            {(canEdit || canDelete) && <th className="w-20 px-3 py-2.5" aria-label="Үйлдэл" />}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-white/5">
           {items.length === 0 && (
             <tr>
-              <td colSpan={3} className="px-5 py-6 text-center text-gray-400">
+              <td colSpan={4} className="px-5 py-6 text-center text-gray-400">
                 Бүртгэгдээгүй байна.
               </td>
             </tr>
           )}
           {items.map((item) => (
-            <tr key={item.id}>
-              <td className="px-5 py-3 font-medium text-gray-900 dark:text-white">{item.name}</td>
-              <td className="px-5 py-3">
-                <LetterEditor
-                  kind={kind}
-                  item={item}
-                  canEdit={canEdit}
-                  onSaved={(saved) =>
-                    onChange(items.map((row) => (row.id === saved.id ? { ...row, ...saved } : row)))
-                  }
-                />
-              </td>
-              <td className="px-5 py-3 text-right text-gray-600 dark:text-gray-400">{counts.get(item.id) ?? 0}</td>
-            </tr>
+            <ItemRow
+              key={item.id}
+              kind={kind}
+              item={item}
+              count={counts.get(item.id) ?? 0}
+              canEdit={canEdit}
+              canDelete={canDelete}
+              onSaved={(saved) =>
+                onChange(items.map((row) => (row.id === saved.id ? { ...row, ...saved } : row)))
+              }
+              onDeleted={(id) => onChange(items.filter((row) => row.id !== id))}
+            />
           ))}
         </tbody>
       </table>
@@ -288,8 +381,10 @@ function LetterList({
  */
 export default function AssetCoding({ aimag }: AssetCodingProps) {
   const { user } = useUser();
-  const canEdit =
-    isAdminRole(user?.role) || (!!aimag && (user?.aimags ?? []).includes(aimag));
+  const isAdmin = isAdminRole(user?.role);
+  const canEdit = isAdmin || (!!aimag && (user?.aimags ?? []).includes(aimag));
+  /** Устгах нь системийн хэмжээнд зөвхөн админд */
+  const canDelete = isAdmin;
 
   const [assets, setAssets] = useState<Asset[]>([]);
   const [warehouses, setWarehouses] = useState<RefItem[]>([]);
@@ -368,6 +463,7 @@ export default function AssetCoding({ aimag }: AssetCodingProps) {
             items={warehouses}
             counts={counts.byWarehouse}
             canEdit={canEdit}
+            canDelete={canDelete}
             onChange={setWarehouses}
           />
           <LetterList
@@ -375,6 +471,7 @@ export default function AssetCoding({ aimag }: AssetCodingProps) {
             items={categories}
             counts={counts.byCategory}
             canEdit={canEdit}
+            canDelete={canDelete}
             onChange={setCategories}
           />
         </div>

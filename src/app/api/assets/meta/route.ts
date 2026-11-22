@@ -141,8 +141,9 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Кодчилол — Байршлын ангилал эсвэл Төрлийн үсгийг солино (нэмэх эрхтэй
- * адил: админ болон Магтаалын аймгийн гишүүд). Бүртгэсэн кодууд өөрчлөгдөхгүй.
+ * Байршлын ангилал эсвэл Төрлийн нэр ба/эсвэл кодчиллын үсгийг засна (нэмэх
+ * эрхтэй адил: админ болон Магтаалын аймгийн гишүүд). Бүртгэсэн кодууд
+ * өөрчлөгдөхгүй.
  */
 export async function PATCH(request: NextRequest) {
   const result = await requireAimag(request, "praise");
@@ -160,9 +161,6 @@ export async function PATCH(request: NextRequest) {
     const id = typeof body.id === "string" ? body.id : "";
     if (!id) return badRequest("id шаардлагатай.");
 
-    const parsed = await parseCodeLetter(kind, body.codeLetter, id);
-    if ("error" in parsed) return badRequest(parsed.error);
-
     const table = tables[kind];
     const [existing] = await db
       .select({ id: table.id })
@@ -173,13 +171,39 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
     }
 
-    await db.update(table).set({ codeLetter: parsed.letter }).where(eq(table.id, id));
+    // Ирсэн талбаруудыг л солино — нэр, үсэг хоёулаа заавал биш
+    const patch: { name?: string; codeLetter?: string } = {};
+
+    if (body.name !== undefined) {
+      const name = typeof body.name === "string" ? body.name.trim() : "";
+      if (!name) return badRequest("Нэрийг оруулна уу.");
+      if (name.length > MAX_NAME) {
+        return badRequest(`Нэр ${MAX_NAME} тэмдэгтээс урт байж болохгүй.`);
+      }
+      const [duplicate] = await db
+        .select({ id: table.id })
+        .from(table)
+        .where(and(eq(table.name, name), ne(table.id, id)))
+        .limit(1);
+      if (duplicate) return badRequest(`"${name}" аль хэдийн бүртгэгдсэн байна.`);
+      patch.name = name;
+    }
+
+    if (body.codeLetter !== undefined) {
+      const parsed = await parseCodeLetter(kind, body.codeLetter, id);
+      if ("error" in parsed) return badRequest(parsed.error);
+      patch.codeLetter = parsed.letter;
+    }
+
+    if (Object.keys(patch).length === 0) return badRequest("Өөрчлөх талбар алга.");
+
+    await db.update(table).set(patch).where(eq(table.id, id));
 
     const [updated] = await db.select().from(table).where(eq(table.id, id));
 
     return NextResponse.json({ item: updated });
   } catch (error) {
-    return serverError(error, "Үсэг хадгалахад алдаа гарлаа");
+    return serverError(error, "Хадгалахад алдаа гарлаа");
   }
 }
 
