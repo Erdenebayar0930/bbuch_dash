@@ -122,7 +122,7 @@ export type AssetInput = {
  * Шинэ эд хөрөнгө бүртгэнэ (зөвхөн админ).
  * Зураг байршуулахад id хэрэгтэй тул үүсгэсэн мөрийн id-г буцаана.
  */
-export async function createAsset(input: AssetInput): Promise<string> {
+export async function createAsset(input: Omit<AssetInput, "code">): Promise<string> {
   const data = await apiFetch<{ asset: { id: string } }>("/api/assets", {
     method: "POST",
     body: input,
@@ -131,13 +131,13 @@ export async function createAsset(input: AssetInput): Promise<string> {
 }
 
 /**
- * Олон ширхгийг нэг дор бүртгэнэ — код бүр тусдаа эд хөрөнгө болно (бусад
- * талбар нь бүгдэд ижил). Жишээ нь Аяга: AYG-001 … AYG-050.
+ * Олон ширхгийг нэг дор бүртгэнэ — ширхэг бүр тусдаа эд хөрөнгө, кодыг
+ * сервер дараалуулан олгоно (ТГАТ-001 … ТГАТ-050). Бусад талбар бүгдэд ижил.
  */
-export async function createAssets(input: AssetInput, codes: string[]): Promise<number> {
+export async function createAssets(input: Omit<AssetInput, "code">, count: number): Promise<number> {
   const data = await apiFetch<{ count: number }>("/api/assets", {
     method: "POST",
-    body: { ...input, codes },
+    body: { ...input, count },
   });
   return data.count;
 }

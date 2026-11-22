@@ -24,7 +24,7 @@ import {
   type AssetInput,
   type RefItem,
 } from "@/lib/assets";
-import { codePrefix, nextCode } from "@/lib/assetCodes";
+import { codePrefix, formatCode, nextCode } from "@/lib/assetCodes";
 import { MAX_ASSET_IMAGE_BYTES } from "@/lib/storage";
 
 /** Нэг эд хөрөнгөд зөвшөөрөх зургийн тоо — серверийн хязгаартай ижил */
@@ -112,26 +112,40 @@ export default function AssetFormModal({
   /** Бүтнээр нь томоор харуулж буй зургийн хаяг */
   const [viewer, setViewer] = useState<string | null>(null);
 
-  /** Олон ширхэг — код бүр тусдаа эд хөрөнгө (зөвхөн шинээр бүртгэхэд) */
+  /** Олон ширхэг — ширхэг бүр тусдаа эд хөрөнгө, өөрийн кодтой (зөвхөн шинээр бүртгэхэд) */
   const [bulk, setBulk] = useState(false);
-  const [codeMode, setCodeMode] = useState<"range" | "list">("range");
-  const [prefix, setPrefix] = useState("");
-  const [rangeFrom, setRangeFrom] = useState("1");
-  const [rangeTo, setRangeTo] = useState("10");
-  const [digits, setDigits] = useState("3");
-  const [codeText, setCodeText] = useState("");
+  const [countText, setCountText] = useState("10");
+  const count = bulk ? Math.min(Math.max(Math.floor(Number(countText)) || 0, 0), MAX_BULK) : 1;
 
-  const bulkCodes = useMemo(() => {
-    if (codeMode === "list") {
-      return [...new Set(codeText.split(/[\n,;]+/).map((code) => code.trim()).filter(Boolean))];
-    }
-    const from = Number(rangeFrom);
-    const to = Number(rangeTo);
-    const width = Math.min(Math.max(Number(digits) || 0, 0), 8);
-    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < from) return [];
-    const total = Math.min(to - from + 1, MAX_BULK);
-    return Array.from({ length: total }, (_, index) => `${prefix.trim()}${String(from + index).padStart(width, "0")}`);
-  }, [codeMode, codeText, prefix, rangeFrom, rangeTo, digits]);
+  /**
+   * Кодчилол — код гараар оруулахгүй: Байршлын ангилал + Төрөл + Нэрийн
+   * үсгээс сервер олгоно. Энд зөвхөн урьдчилан харуулна (эцсийн дугаарыг
+   * сервер бүх бүртгэлийг харж тогтооно).
+   */
+  const prefix = codePrefix(
+    warehouses.find((item) => item.id === form.warehouseId)?.codeLetter,
+    categories.find((item) => item.id === form.categoryId)?.codeLetter,
+    names.find((item) => item.name === form.name)?.codeLetter
+  );
+  const missingPart = !form.warehouseId
+    ? "Байршлын ангиллаа сонгоно уу"
+    : !form.categoryId
+      ? "Төрлөө сонгоно уу"
+      : !form.name
+        ? "Нэрээ сонгоно уу"
+        : !prefix
+          ? "Сонгосон зүйлсийн аль нэгэнд үсэг оноогоогүй байна (Кодчилол)"
+          : "";
+  const preview = useMemo(() => {
+    if (!prefix || count < 1) return [];
+    const first = nextCode(prefix, existingCodes);
+    return Array.from({ length: count }, (_, index) =>
+      formatCode(prefix, first.number + index, first.width)
+    );
+  }, [prefix, count, existingCodes]);
+
+  /** Кодтой хөрөнгийн кодын багц (Байршил, Төрөл, Нэр) засагдахгүй */
+  const partsLocked = !!asset?.code;
 
   // Цонх нээгдэх бүрд засаж буй мөрийн утгаар дүүргэнэ
   useEffect(() => {
@@ -144,7 +158,7 @@ export default function AssetFormModal({
     setQueue([]);
     setViewer(null);
     setBulk(false);
-    setCodeText("");
+    setCountText("10");
     setForm(
       asset
         ? {
@@ -173,55 +187,9 @@ export default function AssetFormModal({
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  /** Сүүлд автоматаар бөглөсөн код — хэрэглэгч өөрөө бичсэнийг дарахгүй */
-  const autoCodeRef = useRef("");
-
-  /**
-   * Кодчилол — Байршлын ангиллын эхний үсэг + Төрлийн 2 дахь үсэг
-   * (@see lib/assetCodes.ts). Хоёуланг нь сонгоход дараагийн кодыг бөглөнө
-   * (зөвхөн шинээр бүртгэхэд). Олон ширхэгт угтвар ба эхлэх дугаарыг тохируулна.
-   */
-  const applyAutoCode = (
-    warehouseId: string | null,
-    categoryId: string | null,
-    name: string,
-    bulkMode: boolean
-  ) => {
-    if (asset) return;
-    const prefix = codePrefix(
-      warehouses.find((item) => item.id === warehouseId)?.codeLetter,
-      categories.find((item) => item.id === categoryId)?.codeLetter,
-      names.find((item) => item.name === name)?.codeLetter
-    );
-    if (!prefix) return;
-    const { code, number, width } = nextCode(prefix, existingCodes);
-
-    if (bulkMode) {
-      const length = Math.max(Number(rangeTo) - Number(rangeFrom), 0);
-      setCodeMode("range");
-      setPrefix(prefix);
-      setDigits(String(width));
-      setRangeFrom(String(number));
-      setRangeTo(String(number + (Number.isFinite(length) ? length : 9)));
-      return;
-    }
-    setForm((prev) => {
-      // Хэрэглэгч өөрөө бичсэн кодыг дарж бичихгүй
-      if (prev.code.trim() && prev.code !== autoCodeRef.current) return prev;
-      autoCodeRef.current = code;
-      return { ...prev, code };
-    });
-  };
-
   const handleRefChange = (key: "warehouseId" | "categoryId" | "name", value: string | null) => {
     if (key === "name") update("name", value ?? "");
     else update(key, value);
-    applyAutoCode(
-      key === "warehouseId" ? value : form.warehouseId,
-      key === "categoryId" ? value : form.categoryId,
-      key === "name" ? value ?? "" : form.name,
-      bulk
-    );
   };
 
   const totalImages = images.length + pending.length;
@@ -299,23 +267,22 @@ export default function AssetFormModal({
     setError(null);
 
     try {
-      // Нэр — Кодчиллын нэрсээс сонгосон; сонгоогүй бол Төрлийн нэр, эсвэл код
-      const categoryName = categories.find((item) => item.id === form.categoryId)?.name;
-      const code = form.code.trim();
-      const name = form.name.trim() || categoryName || (bulk && !asset ? "" : code);
-      if (!name) {
-        throw new Error(bulk && !asset ? "Нэр эсвэл төрлөө сонгоно уу." : "Нэр, төрөл эсвэл код оруулна уу.");
-      }
-      const input = { ...form, name };
+      // Код нь бүртгэхэд сервер олгоно; засахад өөрчлөгдөхгүй — илгээхгүй
+      const { code: _code, ...rest } = form;
+      void _code;
 
       if (asset) {
-        await updateAsset(asset.id, input);
+        // Хуучин, кодгүй хөрөнгө нэргүй үлдэхгүй
+        const name = form.name.trim() || asset.name;
+        await updateAsset(asset.id, { ...rest, name });
+      } else if (missingPart) {
+        throw new Error(missingPart + ".");
       } else if (bulk) {
-        if (bulkCodes.length === 0) throw new Error("Код оруулна уу.");
-        await createAssets(input, bulkCodes);
+        if (count < 1) throw new Error("Ширхэгийн тоог оруулна уу.");
+        await createAssets(rest, count);
       } else {
         // Зураг байршуулахад id хэрэгтэй тул эхлээд мөрийг үүсгэнэ
-        const id = await createAsset(input);
+        const id = await createAsset(rest);
 
         for (const item of pending) {
           await attachAssetImage(id, item.file);
@@ -348,10 +315,7 @@ export default function AssetFormModal({
                   type="button"
                   role="tab"
                   aria-selected={bulk === multi}
-                  onClick={() => {
-                    setBulk(multi);
-                    applyAutoCode(form.warehouseId, form.categoryId, form.name, multi);
-                  }}
+                  onClick={() => setBulk(multi)}
                   className={`rounded-md px-3 py-1.5 text-theme-sm font-medium transition-colors ${
                     bulk === multi
                       ? "bg-accent-600 text-white"
@@ -364,83 +328,58 @@ export default function AssetFormModal({
             </div>
           )}
 
-          {bulk && !asset ? (
-            <div className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 dark:border-white/10">
-              <p className="text-theme-sm font-medium text-gray-700 dark:text-gray-300">
-                Код <span className="text-gray-400">(инвентарын дугаар, сериал)</span>
+          {/* Код — гараар оруулахгүй, сонголтоос автоматаар (зөвхөн харагдана) */}
+          <div>
+            <p className={labelClass}>
+              Код <span className="text-gray-400">(автоматаар үүснэ)</span>
+            </p>
+            {asset ? (
+              <p className="rounded-lg bg-gray-50 px-3.5 py-2.5 font-mono text-theme-sm text-gray-800 dark:bg-white/[0.03] dark:text-gray-200">
+                {asset.code || <span className="font-sans text-gray-400">Кодгүй</span>}
               </p>
-              <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                Ширхэг бүр өөрийн кодтой, тусдаа эд хөрөнгө болж бүртгэгдэнэ. Доорх байршлын ангилал, төрөл, ангилал, мэдээлэл
-                нь бүгдэд ижил — дараа нь ширхэг тус бүрийг засаж болно.
-              </p>
-              <div className="flex w-fit rounded-lg bg-gray-100 p-0.5 dark:bg-white/5">
-                {(["range", "list"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setCodeMode(mode)}
-                    className={`rounded-md px-2.5 py-1 text-theme-xs font-medium ${
-                      codeMode === mode ? "bg-white text-gray-900 shadow-sm dark:bg-white/10 dark:text-white" : "text-gray-500"
-                    }`}
-                  >
-                    {mode === "range" ? "Дугаарлах" : "Код бүрийг бичих"}
-                  </button>
-                ))}
+            ) : (
+              <div className="flex flex-col gap-2">
+                {bulk && (
+                  <label className="flex items-center gap-2 text-theme-sm text-gray-600 dark:text-gray-400">
+                    Ширхэг
+                    <input
+                      type="number"
+                      min={1}
+                      max={MAX_BULK}
+                      value={countText}
+                      onChange={(event) => setCountText(event.target.value)}
+                      className={`${fieldClass} h-10 w-28`}
+                    />
+                  </label>
+                )}
+                <p
+                  aria-live="polite"
+                  className={`rounded-lg px-3.5 py-2.5 text-theme-sm ${
+                    missingPart
+                      ? "bg-gray-50 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400"
+                      : "bg-accent-50 font-mono font-semibold text-accent-700 dark:bg-accent-500/10 dark:text-accent-300"
+                  }`}
+                >
+                  {missingPart
+                    ? missingPart
+                    : preview.length > 1
+                      ? `${preview[0]} … ${preview[preview.length - 1]} (${preview.length} ширхэг)`
+                      : preview[0]}
+                </p>
+                {bulk && (
+                  <p className="text-theme-xs text-gray-500 dark:text-gray-400">
+                    Ширхэг бүр өөрийн кодтой, тусдаа эд хөрөнгө болж бүртгэгдэнэ. Доорх мэдээлэл бүгдэд ижил.
+                  </p>
+                )}
               </div>
-              {codeMode === "range" ? (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <label className="col-span-2 flex flex-col gap-1 text-theme-xs text-gray-500 sm:col-span-1 dark:text-gray-400">
-                    Угтвар
-                    <input value={prefix} onChange={(event) => setPrefix(event.target.value)} placeholder="AYG-" maxLength={60} className={`${fieldClass} h-10`} />
-                  </label>
-                  <label className="flex flex-col gap-1 text-theme-xs text-gray-500 dark:text-gray-400">
-                    Эхлэх
-                    <input type="number" min={0} value={rangeFrom} onChange={(event) => setRangeFrom(event.target.value)} className={`${fieldClass} h-10`} />
-                  </label>
-                  <label className="flex flex-col gap-1 text-theme-xs text-gray-500 dark:text-gray-400">
-                    Дуусах
-                    <input type="number" min={0} value={rangeTo} onChange={(event) => setRangeTo(event.target.value)} className={`${fieldClass} h-10`} />
-                  </label>
-                  <label className="flex flex-col gap-1 text-theme-xs text-gray-500 dark:text-gray-400">
-                    Оронгийн тоо
-                    <input type="number" min={0} max={8} value={digits} onChange={(event) => setDigits(event.target.value)} className={`${fieldClass} h-10`} />
-                  </label>
-                </div>
-              ) : (
-                <textarea
-                  value={codeText}
-                  onChange={(event) => setCodeText(event.target.value)}
-                  rows={4}
-                  placeholder={"AYG-001\nAYG-002\nAYG-003"}
-                  aria-label="Кодууд — мөр бүрт нэг"
-                  className={`${fieldClass} h-auto py-2.5 font-mono`}
-                />
-              )}
-              <p className="text-theme-xs font-medium text-gray-700 dark:text-gray-300">
-                {bulkCodes.length > 0
-                  ? `${bulkCodes.length} эд хөрөнгө бүртгэгдэнэ: ${bulkCodes.slice(0, 3).join(", ")}${
-                      bulkCodes.length > 3 ? ` … ${bulkCodes[bulkCodes.length - 1]}` : ""
-                    }`
-                  : "Код оруулна уу"}
+            )}
+            {partsLocked && (
+              <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">
+                Кодтой тул Байршлын ангилал, Төрөл, Нэр түгжээтэй.
               </p>
-            </div>
-          ) : (
-            <div>
-              <label htmlFor="asset-code" className={labelClass}>
-                Код <span className="text-gray-400">(инвентарын дугаар, сериал)</span>
-              </label>
-              <input
-                id="asset-code"
-                value={form.code}
-                onChange={(event) => update("code", event.target.value)}
-                placeholder="Жишээ нь: AYG-001"
-                className={`${fieldClass} font-mono`}
-                autoFocus
-              />
-            </div>
-          )}
+            )}
+          </div>
 
-          
           {/* Аймаг маягтад харагдахгүй — хуудасныхаа аймагт (lockedAimag) автоматаар хамаарна */}
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -471,18 +410,20 @@ export default function AssetFormModal({
 
             <div>
               <label htmlFor="asset-category" className={labelClass}>
-                Төрөл
+                Төрөл {!asset && <span className="text-error-500">*</span>}
               </label>
               <select
                 id="asset-category"
                 value={form.categoryId ?? ""}
                 onChange={(event) => handleRefChange("categoryId", event.target.value || null)}
-                className={fieldClass}
+                disabled={partsLocked}
+                className={`${fieldClass} disabled:opacity-60`}
               >
                 <option value="">Сонгоогүй</option>
                 {categories.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
+                    {item.codeLetter ? ` (${item.codeLetter})` : ""}
                   </option>
                 ))}
               </select>
@@ -490,18 +431,20 @@ export default function AssetFormModal({
 
             <div>
               <label htmlFor="asset-warehouse" className={labelClass}>
-                Байршлын ангилал
+                Байршлын ангилал {!asset && <span className="text-error-500">*</span>}
               </label>
               <select
                 id="asset-warehouse"
                 value={form.warehouseId ?? ""}
                 onChange={(event) => handleRefChange("warehouseId", event.target.value || null)}
-                className={fieldClass}
+                disabled={partsLocked}
+                className={`${fieldClass} disabled:opacity-60`}
               >
                 <option value="">Сонгоогүй</option>
                 {warehouses.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
+                    {item.codeLetter ? ` (${item.codeLetter})` : ""}
                   </option>
                 ))}
               </select>
@@ -510,13 +453,14 @@ export default function AssetFormModal({
             {/* Нэр — Кодчилол табд бүртгэсэн нэрсээс (Аяга таваг …) */}
             <div className="sm:col-span-2">
               <label htmlFor="asset-name" className={labelClass}>
-                Нэр
+                Нэр {!asset && <span className="text-error-500">*</span>}
               </label>
               <select
                 id="asset-name"
                 value={form.name}
                 onChange={(event) => handleRefChange("name", event.target.value)}
-                className={fieldClass}
+                disabled={partsLocked}
+                className={`${fieldClass} disabled:opacity-60`}
               >
                 <option value="">Сонгоогүй</option>
                 {/* Засаж буй хөрөнгийн нэр жагсаалтад байхгүй бол алдагдуулахгүй */}
@@ -688,10 +632,10 @@ export default function AssetFormModal({
           </button>
           <button
             type="submit"
-            disabled={saving || (bulk && !asset && bulkCodes.length === 0)}
+            disabled={saving || (!asset && (!!missingPart || count < 1))}
             className="rounded-lg bg-accent-600 px-4 py-2.5 text-theme-sm font-medium text-white transition-colors hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? "Хадгалж байна..." : bulk && !asset ? `${bulkCodes.length} эд хөрөнгө бүртгэх` : "Хадгалах"}
+            {saving ? "Хадгалж байна..." : bulk && !asset ? `${count} эд хөрөнгө бүртгэх` : "Хадгалах"}
           </button>
         </div>
       </form>

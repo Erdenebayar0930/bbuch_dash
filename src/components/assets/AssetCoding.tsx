@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Hash, Pencil, Plus, Trash2 } from "lucide-react";
+import { Hash, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
 import { CODE_RE, codePrefix, formatCode, initials, nextCode } from "@/lib/assetCodes";
@@ -191,12 +191,12 @@ function ItemRow({
     }
   };
 
+  /** Эд хөрөнгө ашиглаж буй бол кодын багц (үсэг) түгжээтэй, устгахгүй */
+  const inUse = count > 0;
+
   const remove = async () => {
-    const warning =
-      count > 0
-        ? `«${item.name}»-г устгах уу? Үүнд хамаарах ${count} эд хөрөнгийн ${text.title.toLowerCase()} хоосон болно (хөрөнгө, код нь устахгүй).`
-        : `«${item.name}»-г устгах уу?`;
-    if (!window.confirm(warning)) return;
+    if (inUse) return;
+    if (!window.confirm(`«${item.name}»-г устгах уу?`)) return;
     setBusy(true);
     setError("");
     try {
@@ -227,7 +227,9 @@ function ItemRow({
               placeholder="—"
               maxLength={8}
               aria-label={`${text.title} — ${text.letter}`}
-              className={`${fieldClass} w-20 text-center font-mono font-semibold`}
+              disabled={inUse}
+              title={inUse ? `${count} эд хөрөнгө ашиглаж байгаа тул үсэг өөрчлөгдөхгүй` : undefined}
+              className={`${fieldClass} w-20 text-center font-mono font-semibold disabled:opacity-60`}
             />
             <button type="submit" disabled={busy || !!clash} className={buttonClass}>
               {busy ? "..." : "Хадгалах"}
@@ -257,7 +259,14 @@ function ItemRow({
       </td>
       <td className="px-5 py-3">
         {item.codeLetter ? (
-          <span className="font-mono font-semibold text-gray-800 dark:text-gray-200">{item.codeLetter}</span>
+          <span className="inline-flex items-center gap-1 font-mono font-semibold text-gray-800 dark:text-gray-200">
+            {item.codeLetter}
+            {inUse && (
+              <span title="Ашиглагдаж буй кодын багц — өөрчлөгдөхгүй">
+                <Lock className="h-3.5 w-3.5 text-gray-400" strokeWidth={2} aria-label="Түгжээтэй" />
+              </span>
+            )}
+          </span>
         ) : (
           <span className="text-gray-400">Оноогоогүй</span>
         )}
@@ -282,10 +291,10 @@ function ItemRow({
               <button
                 type="button"
                 onClick={remove}
-                disabled={busy}
+                disabled={busy || inUse}
                 aria-label={`${item.name} устгах`}
-                title="Устгах"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-error-50 hover:text-error-600 dark:text-gray-400 dark:hover:bg-error-500/10 dark:hover:text-error-400"
+                title={inUse ? `${count} эд хөрөнгө ашиглаж байгаа тул устгах боломжгүй` : "Устгах"}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-error-50 hover:text-error-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-500 dark:text-gray-400 dark:hover:bg-error-500/10 dark:hover:text-error-400"
               >
                 <Trash2 className="h-4 w-4" strokeWidth={1.8} />
               </button>

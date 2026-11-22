@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { readAsset } from "@/lib/api/assetInput";
@@ -40,20 +40,31 @@ export async function PATCH(
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
-    // Ширхэг бүрийн код давтагдахгүй
-    if (parsed.value.code) {
-      const [clash] = await db
-        .select({ id: assets.id })
-        .from(assets)
-        .where(and(eq(assets.code, parsed.value.code), ne(assets.id, id)))
-        .limit(1);
-      if (clash) return badRequest(`«${parsed.value.code}» код өөр эд хөрөнгөд бүртгэлтэй байна.`);
-    }
-
     // Түүхэнд харьцуулахын тулд засварын өмнөх мөр
     const [before] = await db.select().from(assets).where(eq(assets.id, id)).limit(1);
     if (!before) {
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
+    }
+
+    // Код гараар өөрчлөгдөхгүй — бүртгэхэд сервер олгосон хэвээр
+    delete parsed.value.code;
+
+    // Кодтой хөрөнгийн кодын багц (Байршлын ангилал, Төрөл, Нэр) түгжээтэй —
+    // эс бөгөөс код нь бүрэлдэхүүнтэйгээ зөрнө
+    if (before.code) {
+      const locked =
+        (parsed.value.warehouseId !== undefined && parsed.value.warehouseId !== before.warehouseId) ||
+        (parsed.value.categoryId !== undefined && parsed.value.categoryId !== before.categoryId) ||
+        (parsed.value.name !== undefined && parsed.value.name !== before.name);
+      if (locked) {
+        return badRequest(
+          `«${before.code}» кодтой тул Байршлын ангилал, Төрөл, Нэрийг өөрчлөх боломжгүй.`
+        );
+      }
+    }
+
+    if (Object.keys(parsed.value).length === 0) {
+      return NextResponse.json({ asset: before });
     }
 
     await db

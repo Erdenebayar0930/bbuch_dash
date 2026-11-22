@@ -2,6 +2,7 @@ import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { aimags, isValidOption } from "@/data/profileOptions";
+import { allocateCodes, resolveCodeParts } from "@/lib/api/assetCodeAlloc";
 import { readAsset } from "@/lib/api/assetInput";
 import { recordAssetsCreated } from "@/lib/api/assetHistory";
 import {
@@ -27,14 +28,6 @@ export const dynamic = "force-dynamic";
 
 /** Нэг удаад олноор бүртгэх ширхэгийн дээд тоо */
 const MAX_BULK = 500;
-const MAX_CODE_LENGTH = 128;
-
-/** Аль хэдийн өөр эд хөрөнгөд бүртгэлтэй кодууд */
-async function takenCodes(codes: string[]): Promise<string[]> {
-  if (codes.length === 0) return [];
-  const rows = await db.select({ code: assets.code }).from(assets).where(inArray(assets.code, codes));
-  return [...new Set(rows.map((row) => row.code))];
-}
 
 /**
  * Бүх эд хөрөнгө — агуулах, төрлийн нэртэй хамт.
@@ -155,46 +148,43 @@ export async function POST(request: NextRequest) {
     // Админ бус хүний бүртгэсэн хөрөнгө Магтаалын аймагт хамаарна
     if (!isAdminRole(result.caller.user?.role)) parsed.value.aimag = ASSET_AIMAG;
 
-    // Ширхэг бүр тусдаа эд хөрөнгө: `codes` ирвэл код бүрт нэг мөр (жишээ нь
-    // Аяга → AYG-001 … AYG-050), бусад талбар нь бүгдэд ижил. Үгүй бол ганц.
-    const codes = Array.isArray(body.codes)
-      ? [
-          ...new Set(
-            body.codes
-              .filter((value): value is string => typeof value === "string")
-              .map((value) => value.replace(/\s+/g, " ").trim().slice(0, MAX_CODE_LENGTH))
-              .filter(Boolean)
-          ),
-        ]
-      : [parsed.value.code ?? ""];
+    // Кодыг гараар оруулахгүй — Байршлын ангилал + Төрөл + Нэрийн үсгээс
+    // сервер өөрөө олгоно (ирсэн code/codes-ыг тооцохгүй). `count` нь хэдэн
+    // ширхэг — ширхэг бүр тусдаа эд хөрөнгө, өөрийн кодтой.
+    const parts = await resolveCodeParts(parsed.value.warehouseId, parsed.value.categoryId, parsed.value.name);
+    if (!parts.ok) return badRequest(parts.error);
 
-    if (codes.length > MAX_BULK) {
+    const count = body.count === undefined ? 1 : Number(body.count);
+    if (!Number.isInteger(count) || count < 1) return badRequest("Ширхэгийн тоо буруу байна.");
+    if (count > MAX_BULK) {
       return badRequest(`Нэг удаад хамгийн ихдээ ${MAX_BULK} ширхэг бүртгэнэ.`);
     }
 
-    const duplicate = await takenCodes(codes.filter(Boolean));
-    if (duplicate.length > 0) {
-      return badRequest(
-        `Бүртгэлтэй код: ${duplicate.slice(0, 10).join(", ")}${duplicate.length > 10 ? "…" : ""}`
-      );
-    }
-
-    const rows = codes.map((code) => ({
-      ...parsed.value,
-      id: crypto.randomUUID(),
-      name: parsed.value.name as string,
-      code,
-      // Ширхэг бүр нэг эд хөрөнгө
-      quantity: 1,
-      createdBy: result.caller.uid,
-    }));
-    await db.insert(assets).values(rows);
+    const rows = await allocateCodes(parts.prefix, count, async (tx, codes) => {
+      const values = codes.map((code) => ({
+        ...parsed.value,
+        id: crypto.randomUUID(),
+        // Кодчиллын жагсаалтын бичлэгээр нь (том жижиг үсэг нэгэн жигд)
+        name: parts.name,
+        code,
+        // Ширхэг бүр нэг эд хөрөнгө
+        quantity: 1,
+        createdBy: result.caller.uid,
+      }));
+      await tx.insert(assets).values(values);
+      return values;
+    });
     // Ширхэг бүрийн түүх «Бүртгэсэн»-ээр эхэлнэ
     await recordAssetsCreated(rows.map((row) => row.id), result.caller.uid);
 
     const [created] = await db.select().from(assets).where(eq(assets.id, rows[0].id));
 
-    return NextResponse.json({ asset: created, count: rows.length, ids: rows.map((row) => row.id) });
+    return NextResponse.json({
+      asset: created,
+      count: rows.length,
+      ids: rows.map((row) => row.id),
+      codes: rows.map((row) => row.code),
+    });
   } catch (error) {
     return serverError(error, "Эд хөрөнгө бүртгэхэд алдаа гарлаа");
   }

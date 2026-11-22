@@ -53,6 +53,21 @@ async function parseCodeLetter(
 const sameName = (table: (typeof tables)[Kind], name: string) =>
   sql`lower(regexp_replace(trim(${table.name}), '[[:space:]]+', ' ', 'g')) = lower(regexp_replace(trim(${name}), '[[:space:]]+', ' ', 'g'))`;
 
+/**
+ * Тухайн Байршлын ангилал / Төрөл / Нэрийг хэдэн эд хөрөнгө ашиглаж байна.
+ * Ашиглагдаж буй бол кодын багц (үсэг) нь түгжээтэй, устгах боломжгүй.
+ */
+async function usageCount(kind: Kind, id: string, name: string): Promise<number> {
+  const where =
+    kind === "warehouse"
+      ? eq(assets.warehouseId, id)
+      : kind === "category"
+        ? eq(assets.categoryId, id)
+        : eq(assets.name, name);
+  const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(assets).where(where);
+  return row?.n ?? 0;
+}
+
 /** Аль хүснэгтэд бичихийг заана */
 const tables = {
   warehouse: warehouses,
@@ -170,7 +185,7 @@ export async function PATCH(request: NextRequest) {
 
     const table = tables[kind];
     const [existing] = await db
-      .select({ id: table.id, name: table.name })
+      .select({ id: table.id, name: table.name, codeLetter: table.codeLetter })
       .from(table)
       .where(eq(table.id, id))
       .limit(1);
@@ -199,6 +214,14 @@ export async function PATCH(request: NextRequest) {
     if (body.codeLetter !== undefined) {
       const parsed = await parseCodeLetter(kind, body.codeLetter, id);
       if ("error" in parsed) return badRequest(parsed.error);
+      if (parsed.letter !== existing.codeLetter) {
+        const used = await usageCount(kind, id, existing.name);
+        if (used > 0) {
+          return badRequest(
+            `«${existing.name}»-г ${used} эд хөрөнгө ашиглаж байгаа тул үсгийг (кодын багц) өөрчлөх боломжгүй.`
+          );
+        }
+      }
       patch.codeLetter = parsed.letter;
     }
 
@@ -223,7 +246,7 @@ export async function PATCH(request: NextRequest) {
 /**
  * Агуулах эсвэл төрлийг устгана (зөвхөн админ, супер админ — устгах эрх
  * системийн хэмжээнд зөвхөн тэдэнд байна; нэмэхийг аймгийн гишүүд хийнэ).
- * Холбогдох эд хөрөнгийн мөр УСТАХГҮЙ — тухайн талбар нь хоосон болно.
+ * Эд хөрөнгө ашиглаж буй бол устгахгүй (кодын багц түгжээтэй).
  */
 export async function DELETE(request: NextRequest) {
   const result = await requireAdmin(request);
@@ -244,13 +267,19 @@ export async function DELETE(request: NextRequest) {
     // MySQL нь DELETE ... RETURNING дэмждэггүй тул эхлээд байгаа эсэхийг
     // шалгаад дараа нь устгана.
     const [existing] = await db
-      .select({ id: table.id })
+      .select({ id: table.id, name: table.name })
       .from(table)
       .where(eq(table.id, id))
       .limit(1);
 
     if (!existing) {
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
+    }
+
+    // Ашиглагдаж буй кодын багцыг устгахгүй — кодууд нь утгаа алдана
+    const used = await usageCount(kind, id, existing.name);
+    if (used > 0) {
+      return badRequest(`«${existing.name}»-г ${used} эд хөрөнгө ашиглаж байгаа тул устгах боломжгүй.`);
     }
 
     await db.delete(table).where(eq(table.id, id));
