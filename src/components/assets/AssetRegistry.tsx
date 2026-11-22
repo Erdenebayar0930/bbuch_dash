@@ -484,7 +484,9 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
           </button>
         )}
 
-        {canEdit && (
+        {/* Шинээр бүртгэх нь зөвхөн Ерөнхий бүртгэл дээр — Агуулахын бүртгэл,
+            Ашиглалтын байдал, Акталсан нь харах, засах л */}
+        {canEdit && view === "general" && (
           <>
             <button
               type="button"
