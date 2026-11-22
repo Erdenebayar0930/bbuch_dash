@@ -1,5 +1,6 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { recordAssetImage } from "@/lib/api/assetHistory";
 
 import {
   badRequest,
@@ -88,6 +89,8 @@ export async function POST(
       .from(assetImages)
       .where(eq(assetImages.id, imageId));
 
+    await recordAssetImage(id, true, result.caller.uid);
+
     return NextResponse.json({ image: created });
   } catch (error) {
     return serverError(error, "Зураг бүртгэхэд алдаа гарлаа");
@@ -123,6 +126,8 @@ export async function DELETE(
     await db
       .delete(assetImages)
       .where(and(eq(assetImages.id, imageId), eq(assetImages.assetId, id)));
+
+    await recordAssetImage(id, false, result.caller.uid);
 
     // Клиент файлыг Storage-оос устгахын тулд замыг буцаана
     return NextResponse.json({ path: deleted.path });

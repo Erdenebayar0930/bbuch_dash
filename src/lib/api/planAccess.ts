@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { projects, tasks, users } from "@/lib/db/schema";
+import { projects, settings, tasks, users } from "@/lib/db/schema";
 import {
   canManageProjects,
   canSeeAllPlans,
@@ -276,4 +276,45 @@ export async function cascadeChildAimags(
       queue.push({ id: child.id, aimags: next });
     }
   }
+}
+
+/** `settings` дахь түлхүүр — тушаалгүй шууд оруулсан төлөвлөгөөний далд тушаал */
+const DEFAULT_PLAN_PROJECT_KEY = "default_plan_project_id";
+
+/**
+ * Төлөвлөгөөний самбарт «Тушаал» сонголт байхгүй — төлөвлөгөөг шууд
+ * оруулна. Гэвч `tasks.project_id` заавал тул бүх аймагт харагдах ганц далд
+ * «Төлөвлөгөө» тушаалд онооно. Байхгүй (эсвэл устсан) бол шинээр үүсгэнэ.
+ */
+export async function defaultPlanProjectId(): Promise<string> {
+  const [stored] = await db
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, DEFAULT_PLAN_PROJECT_KEY))
+    .limit(1);
+
+  if (stored?.value) {
+    const [exists] = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.id, stored.value))
+      .limit(1);
+    if (exists) return exists.id;
+  }
+
+  const [created] = await db
+    .insert(projects)
+    .values({
+      name: "Төлөвлөгөө",
+      aimags: [],
+      description: "Тушаалгүй, шууд оруулсан төлөвлөгөөнүүд",
+    })
+    .returning({ id: projects.id });
+
+  await db
+    .insert(settings)
+    .values({ key: DEFAULT_PLAN_PROJECT_KEY, value: created.id })
+    .onConflictDoUpdate({ target: settings.key, set: { value: created.id, updatedAt: new Date() } });
+
+  return created.id;
 }

@@ -1,5 +1,4 @@
 import { createReadStream } from "node:fs";
-import { Readable } from "node:stream";
 
 import { CONTENT_TYPES, statStored } from "@/lib/api/fileStore";
 import { derivedPaths, isSourceVideo, queueVideo, videoReady } from "@/lib/api/videoTranscode";
@@ -8,6 +7,62 @@ import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/**
+ * Файлын хэсгийг web stream болгоно — хэрэглэгч таслахад (бичлэг гүйлгэх,
+ * хуудаснаас гарах) уншилтыг зогсоож, хаагдсан controller руу бичихгүй.
+ *
+ * `Readable.toWeb` нь тасалсны дараа ирсэн өгөгдлийг хаагдсан controller руу
+ * бичиж «Controller is already closed» баригдаагүй алдаа шиддэг байсан.
+ * Энд backpressure-ийг ч хүндэтгэнэ: буфер дүүрвэл уншилтыг түр зогсооно.
+ */
+function fileStream(full: string, start: number, end: number): ReadableStream<Uint8Array> {
+  const node = createReadStream(full, { start, end, highWaterMark: 256 * 1024 });
+  let done = false;
+
+  const finish = () => {
+    done = true;
+    node.destroy();
+  };
+
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      node.on("data", (chunk) => {
+        if (done) return;
+        try {
+          controller.enqueue(typeof chunk === "string" ? new TextEncoder().encode(chunk) : new Uint8Array(chunk));
+          if ((controller.desiredSize ?? 1) <= 0) node.pause();
+        } catch {
+          finish();
+        }
+      });
+      node.on("end", () => {
+        if (done) return;
+        done = true;
+        try {
+          controller.close();
+        } catch {
+          // Аль хэдийн хаагдсан — хэрэглэгч тасалсан
+        }
+      });
+      node.on("error", (error) => {
+        if (done) return;
+        done = true;
+        try {
+          controller.error(error);
+        } catch {
+          // Аль хэдийн хаагдсан
+        }
+      });
+    },
+    pull() {
+      if (!done) node.resume();
+    },
+    cancel() {
+      finish();
+    },
+  });
+}
 
 /**
  * Сервер дээр хадгалсан файлыг түгээнэ (`/uploads/posts/<uid>/<uuid>.jpg`).
@@ -62,6 +117,5 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pat
   }
 
   headers.set("Content-Length", String(end - start + 1));
-  const stream = Readable.toWeb(createReadStream(info.full, { start, end })) as ReadableStream;
-  return new Response(stream, { status, headers });
+  return new Response(fileStream(info.full, start, end), { status, headers });
 }

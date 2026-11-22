@@ -16,6 +16,7 @@ import {
   temperaments,
   type Option,
 } from "@/data/profileOptions";
+import { composeLineage } from "@/data/lineage";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { adminAuth } from "@/lib/firebaseAdmin";
@@ -41,8 +42,19 @@ const TEXT_FIELDS = [
   "carPlate",
   "spouseName",
   "ethnicity",
+  "lineageFatherFather",
+  "lineageFatherMother",
+  "lineageMotherFather",
+  "lineageMotherMother",
   "birthplace",
+  "fatherHomeland",
+  "motherHomeland",
 ] as const;
+
+/** Чөлөөт бичвэрийн жагсаалтууд — ярьдаг хэл, тоглодог хөгжим */
+const LIST_FIELDS = ["languages", "instruments"] as const;
+const MAX_LIST_ITEMS = 20;
+const MAX_LIST_ITEM_LENGTH = 60;
 
 /** Зөвхөн тогтсон жагсаалтаас сонгогдох талбарууд */
 const OPTION_FIELDS: Record<string, Option[]> = {
@@ -168,6 +180,26 @@ export async function PATCH(request: NextRequest) {
       patch[key] = body[key];
     }
 
+    // Хоосон, давхардсан утгыг хасна; урт, тоог хязгаарлана
+    for (const key of LIST_FIELDS) {
+      if (body[key] === undefined) continue;
+      if (!Array.isArray(body[key]) || body[key].some((item: unknown) => typeof item !== "string")) {
+        return badRequest(`${key} нь текстийн жагсаалт байх ёстой.`);
+      }
+      const seen = new Set<string>();
+      const list: string[] = [];
+      for (const raw of body[key] as string[]) {
+        const item = raw.replace(/\s+/g, " ").trim().slice(0, MAX_LIST_ITEM_LENGTH);
+        if (!item || seen.has(item.toLowerCase())) continue;
+        seen.add(item.toLowerCase());
+        list.push(item);
+      }
+      if (list.length > MAX_LIST_ITEMS) {
+        return badRequest(`Хамгийн ихдээ ${MAX_LIST_ITEMS} утга оруулна.`);
+      }
+      patch[key] = list;
+    }
+
     if (body.temperaments !== undefined) {
       const parsed = readScoredMap(temperaments, "temperaments", body.temperaments);
       if (!parsed.ok) return badRequest(parsed.error);
@@ -203,6 +235,25 @@ export async function PATCH(request: NextRequest) {
 
     if (Object.keys(patch).length === 1) {
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
+    }
+
+    // Өөрийн угсаа гарвал нь дөрвөн өвөг эмээгийнхээс автоматаар (@see data/lineage.ts)
+    const lineageKeys = [
+      "lineageFatherFather",
+      "lineageFatherMother",
+      "lineageMotherFather",
+      "lineageMotherMother",
+    ] as const;
+    if (lineageKeys.some((key) => patch[key] !== undefined)) {
+      const current = caller.user;
+      const value = (key: (typeof lineageKeys)[number]) =>
+        (patch[key] as string | undefined) ?? (current?.[key] as string | undefined) ?? "";
+      patch.lineageSelf = composeLineage(
+        value("lineageFatherFather"),
+        value("lineageFatherMother"),
+        value("lineageMotherFather"),
+        value("lineageMotherMother")
+      );
     }
 
     // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина

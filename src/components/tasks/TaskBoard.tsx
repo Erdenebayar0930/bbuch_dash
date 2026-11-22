@@ -5,6 +5,8 @@ import {
   CalendarDays,
   ClipboardList,
   FolderKanban,
+  LayoutGrid,
+  MessageSquareText,
   Plus,
 } from "lucide-react";
 
@@ -35,6 +37,8 @@ import { buildProjectTree, pathLabel } from "@/lib/projectTree";
 
 import ProjectManagerModal from "./ProjectManagerModal";
 import TaskFormModal from "./TaskFormModal";
+import TaskProgressModal from "./progress/TaskProgressModal";
+import WeekCalendar from "./WeekCalendar";
 import { useBoardDrag } from "./useBoardDrag";
 import { monthDayFormat } from "@/lib/dateFormat";
 
@@ -124,6 +128,13 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
   const [isFormOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [isProjectsOpen, setProjectsOpen] = useState(false);
+  /** Ажлын явцын цонх — «Хийгдэж байна» (ба дууссан) картаас нээгдэнэ */
+  const [progressTask, setProgressTask] = useState<Task | null>(null);
+  /** Явц, хуваарь нь Төлөвлөгөөний (`tasks`) даалгаварт л — Тахилтынх тусдаа хүснэгт */
+  const hasProgress = (task: Task) => !isTahiltBoard && task.status !== "todo";
+  /** Самбар эсвэл 7 хоногийн календарь — Төлөвлөгөөнд л */
+  const [view, setView] = useState<"board" | "calendar">("board");
+  const showCalendar = !isTahiltBoard && view === "calendar";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -178,9 +189,12 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
 
   /** Сонгосон тушаал ба түүний бүх дэд тушаал — эх тушаалыг сонговол бүгд гарна */
   const selectedIds = useMemo(
-    () => (activeFilter === ALL ? null : tree.subtreeIds(activeFilter)),
-    [tree, activeFilter]
+    // Төлөвлөгөөнд тушаалаар шүүхгүй — бүх төлөвлөгөө нэг самбарт
+    () => (!isTahiltBoard || activeFilter === ALL ? null : tree.subtreeIds(activeFilter)),
+    [tree, activeFilter, isTahiltBoard]
   );
+  /** Канбан харуулах эсэх — Төлөвлөгөөнд үргэлж, Тахилтад тушаал байвал */
+  const showBoard = !isTahiltBoard || scopedProjects.length > 0;
 
   /** Дэд тушаалуудыг оруулсан дуусаагүй ажлын тоо */
   const openInSubtree = (id: string) =>
@@ -274,10 +288,39 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Үйлдэл — гарчгийн шууд дор: Тушаалууд, Даалгавар үүсгэх */}
-      {(canManage || canCreate) && (
+      {/* Үйлдэл — гарчгийн шууд дор: Самбар/Календарь, Тушаалууд, Даалгавар үүсгэх */}
+      {(!isTahiltBoard || canManage || canCreate) && (
         <div className="flex flex-wrap items-center gap-2">
-          {canManage && (
+          {/* Төлөвлөгөөг самбараар эсвэл 7 хоногийн календараар харна */}
+          {!isTahiltBoard && (
+            <div role="tablist" aria-label="Харагдац" className="flex rounded-lg border border-gray-200 p-0.5 dark:border-white/10">
+              {(
+                [
+                  { key: "board", label: "Самбар", icon: LayoutGrid },
+                  { key: "calendar", label: "Календарь", icon: CalendarDays },
+                ] as const
+              ).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === key}
+                  onClick={() => setView(key)}
+                  className={`flex h-9 items-center gap-1.5 rounded-md px-3 text-theme-sm font-medium transition-colors ${
+                    view === key
+                      ? "bg-accent-600 text-white"
+                      : "text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" strokeWidth={1.8} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Тушаал удирдах нь зөвхөн Тахилтын самбарт — Төлөвлөгөөнд тушаал байхгүй */}
+          {isTahiltBoard && canManage && (
             <button
               type="button"
               onClick={() => setProjectsOpen(true)}
@@ -292,9 +335,9 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
             <button
               type="button"
               onClick={openNew}
-              disabled={scopedProjects.length === 0}
+              disabled={isTahiltBoard && scopedProjects.length === 0}
               title={
-                scopedProjects.length === 0
+                isTahiltBoard && scopedProjects.length === 0
                   ? "Эхлээд тушаал үүсгэнэ үү"
                   : isTahiltBoard
                     ? "Шинэ даалгавар"
@@ -310,8 +353,8 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
         </div>
       )}
 
-      {/* Тушаалууд — үндсэн мөр, сонгосон тушаалын дэд тушаалууд доор нь шатлан */}
-      {(() => {
+      {/* Тушаалууд — үндсэн мөр, сонгосон тушаалын дэд тушаалууд доор нь шатлан (Тахилтад л) */}
+      {isTahiltBoard && (() => {
         const path = activeFilter === ALL ? [] : tree.pathOf(activeFilter);
         // Мөр бүр: үндэс, дараа нь зам дээрх тушаал бүрийн хүүхдүүд
         const levels = [
@@ -377,7 +420,7 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
         </p>
       )}
 
-      {!loading && scopedProjects.length === 0 && (
+      {!loading && !showBoard && (
         <div className="surface flex min-h-[240px] flex-col items-center justify-center gap-2 p-6 text-center">
           <ClipboardList
             className="h-9 w-9 text-gray-300 dark:text-gray-600"
@@ -396,8 +439,16 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
         </div>
       )}
 
+      {/* 7 хоногийн календарь — самбарын шүүлттэй ижил төлөвлөгөөнүүд */}
+      {showCalendar && (
+        <WeekCalendar
+          tasks={visible}
+          onOpenTask={(task) => (hasProgress(task) ? setProgressTask(task) : openTask(task))}
+        />
+      )}
+
       {/* Канбан */}
-      {scopedProjects.length > 0 && (
+      {showBoard && !showCalendar && (
         <div className="grid gap-4 md:grid-cols-3">
           {taskStatuses.map((status) => {
             const column = visible
@@ -474,12 +525,12 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
                           task.aimags.length > 0 &&
                           (!aimagFilter || task.aimags.length > 1);
                         return (
-                          task.projectId !== activeFilter || showAimags
+                          (isTahiltBoard && task.projectId !== activeFilter) || showAimags
                         );
                       })() && (
                         <p className="mt-1 text-theme-xs text-gray-400">
                           {[
-                            task.projectId !== activeFilter
+                            isTahiltBoard && task.projectId !== activeFilter
                               ? pathLabel(tree, task.projectId) || task.projectName
                               : "",
                             task.aimags.length > 0 &&
@@ -530,6 +581,22 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
                           </span>
                         )}
                       </div>
+
+                      {hasProgress(task) && (
+                        <button
+                          type="button"
+                          // Карт чирэх, засах цонх нээгдэхээс сэргийлнэ
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setProgressTask(task);
+                          }}
+                          className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-accent-200 bg-accent-50/60 px-2 py-1.5 text-theme-xs font-medium text-accent-700 transition-colors hover:bg-accent-100 dark:border-accent-500/30 dark:bg-accent-500/10 dark:text-accent-300 dark:hover:bg-accent-500/20"
+                        >
+                          <MessageSquareText className="h-3.5 w-3.5" strokeWidth={2} />
+                          Явц · Хуваарь · Календарь · Файл
+                        </button>
+                      )}
                     </article>
                   );
                 })}
@@ -558,11 +625,13 @@ export default function TaskBoard({ aimagFilter, board = "plan" }: TaskBoardProp
         canEdit={editing ? canEditTask(editing) : canCreate}
         canMove={editing ? canMove(editing) : false}
         canDelete={editing ? canDeleteTask(editing) : false}
-        defaultProjectId={activeFilter === ALL ? "" : activeFilter}
+        defaultProjectId={!isTahiltBoard || activeFilter === ALL ? "" : activeFilter}
         onClose={() => setFormOpen(false)}
         onSaved={load}
         board={board}
       />
+
+      <TaskProgressModal task={progressTask} onClose={() => setProgressTask(null)} />
 
       <ProjectManagerModal
         isOpen={isProjectsOpen}

@@ -143,7 +143,7 @@ export async function savePostApprovers(uids: string[]): Promise<string[]> {
 }
 
 /** Файлуудыг дараалан байршуулж, нийт явцыг (байтаар жинлэж) мэдээлнэ. */
-async function uploadAll(uid: string, files: File[], onProgress?: (fraction: number) => void) {
+export async function uploadAll(uid: string, files: File[], onProgress?: (fraction: number) => void) {
   const { uploadPostMedia } = await import("./storage");
   const total = files.reduce((sum, file) => sum + file.size, 0) || 1;
   let done = 0;
@@ -165,7 +165,7 @@ async function uploadAll(uid: string, files: File[], onProgress?: (fraction: num
   }
 }
 
-async function removeFiles(media: PostMedia[]) {
+export async function removeFiles(media: PostMedia[]) {
   if (media.length === 0) return;
   const { deletePostMedia } = await import("./storage");
   await Promise.all(media.map((item) => deletePostMedia(item.path)));

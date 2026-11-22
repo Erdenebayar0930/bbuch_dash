@@ -54,6 +54,15 @@ type PostComposerProps = {
   /** Нэр цохох талбар гаргах эсэх (@see TAGGABLE_BOARDS) */
   tagging?: boolean;
   initialTags?: PostTag[];
+  /** Маягт доторх нэмэлт хэсэг (жишээ нь санал асуулга) — бичвэрийн доор */
+  extra?: React.ReactNode;
+  /** Нэмэлт хэсэг бөглөгдсөн бол бичвэр/файлгүй ч илгээж болно */
+  extraReady?: boolean;
+  /** Нэмэлт хэсэг алдаатай бол илгээхгүй */
+  extraInvalid?: boolean;
+  /** Амжилттай илгээсний дараа нэмэлт хэсгийг цэвэрлэх */
+  onReset?: () => void;
+  placeholder?: string;
   submitLabel: string;
   /** Засвар үед «Болих» товч гаргана */
   onCancel?: () => void;
@@ -75,6 +84,11 @@ export default function PostComposer({
   initialMedia = [],
   tagging = false,
   initialTags = [],
+  extra,
+  extraReady = false,
+  extraInvalid = false,
+  onReset,
+  placeholder,
   submitLabel,
   onCancel,
   onSubmit,
@@ -144,7 +158,15 @@ export default function PostComposer({
   };
 
   const canSubmit =
-    !busy && !linkInvalid && !periodIncomplete && (body.trim().length > 0 || total > 0 || linkTrimmed.length > 0 || (tagging && tags.length > 0));
+    !busy &&
+    !linkInvalid &&
+    !periodIncomplete &&
+    !extraInvalid &&
+    (body.trim().length > 0 ||
+      total > 0 ||
+      linkTrimmed.length > 0 ||
+      (tagging && tags.length > 0) ||
+      extraReady);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -171,6 +193,7 @@ export default function PostComposer({
         setPeriodDay(todayKey());
         setKeep([]);
         setTags([]);
+        onReset?.();
         setFiles([]);
       }
     } catch (err) {
@@ -226,13 +249,15 @@ export default function PostComposer({
         ref={textarea}
         value={body}
         onChange={(event) => setBody(event.target.value)}
-        placeholder={tagging ? "Тушаал, онцлогийг бичнэ үү" : "Юу хуваалцах вэ?"}
+        placeholder={placeholder ?? (tagging ? "Тушаал, онцлогийг бичнэ үү" : "Юу хуваалцах вэ?")}
         maxLength={MAX_POST_LENGTH}
         rows={3}
         className={`${fieldClass} font-reading min-h-[88px] resize-none py-3 text-[15px] leading-7`}
       />
 
       {tagging && <PostTagPicker value={tags} onChange={setTags} disabled={busy} />}
+
+      {extra}
 
       {showLink && (
         <div className="flex flex-col gap-1">

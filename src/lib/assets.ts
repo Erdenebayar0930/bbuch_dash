@@ -125,6 +125,18 @@ export async function createAsset(input: AssetInput): Promise<string> {
   return data.asset.id;
 }
 
+/**
+ * Олон ширхгийг нэг дор бүртгэнэ — код бүр тусдаа эд хөрөнгө болно (бусад
+ * талбар нь бүгдэд ижил). Жишээ нь Аяга: AYG-001 … AYG-050.
+ */
+export async function createAssets(input: AssetInput, codes: string[]): Promise<number> {
+  const data = await apiFetch<{ count: number }>("/api/assets", {
+    method: "POST",
+    body: { ...input, codes },
+  });
+  return data.count;
+}
+
 /** Бүртгэлийг засна (зөвхөн админ). */
 export async function updateAsset(
   id: string,
@@ -305,4 +317,35 @@ export async function deleteMetaItem(
     `/api/assets/meta?kind=${kind}&id=${encodeURIComponent(id)}`,
     { method: "DELETE" }
   );
+}
+
+/** Ширхэгийн түүхийн нэг мөр — бүртгэсэн, өөрчилсөн, зураг нэмсэн/хассан */
+export type AssetHistoryEntry = {
+  id: string;
+  action: "created" | "updated" | "image_added" | "image_removed";
+  changes: { field: string; from: string; to: string }[];
+  actorName: string;
+  createdAt: Date;
+};
+
+type HistoryRow = {
+  id: string;
+  action: string;
+  changes: { field: string; from: string; to: string }[] | null;
+  createdAt: string;
+  actorFirstName: string | null;
+  actorLastName: string | null;
+};
+
+export async function listAssetHistory(assetId: string): Promise<AssetHistoryEntry[]> {
+  const data = await apiFetch<{ history: HistoryRow[] }>(`/api/assets/${assetId}/history`);
+  return data.history.map((row) => ({
+    id: row.id,
+    action: (["created", "updated", "image_added", "image_removed"].includes(row.action)
+      ? row.action
+      : "updated") as AssetHistoryEntry["action"],
+    changes: row.changes ?? [],
+    actorName: [row.actorLastName, row.actorFirstName].filter(Boolean).join(" ") || "—",
+    createdAt: new Date(row.createdAt),
+  }));
 }

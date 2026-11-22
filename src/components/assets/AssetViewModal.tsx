@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import React, { useCallback, useEffect, useState } from "react";
-import { Boxes } from "lucide-react";
+import { Boxes, ClipboardCheck, History, ImageMinus, ImagePlus, PackagePlus } from "lucide-react";
 
 import ImageViewer from "@/components/common/ImageViewer";
 import { Modal } from "@/components/ui/modal";
@@ -10,8 +10,10 @@ import { assetStateLabels } from "@/data/assetStates";
 import {
   checkStatusLabels,
   listAssetChecks,
+  listAssetHistory,
   type Asset,
   type AssetCheck,
+  type AssetHistoryEntry,
   type CheckStatus,
 } from "@/lib/assets";
 import { dateFormat, dateTimeFormat } from "@/lib/dateFormat";
@@ -58,20 +60,30 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export default function AssetViewModal({ asset, onClose }: AssetViewModalProps) {
   const [viewer, setViewer] = useState<string | null>(null);
   const [history, setHistory] = useState<AssetCheck[]>([]);
+  const [changes, setChanges] = useState<AssetHistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async (assetId: string) => {
     setLoading(true);
     setHistory([]);
+    setChanges([]);
 
     try {
-      setHistory(await listAssetChecks(assetId));
+      const [checks, log] = await Promise.all([listAssetChecks(assetId), listAssetHistory(assetId)]);
+      setHistory(checks);
+      setChanges(log);
     } catch (err) {
-      console.error("Шалгалтын түүх уншихад алдаа гарлаа:", err);
+      console.error("Түүх уншихад алдаа гарлаа:", err);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  /** Шалгалт ба өөрчлөлтийг нэг цагийн шугамд — шинээс хуучин руу */
+  const timeline = [
+    ...history.map((check) => ({ kind: "check" as const, at: check.checkedAt, check })),
+    ...changes.map((entry) => ({ kind: "change" as const, at: entry.createdAt, entry })),
+  ].sort((a, b) => b.at.getTime() - a.at.getTime());
 
   // Цонх нээгдэх буюу өөр бүртгэл рүү шилжих бүрд түүхийг дахин татна
   useEffect(() => {
@@ -129,11 +141,11 @@ export default function AssetViewModal({ asset, onClose }: AssetViewModalProps) 
           <Row label="Төрөл" value={asset.categoryName ?? "—"} />
           <Row label="Агуулах" value={asset.warehouseName ?? "—"} />
           <Row label="Ангилал" value={assetStateLabels[asset.state]} />
-          <Row
-            label="Тоо хэмжээ"
-            value={`${asset.quantity} ${asset.unit}`.trim()}
-          />
-          <Row label="Код / сериал" value={asset.code || "—"} />
+          {/* Ширхэг бүр нэг эд хөрөнгө — хуучин олон ширхэгтэй бүртгэлд л тоо харагдана */}
+          {asset.quantity > 1 && (
+            <Row label="Тоо хэмжээ" value={`${asset.quantity} ${asset.unit}`.trim()} />
+          )}
+          <Row label="Код" value={asset.code ? <span className="font-mono">{asset.code}</span> : "—"} />
           <Row
             label="Бүрэн бүтэн байдал"
             value={
@@ -156,7 +168,7 @@ export default function AssetViewModal({ asset, onClose }: AssetViewModalProps) 
           />
           <Row label="Бүртгэсэн" value={dateFormatter.format(asset.createdAt)} />
           <Row
-            label="Тэмдэглэл"
+            label="Мэдээлэл"
             value={
               asset.note ? (
                 <span className="whitespace-pre-wrap">{asset.note}</span>
@@ -167,51 +179,93 @@ export default function AssetViewModal({ asset, onClose }: AssetViewModalProps) 
           />
         </div>
 
-        {/* Бүрэн бүтэн байдлын шалгалтын түүх — зөвхөн уншина */}
+        {/* Ширхэгийн түүх — бүртгэсэн, өөрчлөлт, зураг, шалгалт бүгд цагийн дарааллаар */}
         <div className="mt-6 border-t border-gray-100 pt-4 dark:border-white/10">
-          <p className="mb-3 text-theme-sm font-medium text-gray-700 dark:text-gray-300">
-            Шалгалтын түүх
+          <p className="mb-3 flex items-center gap-1.5 text-theme-sm font-medium text-gray-700 dark:text-gray-300">
+            <History className="h-4 w-4" strokeWidth={1.8} />
+            Түүх
           </p>
 
           {loading && (
             <p className="text-theme-sm text-gray-500">Ачаалж байна...</p>
           )}
 
-          {!loading && history.length === 0 && (
+          {!loading && timeline.length === 0 && (
             <p className="text-theme-sm text-gray-500 dark:text-gray-400">
-              Одоогоор шалгалт хийгдээгүй байна.
+              Түүх хараахан алга — засвар, шилжилт, шалгалт бүр энд үлдэнэ.
             </p>
           )}
 
           <ul className="flex flex-col gap-2">
-            {history.map((check) => (
+            {timeline.map((item) =>
+              item.kind === "change" ? (
+                <li key={`h-${item.entry.id}`} className="rounded-lg border border-gray-200 p-3 dark:border-white/10">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {item.entry.action === "created" ? (
+                      <PackagePlus className="h-4 w-4 text-success-600" strokeWidth={1.8} />
+                    ) : item.entry.action === "image_added" ? (
+                      <ImagePlus className="h-4 w-4 text-accent-600" strokeWidth={1.8} />
+                    ) : item.entry.action === "image_removed" ? (
+                      <ImageMinus className="h-4 w-4 text-gray-500" strokeWidth={1.8} />
+                    ) : (
+                      <History className="h-4 w-4 text-warning-600" strokeWidth={1.8} />
+                    )}
+                    <span className="text-theme-sm font-medium text-gray-800 dark:text-white/90">
+                      {item.entry.action === "created"
+                        ? "Бүртгэсэн"
+                        : item.entry.action === "image_added"
+                          ? "Зураг нэмсэн"
+                          : item.entry.action === "image_removed"
+                            ? "Зураг хассан"
+                            : "Өөрчилсөн"}
+                    </span>
+                    <span className="ml-auto text-theme-xs text-gray-400">
+                      {dateTimeFormatter.format(item.entry.createdAt)}
+                    </span>
+                  </div>
+                  {item.entry.changes.length > 0 && (
+                    <ul className="mt-1.5 flex flex-col gap-0.5">
+                      {item.entry.changes.map((change) => (
+                        <li key={change.field} className="text-theme-xs text-gray-600 dark:text-gray-400">
+                          <span className="font-medium text-gray-700 dark:text-gray-300">{change.field}:</span>{" "}
+                          <span className="line-through opacity-70">{change.from}</span> →{" "}
+                          <span className="text-gray-900 dark:text-white/90">{change.to}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="mt-1 text-theme-xs text-gray-400">{item.entry.actorName}</p>
+                </li>
+              ) : (
               <li
-                key={check.id}
+                key={`c-${item.check.id}`}
                 className="rounded-lg border border-gray-200 p-3 dark:border-white/10"
               >
                 <div className="flex flex-wrap items-center gap-2">
+                  <ClipboardCheck className="h-4 w-4 text-gray-500" strokeWidth={1.8} />
                   <span
-                    className={`rounded-full px-2.5 py-0.5 text-theme-xs font-medium ${statusStyles[check.status]}`}
+                    className={`rounded-full px-2.5 py-0.5 text-theme-xs font-medium ${statusStyles[item.check.status]}`}
                   >
-                    {checkStatusLabels[check.status]}
+                    {checkStatusLabels[item.check.status]}
                   </span>
                   <span className="text-theme-xs text-gray-600 dark:text-gray-400">
-                    олдсон {check.foundQuantity} {asset.unit}
+                    олдсон {item.check.foundQuantity} {asset.unit}
                   </span>
                   <span className="ml-auto text-theme-xs text-gray-400">
-                    {dateTimeFormatter.format(check.checkedAt)}
+                    {dateTimeFormatter.format(item.check.checkedAt)}
                   </span>
                 </div>
-                {check.note && (
+                {item.check.note && (
                   <p className="mt-1.5 text-theme-xs text-gray-600 dark:text-gray-400">
-                    {check.note}
+                    {item.check.note}
                   </p>
                 )}
                 <p className="mt-1 text-theme-xs text-gray-400">
-                  {check.checkedByName}
+                  {item.check.checkedByName}
                 </p>
               </li>
-            ))}
+              )
+            )}
           </ul>
         </div>
 

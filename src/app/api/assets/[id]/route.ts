@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { readAsset } from "@/lib/api/assetInput";
+import { recordAssetChanges } from "@/lib/api/assetHistory";
 import { badRequest, isAdminRole, requireAdmin, serverError } from "@/lib/api/auth";
 import { ASSET_AIMAG, requireAssetEditor } from "@/lib/api/assetAccess";
 import { db } from "@/lib/db";
@@ -39,8 +40,22 @@ export async function PATCH(
       return badRequest("Өөрчлөх талбар заагаагүй байна.");
     }
 
-    // MySQL нь UPDATE ... RETURNING дэмждэггүй — засаад буцааж уншина.
-    // Мөр байхгүй бол select ч хоосон буцаах тул 404 логик хэвээр ажиллана.
+    // Ширхэг бүрийн код давтагдахгүй
+    if (parsed.value.code) {
+      const [clash] = await db
+        .select({ id: assets.id })
+        .from(assets)
+        .where(and(eq(assets.code, parsed.value.code), ne(assets.id, id)))
+        .limit(1);
+      if (clash) return badRequest(`«${parsed.value.code}» код өөр эд хөрөнгөд бүртгэлтэй байна.`);
+    }
+
+    // Түүхэнд харьцуулахын тулд засварын өмнөх мөр
+    const [before] = await db.select().from(assets).where(eq(assets.id, id)).limit(1);
+    if (!before) {
+      return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
+    }
+
     await db
       .update(assets)
       .set({ ...parsed.value, updatedAt: new Date() })
@@ -55,6 +70,9 @@ export async function PATCH(
     if (!updated) {
       return NextResponse.json({ error: "Олдсонгүй." }, { status: 404 });
     }
+
+    // Өөрчлөгдсөн талбар бүр ширхэгийн түүхэнд үлдэнэ
+    await recordAssetChanges(before, updated, result.caller.uid);
 
     return NextResponse.json({ asset: updated });
   } catch (error) {

@@ -206,7 +206,8 @@ export default function TaskFormModal({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!form.projectId) {
+    // Төлөвлөгөөнд тушаал сонгохгүй — сервер далд «Төлөвлөгөө» тушаалд онооно
+    if (!isPlan && !form.projectId) {
       setError("Тушаалыг сонгоно уу.");
       return;
     }
@@ -270,13 +271,15 @@ export default function TaskFormModal({
             : isPlan ? "Төлөвлөгөө үүсгэх" : "Ажлын даалгавар үүсгэх"}
         </h3>
 
-        {selectedProject?.parentId && (
+        {!isPlan && selectedProject?.parentId && (
           <p className="mt-1 text-theme-xs text-gray-400">
             {pathLabel(tree, selectedProject.id)}
           </p>
         )}
 
         <div className="mt-5 grid gap-4">
+          {/* Төлөвлөгөөнд «Тушаал» байхгүй — шууд оруулна (Тахилтын самбарт л сонгоно) */}
+          {!isPlan && (
           <div>
             <label htmlFor="task-project" className={labelClass}>
               Тушаал <span className="text-error-500">*</span>
@@ -297,6 +300,7 @@ export default function TaskFormModal({
               ))}
             </select>
           </div>
+          )}
 
           {!hideAimags && (
           <div>
@@ -327,7 +331,7 @@ export default function TaskFormModal({
                   {option.label}
                 </button>
               ))}
-              {/* Тушаал солигдсоноор сонголтоос гарсан аймаг харагдсаар байна */}
+              {/* Тушаалд харагдахгүй болсон аймаг (хуучин бүртгэл) харагдсаар байна */}
               {form.aimags
                 .filter(
                   (aimag) => !aimagChoices.some((option) => option.value === aimag)
@@ -339,7 +343,7 @@ export default function TaskFormModal({
                     disabled={readOnly}
                     onClick={() => toggleAimag(aimag)}
                     className={`${chipClass(true)} line-through`}
-                    title="Энэ тушаалд харагдахгүй аймаг — дарж хасна"
+                    title={isPlan ? "Дарж хасна" : "Энэ тушаалд харагдахгүй аймаг — дарж хасна"}
                   >
                     {labelOf(aimags, aimag)}
                   </button>

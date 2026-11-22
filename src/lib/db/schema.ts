@@ -106,7 +106,24 @@ export const users = pgTable(
     /** male | female | "" */
     gender: varchar("gender", { length: 16 }).notNull().default(""),
     ethnicity: varchar("ethnicity", { length: 255 }).notNull().default(""),
+    /**
+     * Угсаа гарвал — өвөө эмээ нарын ургийн овог (Яс үндэсийн дор).
+     * Аавын аав, аавын ээж, ээжийн аав, ээжийн ээж.
+     */
+    lineageFatherFather: varchar("lineage_father_father", { length: 255 }).notNull().default(""),
+    lineageFatherMother: varchar("lineage_father_mother", { length: 255 }).notNull().default(""),
+    lineageMotherFather: varchar("lineage_mother_father", { length: 255 }).notNull().default(""),
+    lineageMotherMother: varchar("lineage_mother_mother", { length: 255 }).notNull().default(""),
+    /** Өөрийн угсаа гарвал — дөрвөн өвөг эмээгийнхийн доор */
+    lineageSelf: varchar("lineage_self", { length: 255 }).notNull().default(""),
+    /** Ярьдаг хэлнүүд — чөлөөт бичвэр: ["Монгол", "Англи"] */
+    languages: jsonCol<string[]>("languages").notNull().default([]),
+    /** Тоглодог хөгжмийн зэмсгүүд — чөлөөт бичвэр: ["Гитар", "Морин хуур"] */
+    instruments: jsonCol<string[]>("instruments").notNull().default([]),
     birthplace: varchar("birthplace", { length: 255 }).notNull().default(""),
+    /** Аавын нутаг, ээжийн нутаг — Төрсөн нутгийн хажууд */
+    fatherHomeland: varchar("father_homeland", { length: 255 }).notNull().default(""),
+    motherHomeland: varchar("mother_homeland", { length: 255 }).notNull().default(""),
     /** MBTI 16 төрлийн нэг (ISTJ гэх мэт) */
     mbti: varchar("mbti", { length: 8 }).notNull().default(""),
     /**
@@ -363,6 +380,29 @@ export const assetChecks = pgTable(
 );
 
 /**
+ * Эд хөрөнгийн (ширхэг бүрийн) түүх — бүртгэсэн, засварт орсон, агуулах
+ * сольсон, акталсан гэх мэт өөрчлөлт бүр. Хэзээ ч дарагдахгүй, нэмэгдсээр.
+ *
+ * `changes` нь хүнд уншигдах хэлбэрээр хадгалагдана (талбарын нэр, хуучин,
+ * шинэ утга) — агуулах, төрөл устсан ч түүх утгаа алдахгүй.
+ */
+export const assetHistory = pgTable(
+  "asset_history",
+  {
+    id: uuidPk(),
+    assetId: uuidRef("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    /** created | updated | image_added | image_removed */
+    action: varchar("action", { length: 32 }).notNull(),
+    changes: jsonCol<{ field: string; from: string; to: string }[]>("changes").notNull().default([]),
+    actorUid: uidCol("actor_uid"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [index("asset_history_asset_idx").on(table.assetId, table.createdAt)]
+);
+
+/**
  * Тооллогын үе — "тооллого эхлүүлэх"-ээс "дуусгах" хүртэлх хугацаа.
  *
  * Тусдаа шалгалт бүрийг энэ мөр рүү холбохгүй: тооллогын явцад тоологдсон
@@ -474,6 +514,84 @@ export const tasks = pgTable(
     ),
     index("tasks_assigned_idx").on(table.assignedTo),
   ]
+);
+
+/**
+ * Төлөвлөгөөний ажлын явцын мэдээлэл — даалгавар тутамд олон бичлэг.
+ *
+ * Нийтлэлтэй ижил бүтэцтэй (бичвэр, зураг/бичлэг/файл, огноо) — файл нь
+ * `posts/{uid}/` хавтаст (@see lib/api/postInput.ts readPost). `poll` нь
+ * санал асуулга: хоосон бол байхгүй, санал нь `task_poll_votes`-д.
+ */
+export const taskUpdates = pgTable(
+  "task_updates",
+  {
+    id: uuidPk(),
+    taskId: uuidRef("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    authorUid: uidCol("author_uid").references(() => users.uid, {
+      onDelete: "set null",
+    }),
+    body: bodyText("body"),
+    media: jsonCol<
+      { kind: "image" | "video" | "file"; url: string; path: string; name?: string; size?: number }[]
+    >("media")
+      .notNull()
+      .default([]),
+    videoLink: varchar("video_link", { length: 500 }).notNull().default(""),
+    /** Аль өдрийн явц вэ — YYYY-MM-DD (календарьт энэ өдөрт гарна) */
+    period: varchar("period", { length: 10 }).notNull().default(""),
+    /** Санал асуулга — null бол байхгүй */
+    poll: jsonCol<{ question: string; options: { id: string; text: string }[]; multi: boolean } | null>(
+      "poll"
+    ),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [index("task_updates_task_idx").on(table.taskId, table.createdAt)]
+);
+
+/** Санал асуулгын санал — хүн бүр сонголт тутамд нэг л мөр. */
+export const taskPollVotes = pgTable(
+  "task_poll_votes",
+  {
+    id: uuidPk(),
+    updateId: uuidRef("update_id")
+      .notNull()
+      .references(() => taskUpdates.id, { onDelete: "cascade" }),
+    uid: uidCol("uid")
+      .notNull()
+      .references(() => users.uid, { onDelete: "cascade" }),
+    optionId: varchar("option_id", { length: 32 }).notNull(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("task_poll_votes_unique_idx").on(table.updateId, table.uid, table.optionId)]
+);
+
+/**
+ * Даалгаврын ажлын хуваарь — үе шат бүр огноотой (эхлэх, дуусах). Календарьт
+ * явцын мэдээлэлтэй хамт харагдана.
+ */
+export const taskScheduleItems = pgTable(
+  "task_schedule_items",
+  {
+    id: uuidPk(),
+    taskId: uuidRef("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 255 }).notNull(),
+    /** YYYY-MM-DD */
+    startDate: varchar("start_date", { length: 10 }).notNull(),
+    /** YYYY-MM-DD — эхлэхтэй ижил бол нэг өдрийн ажил */
+    endDate: varchar("end_date", { length: 10 }).notNull(),
+    note: bodyText("note"),
+    /** null бол хийгдээгүй */
+    doneAt: utcTimestamp("done_at"),
+    createdBy: uidCol("created_by"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [index("task_schedule_items_task_idx").on(table.taskId, table.startDate)]
 );
 
 /**

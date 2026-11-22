@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Boxes,
   Check,
+  ChevronRight,
   ClipboardCheck,
   Eye,
   ListChecks,
@@ -215,6 +216,35 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
         .includes(needle);
     });
   }, [inWarehouse, stateFilter, categoryFilter, query, onlyUncounted, count]);
+
+  /**
+   * Төрлөөр бүлэглэнэ — жишээ нь «Аяга» бүлэгт аяга тус бүр (тусдаа эд
+   * хөрөнгө, өөрийн кодтой). Бүлэг нэрээр, ширхэг нь кодоор эрэмбэлэгдэнэ.
+   */
+  const groups = useMemo(() => {
+    const map = new Map<string, { key: string; name: string; assets: Asset[] }>();
+    for (const asset of visible) {
+      const key = asset.categoryId ?? NONE;
+      const group = map.get(key) ?? { key, name: asset.categoryName ?? "Төрөл оноогоогүй", assets: [] };
+      group.assets.push(asset);
+      map.set(key, group);
+    }
+    const byCode = (a: Asset, b: Asset) =>
+      a.code.localeCompare(b.code, undefined, { numeric: true }) || a.name.localeCompare(b.name);
+    return [...map.values()]
+      .map((group) => ({ ...group, assets: [...group.assets].sort(byCode) }))
+      .sort((a, b) => (a.key === NONE ? 1 : b.key === NONE ? -1 : a.name.localeCompare(b.name)));
+  }, [visible]);
+
+  /** Хумьсан бүлгүүд — анхдагчаар бүгд задгай */
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const toggleGroup = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   /** Тооллогын явц — бүртгэлийн нийт мөрөөс хэд нь тоологдсон бэ */
   const counted = useMemo(
@@ -570,7 +600,37 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
               </tr>
             )}
 
-            {visible.map((asset) => (
+            {groups.map((group) => (
+              <React.Fragment key={group.key}>
+                {/* Бүлэг — Төрөл (жишээ нь Аяга), дор нь ширхэг бүр тусдаа эд хөрөнгө */}
+                <tr className="bg-gray-50/80 dark:bg-white/[0.02]">
+                  <td colSpan={columnCount} className="px-5 py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.key)}
+                      aria-expanded={!collapsed.has(group.key)}
+                      className="flex w-full flex-wrap items-center gap-2 text-left"
+                    >
+                      <ChevronRight
+                        className={`h-4 w-4 text-gray-400 transition-transform ${collapsed.has(group.key) ? "" : "rotate-90"}`}
+                        strokeWidth={2}
+                      />
+                      <span className="text-theme-sm font-semibold text-gray-900 dark:text-white">{group.name}</span>
+                      <span className="text-theme-xs text-gray-500 dark:text-gray-400">{group.assets.length} ширхэг</span>
+                      {viewStates.length > 1 &&
+                        viewStates.map((state) => {
+                          const n = group.assets.filter((asset) => asset.state === state).length;
+                          return n > 0 ? (
+                            <span key={state} className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${assetStateStyles[state]}`}>
+                              {assetStateLabels[state]} {n}
+                            </span>
+                          ) : null;
+                        })}
+                    </button>
+                  </td>
+                </tr>
+
+            {!collapsed.has(group.key) && group.assets.map((asset) => (
               // Тооллогын явцад шалгагдсан мөр өнгөөрөө ялгарна
               <tr
                 key={asset.id}
@@ -615,6 +675,12 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                         >
                           {assetStateLabels[asset.state]}
                         </span>
+                        {/* Ширхэг бүрийн код — бүлэг дотор ялгах гол тэмдэг */}
+                        {asset.code && (
+                          <span className="mr-1.5 rounded bg-gray-100 px-1.5 py-0.5 align-middle font-mono text-[12px] text-gray-700 dark:bg-white/10 dark:text-gray-200">
+                            {asset.code}
+                          </span>
+                        )}
                         {asset.name}
                         {asset.images.length > 1 && (
                           <span className="ml-1.5 text-theme-xs font-normal text-gray-400">
@@ -746,6 +812,8 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
                   </div>
                 </td>
               </tr>
+            ))}
+              </React.Fragment>
             ))}
           </tbody>
         </table>

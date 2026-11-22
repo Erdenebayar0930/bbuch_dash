@@ -36,7 +36,21 @@ export type AppUser = {
   /** male | female | "" */
   gender: string;
   ethnicity: string;
+  /** Угсаа гарвал — өвөө эмээ нарын ургийн овог */
+  lineage_father_father: string;
+  lineage_father_mother: string;
+  lineage_mother_father: string;
+  lineage_mother_mother: string;
+  /** Өөрийн угсаа гарвал */
+  lineage_self: string;
+  /** Ярьдаг хэлнүүд */
+  languages: string[];
+  /** Тоглодог хөгжмийн зэмсгүүд */
+  instruments: string[];
   birthplace: string;
+  /** Аавын нутаг, ээжийн нутаг */
+  father_homeland: string;
+  mother_homeland: string;
   mbti: string;
   /** Сонгосон хайрын хэл бүр оноотойгоо: { words: 12, touch: 5 } */
   love_languages: Record<string, number>;
@@ -73,7 +87,16 @@ export type UserRow = {
   birthDate: string | null;
   gender: string | null;
   ethnicity: string | null;
+  lineageFatherFather?: string | null;
+  lineageFatherMother?: string | null;
+  lineageMotherFather?: string | null;
+  lineageMotherMother?: string | null;
+  lineageSelf?: string | null;
+  languages?: string[] | null;
+  instruments?: string[] | null;
   birthplace: string | null;
+  fatherHomeland?: string | null;
+  motherHomeland?: string | null;
   mbti: string | null;
   loveLanguages: Record<string, number> | null;
   temperaments: Record<string, number> | null;
@@ -105,7 +128,16 @@ export function toAppUser(row: UserRow): AppUser {
     birth_date: row.birthDate ?? "",
     gender: row.gender ?? "",
     ethnicity: row.ethnicity ?? "",
+    lineage_father_father: row.lineageFatherFather ?? "",
+    lineage_father_mother: row.lineageFatherMother ?? "",
+    lineage_mother_father: row.lineageMotherFather ?? "",
+    lineage_mother_mother: row.lineageMotherMother ?? "",
+    lineage_self: row.lineageSelf ?? "",
+    languages: Array.isArray(row.languages) ? row.languages : [],
+    instruments: Array.isArray(row.instruments) ? row.instruments : [],
     birthplace: row.birthplace ?? "",
+    father_homeland: row.fatherHomeland ?? "",
+    mother_homeland: row.motherHomeland ?? "",
     mbti: row.mbti ?? "",
     love_languages: row.loveLanguages ?? {},
     temperaments: row.temperaments ?? {},
@@ -252,7 +284,15 @@ export async function updateCurrentUser(patch: {
   birthDate?: string;
   gender?: string;
   ethnicity?: string;
+  lineageFatherFather?: string;
+  lineageFatherMother?: string;
+  lineageMotherFather?: string;
+  lineageMotherMother?: string;
+  languages?: string[];
+  instruments?: string[];
   birthplace?: string;
+  fatherHomeland?: string;
+  motherHomeland?: string;
   /** YYYY-MM-DD, эсвэл хоосон */
   holySpiritBaptismDate?: string;
   /** YYYY-MM-DD, эсвэл хоосон */

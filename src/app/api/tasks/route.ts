@@ -6,6 +6,7 @@ import { notifyUsers } from "@/lib/api/notify";
 import {
   attachCollaborators,
   checkTaskTarget,
+  defaultPlanProjectId,
   involvesUser,
   planUrl,
   readTaskRow,
@@ -66,7 +67,13 @@ export async function POST(request: NextRequest) {
   if ("error" in result) return result.error;
 
   try {
-    const parsed = await readTask(await request.json().catch(() => ({})), false);
+    const input = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    // Төлөвлөгөөг тушаалгүй шууд оруулна — тушаал заагаагүй бол далд «Төлөвлөгөө» тушаалд
+    if (typeof input.projectId !== "string" || !input.projectId) {
+      input.projectId = await defaultPlanProjectId();
+    }
+
+    const parsed = await readTask(input, false);
     if (!parsed.ok) return badRequest(parsed.error);
 
     const projectId = parsed.value.projectId as string;

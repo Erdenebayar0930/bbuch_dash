@@ -1,8 +1,9 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { aimags, isValidOption } from "@/data/profileOptions";
 import { readAsset } from "@/lib/api/assetInput";
+import { recordAssetsCreated } from "@/lib/api/assetHistory";
 import {
   badRequest,
   requireActiveUser,
@@ -23,6 +24,17 @@ import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** Нэг удаад олноор бүртгэх ширхэгийн дээд тоо */
+const MAX_BULK = 500;
+const MAX_CODE_LENGTH = 128;
+
+/** Аль хэдийн өөр эд хөрөнгөд бүртгэлтэй кодууд */
+async function takenCodes(codes: string[]): Promise<string[]> {
+  if (codes.length === 0) return [];
+  const rows = await db.select({ code: assets.code }).from(assets).where(inArray(assets.code, codes));
+  return [...new Set(rows.map((row) => row.code))];
+}
 
 /**
  * Бүх эд хөрөнгө — агуулах, төрлийн нэртэй хамт.
@@ -136,25 +148,53 @@ export async function POST(request: NextRequest) {
   if ("error" in result) return result.error;
 
   try {
-    const parsed = await readAsset(await request.json().catch(() => ({})), false);
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const parsed = await readAsset(body, false);
     if (!parsed.ok) return badRequest(parsed.error);
 
     // Админ бус хүний бүртгэсэн хөрөнгө Магтаалын аймагт хамаарна
     if (!isAdminRole(result.caller.user?.role)) parsed.value.aimag = ASSET_AIMAG;
 
-    // MySQL нь INSERT ... RETURNING дэмждэггүй — ID-г урьдчилж үүсгэнэ
-    const id = crypto.randomUUID();
+    // Ширхэг бүр тусдаа эд хөрөнгө: `codes` ирвэл код бүрт нэг мөр (жишээ нь
+    // Аяга → AYG-001 … AYG-050), бусад талбар нь бүгдэд ижил. Үгүй бол ганц.
+    const codes = Array.isArray(body.codes)
+      ? [
+          ...new Set(
+            body.codes
+              .filter((value): value is string => typeof value === "string")
+              .map((value) => value.replace(/\s+/g, " ").trim().slice(0, MAX_CODE_LENGTH))
+              .filter(Boolean)
+          ),
+        ]
+      : [parsed.value.code ?? ""];
 
-    await db.insert(assets).values({
+    if (codes.length > MAX_BULK) {
+      return badRequest(`Нэг удаад хамгийн ихдээ ${MAX_BULK} ширхэг бүртгэнэ.`);
+    }
+
+    const duplicate = await takenCodes(codes.filter(Boolean));
+    if (duplicate.length > 0) {
+      return badRequest(
+        `Бүртгэлтэй код: ${duplicate.slice(0, 10).join(", ")}${duplicate.length > 10 ? "…" : ""}`
+      );
+    }
+
+    const rows = codes.map((code) => ({
       ...parsed.value,
-      id,
+      id: crypto.randomUUID(),
       name: parsed.value.name as string,
+      code,
+      // Ширхэг бүр нэг эд хөрөнгө
+      quantity: 1,
       createdBy: result.caller.uid,
-    });
+    }));
+    await db.insert(assets).values(rows);
+    // Ширхэг бүрийн түүх «Бүртгэсэн»-ээр эхэлнэ
+    await recordAssetsCreated(rows.map((row) => row.id), result.caller.uid);
 
-    const [created] = await db.select().from(assets).where(eq(assets.id, id));
+    const [created] = await db.select().from(assets).where(eq(assets.id, rows[0].id));
 
-    return NextResponse.json({ asset: created });
+    return NextResponse.json({ asset: created, count: rows.length, ids: rows.map((row) => row.id) });
   } catch (error) {
     return serverError(error, "Эд хөрөнгө бүртгэхэд алдаа гарлаа");
   }

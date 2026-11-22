@@ -24,9 +24,11 @@ import {
   uploadProfilePhoto,
 } from "@/lib/storage";
 import { getCurrentUser, updateCurrentUser } from "@/lib/users";
+import { composeLineage } from "@/data/lineage";
 import ChildrenEditor from "./ChildrenEditor";
 import ScoredMultiSelect from "./ScoredMultiSelect";
 import SettingsField from "./SettingsField";
+import SettingsListField from "./SettingsListField";
 import SettingsSelect from "./SettingsSelect";
 
 type ProfileForm = {
@@ -37,7 +39,15 @@ type ProfileForm = {
   birthDate: string;
   gender: string;
   ethnicity: string;
+  lineageFatherFather: string;
+  lineageFatherMother: string;
+  lineageMotherFather: string;
+  lineageMotherMother: string;
+  languages: string[];
+  instruments: string[];
   birthplace: string;
+  fatherHomeland: string;
+  motherHomeland: string;
   holySpiritBaptismDate: string;
   waterBaptismDate: string;
   mbti: string;
@@ -58,7 +68,15 @@ const emptyForm: ProfileForm = {
   birthDate: "",
   gender: "",
   ethnicity: "",
+  lineageFatherFather: "",
+  lineageFatherMother: "",
+  lineageMotherFather: "",
+  lineageMotherMother: "",
+  languages: [],
+  instruments: [],
   birthplace: "",
+  fatherHomeland: "",
+  motherHomeland: "",
   holySpiritBaptismDate: "",
   waterBaptismDate: "",
   mbti: "",
@@ -152,7 +170,15 @@ export default function ProfileSettings() {
             base.birthDate = profile.birth_date;
             base.gender = profile.gender;
             base.ethnicity = profile.ethnicity;
+            base.lineageFatherFather = profile.lineage_father_father;
+            base.lineageFatherMother = profile.lineage_father_mother;
+            base.lineageMotherFather = profile.lineage_mother_father;
+            base.lineageMotherMother = profile.lineage_mother_mother;
+            base.languages = profile.languages;
+            base.instruments = profile.instruments;
             base.birthplace = profile.birthplace;
+            base.fatherHomeland = profile.father_homeland;
+            base.motherHomeland = profile.mother_homeland;
             base.holySpiritBaptismDate = profile.holy_spirit_baptism_date;
             base.waterBaptismDate = profile.water_baptism_date;
             base.mbti = profile.mbti;
@@ -470,17 +496,97 @@ export default function ProfileSettings() {
             value={form.ethnicity}
             onChange={(value) => update("ethnicity", value)}
           />
+          {/* Угсаа гарвал — Яс үндэсийн дор, өвөө эмээ нарын ургийн овог */}
+          <div className="rounded-xl border border-gray-200 p-4 sm:col-span-2 dark:border-white/10">
+            <p className="text-theme-sm font-semibold text-gray-800 dark:text-white/90">Угсаа гарвал</p>
+            <p className="mt-0.5 text-theme-xs text-gray-500 dark:text-gray-400">
+              Өвөө, эмээ нарынхаа угсаа гарвалыг (ургийн овог) бичнэ үү — жишээ нь Боржигин, Хиад, Тайчууд. Мэдэхгүй бол хоосон
+              үлдээж болно.
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+              <SettingsField
+                id="lineage-father-father"
+                label="Аавын аавын угсаа гарвал"
+                value={form.lineageFatherFather}
+                onChange={(value) => update("lineageFatherFather", value)}
+              />
+              <SettingsField
+                id="lineage-father-mother"
+                label="Аавын ээжийн угсаа гарвал"
+                value={form.lineageFatherMother}
+                onChange={(value) => update("lineageFatherMother", value)}
+              />
+              <SettingsField
+                id="lineage-mother-father"
+                label="Ээжийн аавын угсаа гарвал"
+                value={form.lineageMotherFather}
+                onChange={(value) => update("lineageMotherFather", value)}
+              />
+              <SettingsField
+                id="lineage-mother-mother"
+                label="Ээжийн ээжийн угсаа гарвал"
+                value={form.lineageMotherMother}
+                onChange={(value) => update("lineageMotherMother", value)}
+              />
+              {/* Автоматаар — аавын аавынх эхэнд, бусад нь давхардлаараа (@see data/lineage.ts) */}
+              <SettingsField
+                id="lineage-self"
+                label="Өөрийн угсаа гарвал (автоматаар)"
+                value={composeLineage(
+                  form.lineageFatherFather,
+                  form.lineageFatherMother,
+                  form.lineageMotherFather,
+                  form.lineageMotherMother
+                )}
+                placeholder="Дээрх дөрвөөс автоматаар бүрдэнэ"
+                readOnly
+                className="sm:col-span-2"
+              />
+            </div>
+          </div>
           <SettingsField
             id="birthplace"
-            label="Төрсөн нутаг"
+            label="Төрсөн газар"
             value={form.birthplace}
             onChange={(value) => update("birthplace", value)}
+          />
+          <SettingsField
+            id="father-homeland"
+            label="Аавын нутаг"
+            value={form.fatherHomeland}
+            placeholder="Аймаг, сум"
+            onChange={(value) => update("fatherHomeland", value)}
+          />
+          <SettingsField
+            id="mother-homeland"
+            label="Ээжийн нутаг"
+            value={form.motherHomeland}
+            placeholder="Аймаг, сум"
+            onChange={(value) => update("motherHomeland", value)}
           />
           <SettingsField
             id="occupation"
             label="Мэргэжил"
             value={form.occupation}
             onChange={(value) => update("occupation", value)}
+          />
+          <SettingsListField
+            id="languages"
+            label="Ярьдаг хэл"
+            value={form.languages}
+            onChange={(value) => update("languages", value)}
+            placeholder="Хэлний нэр бичээд Enter"
+            suggestions={["Монгол", "Англи", "Орос", "Хятад", "Солонгос", "Япон", "Казах"]}
+            className="sm:col-span-2"
+          />
+          <SettingsListField
+            id="instruments"
+            label="Тоглодог хөгжим"
+            value={form.instruments}
+            onChange={(value) => update("instruments", value)}
+            placeholder="Хөгжмийн зэмсгийн нэр бичээд Enter"
+            suggestions={["Гитар", "Төгөлдөр хуур", "Бөмбөр", "Басс гитар", "Морин хуур", "Хийл", "Ятга"]}
+            className="sm:col-span-2"
           />
         </div>
       </section>

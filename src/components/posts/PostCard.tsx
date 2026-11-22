@@ -18,6 +18,8 @@ type PostCardProps = {
   /** Зөвшөөрөгчид — хүлээгдэж буй нийтлэл дээр «Зөвшөөрөх / Буцаах» */
   onApprove?: () => Promise<void>;
   onReject?: (note: string) => Promise<void>;
+  /** Хавсралтын доор нэмэлт хэсэг — жишээ нь санал асуулга */
+  footer?: React.ReactNode;
 };
 
 /** Үүнээс урт бичвэрийг эхлээд хураангуйлж «Цааш унших» гаргана */
@@ -33,6 +35,7 @@ export default function PostCard({
   onOpenImage,
   onApprove,
   onReject,
+  footer,
 }: PostCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -242,6 +245,8 @@ export default function PostCard({
           })}
         </ul>
       )}
+
+      {footer}
 
       {post.status === "pending" && onApprove && onReject && (
         <div className="border-t border-gray-100 px-4 py-3 dark:border-white/5">
