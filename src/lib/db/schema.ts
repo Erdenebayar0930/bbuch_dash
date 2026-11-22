@@ -291,6 +291,19 @@ export const assetCategories = pgTable("asset_categories", {
 });
 
 /**
+ * Кодчилол — эд хөрөнгийн нэр (Аяга таваг гэх мэт), кодын 3 дахь хэсэг.
+ * Эд хөрөнгө нэрээ мөрөөр хадгална (`assets.name`); нэр солиход тэр нэртэй
+ * хөрөнгийн нэр ч хамт солигдоно (@see api/assets/meta PATCH).
+ */
+export const assetNames = pgTable("asset_names", {
+  id: uuidPk(),
+  name: varchar("name", { length: 255 }).notNull(),
+  codeLetter: varchar("code_letter", { length: 8 }).notNull().default(""),
+  position: integer("position").notNull().default(0),
+  createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+});
+
+/**
  * Эд хөрөнгийн нэгж бүртгэл.
  *
  * Агуулах эсвэл төрөл устсан ч бүртгэл алдагдах ёсгүй тул FK нь

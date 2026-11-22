@@ -9,7 +9,7 @@ import {
   serverError,
 } from "@/lib/api/auth";
 import { db } from "@/lib/db";
-import { assetCategories, warehouses } from "@/lib/db/schema";
+import { assetCategories, assetNames, assets, warehouses } from "@/lib/db/schema";
 
 import type { NextRequest } from "next/server";
 
@@ -53,12 +53,13 @@ async function parseCodeLetter(
 const tables = {
   warehouse: warehouses,
   category: assetCategories,
+  name: assetNames,
 } as const;
 
 type Kind = keyof typeof tables;
 
 const isKind = (value: unknown): value is Kind =>
-  value === "warehouse" || value === "category";
+  value === "warehouse" || value === "category" || value === "name";
 
 /** Агуулах ба төрлийн жагсаалт — маягт дүүргэхэд хэрэгтэй. */
 export async function GET(request: NextRequest) {
@@ -66,14 +67,16 @@ export async function GET(request: NextRequest) {
   if ("error" in result) return result.error;
 
   try {
-    const [warehouseRows, categoryRows] = await Promise.all([
+    const [warehouseRows, categoryRows, nameRows] = await Promise.all([
       db.select().from(warehouses).orderBy(asc(warehouses.position)),
       db.select().from(assetCategories).orderBy(asc(assetCategories.position)),
+      db.select().from(assetNames).orderBy(asc(assetNames.position)),
     ]);
 
     return NextResponse.json({
       warehouses: warehouseRows,
       categories: categoryRows,
+      names: nameRows,
     });
   } catch (error) {
     return serverError(error, "Лавлах жагсаалт уншихад алдаа гарлаа");
@@ -96,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     const kind = body.kind;
     if (!isKind(kind)) {
-      return badRequest('kind нь "warehouse" эсвэл "category" байна.');
+      return badRequest('kind нь "warehouse", "category" эсвэл "name" байна.');
     }
 
     const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -156,14 +159,14 @@ export async function PATCH(request: NextRequest) {
 
     const kind = body.kind;
     if (!isKind(kind)) {
-      return badRequest('kind нь "warehouse" эсвэл "category" байна.');
+      return badRequest('kind нь "warehouse", "category" эсвэл "name" байна.');
     }
     const id = typeof body.id === "string" ? body.id : "";
     if (!id) return badRequest("id шаардлагатай.");
 
     const table = tables[kind];
     const [existing] = await db
-      .select({ id: table.id })
+      .select({ id: table.id, name: table.name })
       .from(table)
       .where(eq(table.id, id))
       .limit(1);
@@ -197,7 +200,13 @@ export async function PATCH(request: NextRequest) {
 
     if (Object.keys(patch).length === 0) return badRequest("Өөрчлөх талбар алга.");
 
-    await db.update(table).set(patch).where(eq(table.id, id));
+    await db.transaction(async (tx) => {
+      await tx.update(table).set(patch).where(eq(table.id, id));
+      // Эд хөрөнгө нэрээ мөрөөр хадгалдаг — нэр солиход хамт солино
+      if (kind === "name" && patch.name && patch.name !== existing.name) {
+        await tx.update(assets).set({ name: patch.name }).where(eq(assets.name, existing.name));
+      }
+    });
 
     const [updated] = await db.select().from(table).where(eq(table.id, id));
 
@@ -222,7 +231,7 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get("id");
 
     if (!isKind(kind)) {
-      return badRequest('kind нь "warehouse" эсвэл "category" байна.');
+      return badRequest('kind нь "warehouse", "category" эсвэл "name" байна.');
     }
     if (!id) return badRequest("id шаардлагатай.");
 

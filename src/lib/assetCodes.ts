@@ -4,13 +4,27 @@
  */
 
 /**
- * Кодын угтвар — Байршлын ангиллын эхний үсэг + Төрлийн 2 дахь үсэг + «-»
- * (Т + А → «ТА-», код нь ТА-001). Аль нэг нь хоосон бол код үүсэхгүй.
+ * Кодын угтвар — Байршлын ангиллын эхний үсэг + Төрлийн 2 дахь үсэг + Нэрийн
+ * үсэг + «-» (Т + Г + АТ → «ТГАТ-», код нь ТГАТ-001). Байршил ба Төрөл
+ * заавал; Нэрийн үсэг байхгүй бол алгасна.
  */
-export function codePrefix(locationLetter?: string, typeLetter?: string): string {
+export function codePrefix(locationLetter?: string, typeLetter?: string, nameLetter?: string): string {
   const first = (locationLetter ?? "").trim();
   const second = (typeLetter ?? "").trim();
-  return first && second ? `${first}${second}-` : "";
+  const third = (nameLetter ?? "").trim();
+  return first && second ? `${first}${second}${third}-` : "";
+}
+
+/** Нэрийн эхний үсгүүд — «Аяга таваг» → «АТ» (үсэг санал болгоход) */
+export function initials(name: string): string {
+  return name
+    .trim()
+    .split(/[\s\-_/]+/)
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 8);
 }
 
 /** Угтвар оноосон ч код хараахан байхгүй үеийн оронгийн тоо (001) */

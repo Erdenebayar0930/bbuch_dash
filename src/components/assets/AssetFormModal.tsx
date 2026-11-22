@@ -42,6 +42,8 @@ type AssetFormModalProps = {
   asset: Asset | null;
   warehouses: RefItem[];
   categories: RefItem[];
+  /** Кодчиллын нэрс — Аяга таваг гэх мэт (@see AssetCoding) */
+  names?: RefItem[];
   /**
    * Аймгийн тусдаа хуудсанд нээгдсэн бол тухайн аймгийн түлхүүр. Ийм үед
    * аймаг нь сонголт биш — маягт үүнийг бэхэлж, зөвхөн мэдээлэл болгон харуулна.
@@ -84,6 +86,7 @@ export default function AssetFormModal({
   asset,
   warehouses,
   categories,
+  names = [],
   lockedAimag,
   defaultWarehouseId = null,
   defaultState = DEFAULT_ASSET_STATE,
@@ -181,12 +184,14 @@ export default function AssetFormModal({
   const applyAutoCode = (
     warehouseId: string | null,
     categoryId: string | null,
+    name: string,
     bulkMode: boolean
   ) => {
     if (asset) return;
     const prefix = codePrefix(
       warehouses.find((item) => item.id === warehouseId)?.codeLetter,
-      categories.find((item) => item.id === categoryId)?.codeLetter
+      categories.find((item) => item.id === categoryId)?.codeLetter,
+      names.find((item) => item.name === name)?.codeLetter
     );
     if (!prefix) return;
     const { code, number, width } = nextCode(prefix, existingCodes);
@@ -208,11 +213,13 @@ export default function AssetFormModal({
     });
   };
 
-  const handleRefChange = (key: "warehouseId" | "categoryId", value: string | null) => {
-    update(key, value);
+  const handleRefChange = (key: "warehouseId" | "categoryId" | "name", value: string | null) => {
+    if (key === "name") update("name", value ?? "");
+    else update(key, value);
     applyAutoCode(
       key === "warehouseId" ? value : form.warehouseId,
       key === "categoryId" ? value : form.categoryId,
+      key === "name" ? value ?? "" : form.name,
       bulk
     );
   };
@@ -292,12 +299,12 @@ export default function AssetFormModal({
     setError(null);
 
     try {
-      // Нэр талбар маягтад байхгүй — Төрлийн нэр, эсвэл код, эсвэл хуучин нэр
+      // Нэр — Кодчиллын нэрсээс сонгосон; сонгоогүй бол Төрлийн нэр, эсвэл код
       const categoryName = categories.find((item) => item.id === form.categoryId)?.name;
       const code = form.code.trim();
-      const name = categoryName || (bulk && !asset ? "" : code) || form.name.trim();
+      const name = form.name.trim() || categoryName || (bulk && !asset ? "" : code);
       if (!name) {
-        throw new Error(bulk && !asset ? "Төрлөө сонгоно уу." : "Код эсвэл төрлөө оруулна уу.");
+        throw new Error(bulk && !asset ? "Нэр эсвэл төрлөө сонгоно уу." : "Нэр, төрөл эсвэл код оруулна уу.");
       }
       const input = { ...form, name };
 
@@ -343,7 +350,7 @@ export default function AssetFormModal({
                   aria-selected={bulk === multi}
                   onClick={() => {
                     setBulk(multi);
-                    applyAutoCode(form.warehouseId, form.categoryId, multi);
+                    applyAutoCode(form.warehouseId, form.categoryId, form.name, multi);
                   }}
                   className={`rounded-md px-3 py-1.5 text-theme-sm font-medium transition-colors ${
                     bulk === multi
@@ -433,8 +440,7 @@ export default function AssetFormModal({
             </div>
           )}
 
-          {/* Нэр маягтад харагдахгүй — хадгалахад Төрлийн нэрээс (эсвэл кодоос) автоматаар */}
-
+          
           {/* Аймаг маягтад харагдахгүй — хуудасныхаа аймагт (lockedAimag) автоматаар хамаарна */}
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -499,6 +505,36 @@ export default function AssetFormModal({
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Нэр — Кодчилол табд бүртгэсэн нэрсээс (Аяга таваг …) */}
+            <div className="sm:col-span-2">
+              <label htmlFor="asset-name" className={labelClass}>
+                Нэр
+              </label>
+              <select
+                id="asset-name"
+                value={form.name}
+                onChange={(event) => handleRefChange("name", event.target.value)}
+                className={fieldClass}
+              >
+                <option value="">Сонгоогүй</option>
+                {/* Засаж буй хөрөнгийн нэр жагсаалтад байхгүй бол алдагдуулахгүй */}
+                {form.name && !names.some((item) => item.name === form.name) && (
+                  <option value={form.name}>{form.name}</option>
+                )}
+                {names.map((item) => (
+                  <option key={item.id} value={item.name}>
+                    {item.name}
+                    {item.codeLetter ? ` (${item.codeLetter})` : ""}
+                  </option>
+                ))}
+              </select>
+              {names.length === 0 && (
+                <p className="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">
+                  Нэрсийг «Кодчилол» табд бүртгэнэ.
+                </p>
+              )}
             </div>
 
           </div>

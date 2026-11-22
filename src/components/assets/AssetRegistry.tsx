@@ -111,6 +111,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [warehouses, setWarehouses] = useState<RefItem[]>([]);
   const [categories, setCategories] = useState<RefItem[]>([]);
+  const [names, setNames] = useState<RefItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -150,6 +151,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
       setAssets(assetRows);
       setWarehouses(meta.warehouses);
       setCategories(meta.categories);
+      setNames(meta.names);
       setCount(countState);
     } catch (err) {
       console.error("Эд хөрөнгө ачаалж чадсангүй:", err);
@@ -827,6 +829,7 @@ export default function AssetRegistry({ aimag, view }: AssetRegistryProps) {
         asset={editing}
         warehouses={warehouses}
         categories={categories}
+        names={names}
         lockedAimag={aimag}
         defaultWarehouseId={
           warehouseFilter !== ALL && warehouseFilter !== NONE ? warehouseFilter : null

@@ -290,7 +290,12 @@ export async function finishCount(): Promise<void> {
 export type AssetMeta = {
   warehouses: RefItem[];
   categories: RefItem[];
+  /** Кодчиллын нэрс — Аяга таваг гэх мэт (3 дахь үсэг) */
+  names: RefItem[];
 };
+
+/** Кодчиллын лавлах — Байршлын ангилал, Төрөл, Нэр */
+export type MetaKind = "warehouse" | "category" | "name";
 
 /** Агуулах ба төрлийн жагсаалт. */
 export async function getAssetMeta(): Promise<AssetMeta> {
@@ -298,12 +303,13 @@ export async function getAssetMeta(): Promise<AssetMeta> {
   return {
     warehouses: data.warehouses ?? [],
     categories: data.categories ?? [],
+    names: data.names ?? [],
   };
 }
 
 /** Шинэ Байршлын ангилал эсвэл Төрөл нэмнэ — кодчиллын үсэгтэй нь. */
 export async function addMetaItem(
-  kind: "warehouse" | "category",
+  kind: MetaKind,
   name: string,
   codeLetter?: string
 ): Promise<RefItem> {
@@ -316,7 +322,7 @@ export async function addMetaItem(
 
 /** Байршлын ангилал эсвэл Төрлийн нэр ба/эсвэл кодчиллын үсгийг засна. */
 export async function updateMetaItem(
-  kind: "warehouse" | "category",
+  kind: MetaKind,
   id: string,
   patch: { name?: string; codeLetter?: string }
 ): Promise<RefItem> {
@@ -329,7 +335,7 @@ export async function updateMetaItem(
 
 /** Агуулах эсвэл төрлийг устгана (зөвхөн админ). */
 export async function deleteMetaItem(
-  kind: "warehouse" | "category",
+  kind: MetaKind,
   id: string
 ): Promise<void> {
   await apiFetch(

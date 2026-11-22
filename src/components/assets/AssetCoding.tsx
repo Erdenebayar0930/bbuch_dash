@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Hash, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { useUser } from "@/app/(auth)/UserProvider";
-import { CODE_RE, codePrefix, formatCode, nextCode } from "@/lib/assetCodes";
+import { CODE_RE, codePrefix, formatCode, initials, nextCode } from "@/lib/assetCodes";
 import {
   addMetaItem,
   deleteMetaItem,
@@ -12,11 +12,12 @@ import {
   listAssets,
   updateMetaItem,
   type Asset,
+  type MetaKind,
   type RefItem,
 } from "@/lib/assets";
 import { isAdminRole } from "@/lib/permissions";
 
-type Kind = "warehouse" | "category";
+type Kind = MetaKind;
 
 type AssetCodingProps = {
   /** Аймгийн түлхүүр — өгвөл зөвхөн тухайн аймгийн хөрөнгө */
@@ -52,9 +53,22 @@ const KIND_TEXT: Record<Kind, { title: string; letter: string; namePlaceholder: 
   category: {
     title: "Төрөл",
     letter: "2 дахь үсэг",
-    namePlaceholder: "Жишээ нь: Аяга",
-    letterPlaceholder: "А",
+    namePlaceholder: "Жишээ нь: Гал тогоо",
+    letterPlaceholder: "Г",
   },
+  name: {
+    title: "Нэр",
+    letter: "3 дахь үсэг",
+    namePlaceholder: "Жишээ нь: Аяга таваг",
+    letterPlaceholder: "АТ",
+  },
+};
+
+/** Кодын аль хэсэгт орох вэ — жагсаалтын тайлбарт */
+const KIND_POSITION: Record<Kind, string> = {
+  warehouse: "эхэнд",
+  category: "2 дахь хэсэгт",
+  name: "3 дахь хэсэгт (тоон дугаарын өмнө)",
 };
 
 /** Бүртгэлтэй кодуудыг угтвараар бүлэглэнэ (акталсных ч эзэлсэнд тооцогдоно) */
@@ -276,8 +290,13 @@ function LetterList({
   const text = KIND_TEXT[kind];
   const [name, setName] = useState("");
   const [letter, setLetter] = useState("");
+  /** Хэрэглэгч үсгийг өөрөө бичсэн эсэх — бичээгүй бол нэрээс санал болгоно */
+  const [letterTouched, setLetterTouched] = useState(false);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
+
+  /** Нэрээс санал болгох үсэг — Байршил, Төрөлд эхний үсэг; Нэрд үг бүрийн эхний үсэг */
+  const suggested = kind === "name" ? initials(name) : initials(name).slice(0, 1);
 
   const handleAdd = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -288,10 +307,11 @@ function LetterList({
     setAdding(true);
     setError("");
     try {
-      const item = await addMetaItem(kind, name.trim(), letter.trim());
+      const item = await addMetaItem(kind, name.trim(), (letterTouched ? letter : suggested).trim());
       onChange([...items, item]);
       setName("");
       setLetter("");
+      setLetterTouched(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Нэмж чадсангүй.");
     } finally {
@@ -304,7 +324,7 @@ function LetterList({
       <div className="border-b border-gray-200 px-5 py-3.5 dark:border-white/10">
         <h3 className="text-theme-sm font-semibold text-gray-900 dark:text-white">{text.title}</h3>
         <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-          Нэр ба {text.letter.toLowerCase()} — кодын {kind === "warehouse" ? "эхэнд" : "2 дахь хэсэгт"} орно
+          Нэр ба {text.letter.toLowerCase()} — кодын {KIND_POSITION[kind]} орно. Үсгийг хоосон орхивол нэрийн эхний үсгээс автоматаар
         </p>
       </div>
 
@@ -354,8 +374,11 @@ function LetterList({
               className={`${fieldClass} min-w-0 flex-1`}
             />
             <input
-              value={letter}
-              onChange={(event) => setLetter(event.target.value.toUpperCase())}
+              value={letterTouched ? letter : suggested}
+              onChange={(event) => {
+                setLetterTouched(true);
+                setLetter(event.target.value.toUpperCase());
+              }}
               placeholder={text.letterPlaceholder}
               maxLength={8}
               aria-label={`Шинэ ${text.title.toLowerCase()} — ${text.letter}`}
@@ -389,6 +412,7 @@ export default function AssetCoding({ aimag }: AssetCodingProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [warehouses, setWarehouses] = useState<RefItem[]>([]);
   const [categories, setCategories] = useState<RefItem[]>([]);
+  const [names, setNames] = useState<RefItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -400,6 +424,7 @@ export default function AssetCoding({ aimag }: AssetCodingProps) {
       setAssets(rows);
       setWarehouses(meta.warehouses);
       setCategories(meta.categories);
+      setNames(meta.names);
     } catch (err) {
       console.error("Кодчилол ачаалж чадсангүй:", err);
       setError("Кодчиллыг ачаалахад алдаа гарлаа.");
@@ -417,24 +442,34 @@ export default function AssetCoding({ aimag }: AssetCodingProps) {
   const counts = useMemo(() => {
     const byWarehouse = new Map<string, number>();
     const byCategory = new Map<string, number>();
+    const byName = new Map<string, number>();
+    const nameIds = new Map(names.map((item) => [item.name, item.id]));
     for (const asset of assets) {
       if (asset.warehouseId) byWarehouse.set(asset.warehouseId, (byWarehouse.get(asset.warehouseId) ?? 0) + 1);
       if (asset.categoryId) byCategory.set(asset.categoryId, (byCategory.get(asset.categoryId) ?? 0) + 1);
+      const nameId = nameIds.get(asset.name);
+      if (nameId) byName.set(nameId, (byName.get(nameId) ?? 0) + 1);
     }
-    return { byWarehouse, byCategory };
-  }, [assets]);
+    return { byWarehouse, byCategory, byName };
+  }, [assets, names]);
 
-  /** Угтвар → «Байршил · Төрөл» — кодын тоймд аль хослол болохыг харуулна */
+  /** Угтвар → «Байршил · Төрөл · Нэр» — кодын тоймд аль хослол болохыг харуулна */
   const prefixNames = useMemo(() => {
-    const names = new Map<string, string>();
+    const labels = new Map<string, string>();
     for (const warehouse of warehouses) {
       for (const category of categories) {
-        const prefix = codePrefix(warehouse.codeLetter, category.codeLetter);
-        if (prefix && !names.has(prefix)) names.set(prefix, `${warehouse.name} · ${category.name}`);
+        const base = codePrefix(warehouse.codeLetter, category.codeLetter);
+        if (base && !labels.has(base)) labels.set(base, `${warehouse.name} · ${category.name}`);
+        for (const item of names) {
+          const prefix = codePrefix(warehouse.codeLetter, category.codeLetter, item.codeLetter);
+          if (prefix && !labels.has(prefix)) {
+            labels.set(prefix, `${warehouse.name} · ${category.name} · ${item.name}`);
+          }
+        }
       }
     }
-    return names;
-  }, [warehouses, categories]);
+    return labels;
+  }, [warehouses, categories, names]);
 
   const codes = useMemo(() => assets.map((asset) => asset.code).filter(Boolean), [assets]);
 
@@ -449,15 +484,15 @@ export default function AssetCoding({ aimag }: AssetCodingProps) {
   return (
     <div className="flex flex-col gap-5">
       <p className="text-theme-sm text-gray-600 dark:text-gray-400">
-        Код = <b>Байршлын ангиллын эхний үсэг</b> + <b>Төрлийн 2 дахь үсэг</b> + дугаар. Жишээ нь Тайз (Т) + Аяга
-        (А) → <span className="font-mono">ТА-001</span>. Эд хөрөнгө бүртгэхэд хоёуланг нь сонгоход дараагийн код
-        автоматаар үүснэ.
+        Код = <b>Байршлын ангиллын эхний үсэг</b> + <b>Төрлийн 2 дахь үсэг</b> + <b>Нэрийн үсэг</b> + тоон
+        дугаар. Жишээ нь Тайз (Т) + Гал тогоо (Г) + Аяга таваг (АТ) → <span className="font-mono">ТГАТ-001</span>.
+        Эд хөрөнгө бүртгэхэд эдгээрийг сонгоход дараагийн код автоматаар үүснэ.
       </p>
 
-      {loading && warehouses.length === 0 && categories.length === 0 ? (
+      {loading && warehouses.length === 0 && categories.length === 0 && names.length === 0 ? (
         <p className="text-theme-sm text-gray-500">Ачаалж байна...</p>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
           <LetterList
             kind="warehouse"
             items={warehouses}
@@ -474,6 +509,14 @@ export default function AssetCoding({ aimag }: AssetCodingProps) {
             canDelete={canDelete}
             onChange={setCategories}
           />
+          <LetterList
+            kind="name"
+            items={names}
+            counts={counts.byName}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            onChange={setNames}
+          />
         </div>
       )}
 
@@ -483,7 +526,7 @@ export default function AssetCoding({ aimag }: AssetCodingProps) {
           <thead>
             <tr className="border-b border-gray-200 text-theme-xs uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
               <th className="px-5 py-3.5 font-medium">Угтвар</th>
-              <th className="px-5 py-3.5 font-medium">Байршил · Төрөл</th>
+              <th className="px-5 py-3.5 font-medium">Байршил · Төрөл · Нэр</th>
               <th className="px-5 py-3.5 font-medium">Бүртгэлтэй код</th>
               <th className="px-5 py-3.5 text-right font-medium">Тоо</th>
               <th className="px-5 py-3.5 font-medium">Алгассан</th>
