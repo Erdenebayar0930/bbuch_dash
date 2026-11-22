@@ -241,14 +241,23 @@ export default function AssetFormModal({
     setError(null);
 
     try {
+      // Нэр талбар маягтад байхгүй — Төрлийн нэр, эсвэл код, эсвэл хуучин нэр
+      const categoryName = categories.find((item) => item.id === form.categoryId)?.name;
+      const code = form.code.trim();
+      const name = categoryName || (bulk && !asset ? "" : code) || form.name.trim();
+      if (!name) {
+        throw new Error(bulk && !asset ? "Төрлөө сонгоно уу." : "Код эсвэл төрлөө оруулна уу.");
+      }
+      const input = { ...form, name };
+
       if (asset) {
-        await updateAsset(asset.id, form);
+        await updateAsset(asset.id, input);
       } else if (bulk) {
         if (bulkCodes.length === 0) throw new Error("Код оруулна уу.");
-        await createAssets(form, bulkCodes);
+        await createAssets(input, bulkCodes);
       } else {
         // Зураг байршуулахад id хэрэгтэй тул эхлээд мөрийг үүсгэнэ
-        const id = await createAsset(form);
+        const id = await createAsset(input);
 
         for (const item of pending) {
           await attachAssetImage(id, item.file);
@@ -300,7 +309,7 @@ export default function AssetFormModal({
                 Код <span className="text-gray-400">(инвентарын дугаар, сериал)</span>
               </p>
               <p className="text-theme-xs text-gray-500 dark:text-gray-400">
-                Ширхэг бүр өөрийн кодтой, тусдаа эд хөрөнгө болж бүртгэгдэнэ. Доорх нэр, төрөл, агуулах, ангилал, мэдээлэл
+                Ширхэг бүр өөрийн кодтой, тусдаа эд хөрөнгө болж бүртгэгдэнэ. Доорх төрөл, агуулах, ангилал, мэдээлэл
                 нь бүгдэд ижил — дараа нь ширхэг тус бүрийг засаж болно.
               </p>
               <div className="flex w-fit rounded-lg bg-gray-100 p-0.5 dark:bg-white/5">
@@ -370,18 +379,7 @@ export default function AssetFormModal({
             </div>
           )}
 
-          <div>
-            <label htmlFor="asset-name" className={labelClass}>
-              Нэр <span className="text-error-500">*</span>
-            </label>
-            <input
-              id="asset-name"
-              value={form.name}
-              onChange={(event) => update("name", event.target.value)}
-              placeholder="Жишээ нь: Аяга"
-              className={fieldClass}
-            />
-          </div>
+          {/* Нэр маягтад харагдахгүй — хадгалахад Төрлийн нэрээс (эсвэл кодоос) автоматаар */}
 
           {/* Аймаг маягтад харагдахгүй — хуудасныхаа аймагт (lockedAimag) автоматаар хамаарна */}
 
