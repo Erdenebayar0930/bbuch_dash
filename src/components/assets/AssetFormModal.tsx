@@ -13,7 +13,6 @@ import {
   assetStates,
   type AssetState,
 } from "@/data/assetStates";
-import { aimags, labelOf } from "@/data/profileOptions";
 import {
   attachAssetImage,
   createAsset,
@@ -50,6 +49,11 @@ type AssetFormModalProps = {
   /** Шинэ бүртгэлийн анхдагч байршил ба ангилал — сонгосон шүүлтүүрээс */
   defaultWarehouseId?: string | null;
   defaultState?: AssetState;
+  /**
+   * Шинээр бүртгэхэд сонгож болох ангиллууд — Ерөнхий бүртгэл дээр зөвхөн
+   * «Бүртгэлтэй». Өгөхгүй бол бүгд. Засахад үргэлж бүгд.
+   */
+  createStates?: AssetState[];
   onClose: () => void;
   onSaved: () => void;
 };
@@ -80,9 +84,12 @@ export default function AssetFormModal({
   lockedAimag,
   defaultWarehouseId = null,
   defaultState = DEFAULT_ASSET_STATE,
+  createStates,
   onClose,
   onSaved,
 }: AssetFormModalProps) {
+  const stateOptions = !asset && createStates?.length ? createStates : assetStates;
+  const initialState = stateOptions.includes(defaultState) ? defaultState : stateOptions[0];
   const [form, setForm] = useState<AssetInput>(emptyInput);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,11 +156,11 @@ export default function AssetFormModal({
             ...emptyInput,
             aimag: lockedAimag ?? "",
             warehouseId: defaultWarehouseId,
-            state: defaultState,
+            state: initialState,
           }
     );
     setError(null);
-  }, [asset, isOpen, lockedAimag, defaultWarehouseId, defaultState]);
+  }, [asset, isOpen, lockedAimag, defaultWarehouseId, initialState]);
 
   const update = <K extends keyof AssetInput>(key: K, value: AssetInput[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -279,40 +286,13 @@ export default function AssetFormModal({
             />
           </div>
 
-          {/* Аймаг — тусдаа аймгийн хуудсанд бол сонголт биш, бэхлэгдсэн */}
-          {lockedAimag ? (
-            <div>
-              <p className={labelClass}>Аймаг</p>
-              <p className="rounded-lg bg-gray-50 px-3.5 py-2.5 text-theme-sm text-gray-700 dark:bg-white/[0.03] dark:text-gray-300">
-                {labelOf(aimags, lockedAimag)}
-              </p>
-            </div>
-          ) : (
-            <div>
-              <label htmlFor="asset-aimag" className={labelClass}>
-                Аймаг
-              </label>
-              <select
-                id="asset-aimag"
-                value={form.aimag}
-                onChange={(event) => update("aimag", event.target.value)}
-                className={fieldClass}
-              >
-                <option value="">Аймагт үл хамаарах</option>
-                {aimags.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Аймаг маягтад харагдахгүй — хуудасныхаа аймагт (lockedAimag) автоматаар хамаарна */}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <span className={labelClass}>Ангилал</span>
               <div role="radiogroup" aria-label="Ангилал" className="flex flex-wrap gap-1.5">
-                {assetStates.map((state) => {
+                {stateOptions.map((state) => {
                   const selected = form.state === state;
                   return (
                     <button
