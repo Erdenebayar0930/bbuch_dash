@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Boxes, Search } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
@@ -23,8 +23,8 @@ const USAGE_OPTIONS: { state: AssetState; label: string }[] = [
   { state: "registered", label: "Агуулахад буцаах" },
 ];
 
-/** Хэсэгчлэн таарсныг хэт олноор харуулахгүй */
-const MAX_MATCHES = 8;
+/** Шүүсэн жагсаалтад нэг дор харуулах дээд тоо */
+const MAX_MATCHES = 20;
 
 const fieldClass =
   "h-11 w-full rounded-lg border border-gray-200 bg-white px-3.5 text-theme-sm text-gray-800 transition-colors placeholder:text-gray-400 focus:border-accent-400 focus:outline-hidden focus:ring-3 focus:ring-accent-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30";
@@ -40,8 +40,6 @@ const norm = (value: string) => value.trim().toUpperCase().replace(/\s+/g, "");
  */
 export default function UsageRegisterModal({ isOpen, assets, onClose, onSaved }: UsageRegisterModalProps) {
   const [query, setQuery] = useState("");
-  const [searched, setSearched] = useState(false);
-  const [matches, setMatches] = useState<Asset[]>([]);
   const [found, setFound] = useState<Asset | null>(null);
   const [state, setState] = useState<AssetState>("in_use");
   const [note, setNote] = useState("");
@@ -52,50 +50,48 @@ export default function UsageRegisterModal({ isOpen, assets, onClose, onSaved }:
   useEffect(() => {
     if (!isOpen) return;
     setQuery("");
-    setSearched(false);
-    setMatches([]);
     setFound(null);
     setError("");
   }, [isOpen]);
 
+  /**
+   * Үсэг, тоо бичих бүрт шүүнэ — кодонд агуулагдсаныг (эхнээсээ таарсныг
+   * түрүүлж) харуулна. Бараа сонгосон үед жагсаалт нуугдана.
+   */
+  const matches = useMemo(() => {
+    const key = norm(query);
+    if (!key || found) return [];
+    return assets
+      .filter((asset) => asset.code && norm(asset.code).includes(key))
+      .sort((a, b) => {
+        const aStarts = norm(a.code).startsWith(key) ? 0 : 1;
+        const bStarts = norm(b.code).startsWith(key) ? 0 : 1;
+        return aStarts - bStarts || a.code.localeCompare(b.code);
+      });
+  }, [assets, query, found]);
+
   const choose = (asset: Asset) => {
     setFound(asset);
-    setMatches([]);
+    setQuery(asset.code);
     setNote(asset.note);
     // Одоо ашиглалтад байгаа бол дараагийн алхам нь ихэвчлэн буцаах
     setState(asset.state === "in_use" ? "registered" : "in_use");
     setError("");
   };
 
+  /** Enter — яг таарсныг, эсвэл жагсаалтын эхнийхийг сонгоно */
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
     const key = norm(query);
-    setSearched(true);
-    setFound(null);
-    setError("");
-    if (!key) {
-      setMatches([]);
-      return;
-    }
-    const coded = assets.filter((asset) => asset.code);
-    const exact = coded.find((asset) => norm(asset.code) === key);
-    if (exact) {
-      choose(exact);
-      return;
-    }
-    const partial = coded.filter((asset) => norm(asset.code).includes(key)).slice(0, MAX_MATCHES);
-    if (partial.length === 1) {
-      choose(partial[0]);
-      return;
-    }
-    setMatches(partial);
+    if (!key) return;
+    const exact = matches.find((asset) => norm(asset.code) === key);
+    const pick = exact ?? matches[0];
+    if (pick) choose(pick);
   };
 
   const reset = () => {
     setFound(null);
-    setSearched(false);
     setQuery("");
-    setMatches([]);
     setTimeout(() => inputRef.current?.focus(), 0);
   };
 
@@ -131,7 +127,10 @@ export default function UsageRegisterModal({ isOpen, assets, onClose, onSaved }:
               id="usage-code"
               ref={inputRef}
               value={query}
-              onChange={(event) => setQuery(event.target.value.toUpperCase())}
+              onChange={(event) => {
+                setQuery(event.target.value.toUpperCase());
+                setFound(null);
+              }}
               placeholder="Жишээ нь: ДХГ-АШ001"
               autoFocus
               autoComplete="off"
@@ -149,8 +148,8 @@ export default function UsageRegisterModal({ isOpen, assets, onClose, onSaved }:
 
         {/* Хэсэгчлэн таарсан — сонгоно */}
         {matches.length > 0 && (
-          <ul className="mt-3 divide-y divide-gray-100 rounded-lg border border-gray-200 dark:divide-white/5 dark:border-white/10">
-            {matches.map((asset) => (
+          <ul className="mt-3 max-h-72 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200 dark:divide-white/5 dark:border-white/10">
+            {matches.slice(0, MAX_MATCHES).map((asset) => (
               <li key={asset.id}>
                 <button
                   type="button"
@@ -165,10 +164,15 @@ export default function UsageRegisterModal({ isOpen, assets, onClose, onSaved }:
                 </button>
               </li>
             ))}
+            {matches.length > MAX_MATCHES && (
+              <li className="px-3.5 py-2 text-theme-xs text-gray-500 dark:text-gray-400">
+                … нийт {matches.length} таарлаа — кодоо үргэлжлүүлэн бичнэ үү
+              </li>
+            )}
           </ul>
         )}
 
-        {searched && !found && matches.length === 0 && query.trim() && (
+        {!found && matches.length === 0 && query.trim() && (
           <p className="mt-3 rounded-lg bg-gray-50 px-3.5 py-3 text-theme-sm text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
             «{query.trim()}» кодтой бараа олдсонгүй.
           </p>
