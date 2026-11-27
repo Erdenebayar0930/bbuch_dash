@@ -301,8 +301,9 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
     // Зарласан хүн зөвшөөрөгдсөнийг устгахгүй — хаана
     const canDelete = isAdmin || (own && campaign.status !== "approved");
     const memo = `${campaign.memoPrefix || campaign.title}-${name}`;
-    // Өглөг — өөрийн данс; Хандив — нэг нийтлэг данс
-    const account = info.ownAccount
+    // Өглөг — өөрийн данс; Хандив — оруулсан данс, эс бөгөөс нэг нийтлэг данс
+    // Хандив ч өөрийн данстай байж болно — хоосон бол нийтлэг данс
+    const account = info.ownAccount || campaign.accountNumber.trim()
       ? {
           number: campaign.accountNumber.replace(/\s+/g, ""),
           hint: [campaign.accountBank, campaign.accountHolder].filter(Boolean).join(" · "),

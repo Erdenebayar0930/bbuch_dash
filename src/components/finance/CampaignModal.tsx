@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 
 import { Modal } from "@/components/ui/modal";
 import { campaignBoards, type CampaignBoardKey } from "@/data/campaignBoards";
+import { CAMPAIGN_ACCOUNT, bankLabel, formatAccountNumber } from "@/data/donationAccounts";
 import { aimags as aimagOptions } from "@/data/profileOptions";
 import {
   createCampaign,
@@ -262,8 +263,15 @@ export default function CampaignModal({
             )}
           </div>
 
-          {info.ownAccount && (
-            <>
+          {/* Өглөг — данс заавал; Хандив — заавал биш, хоосон бол нийтлэг данс */}
+          <>
+              {!info.ownAccount && (
+                <p className="text-theme-xs text-gray-500 sm:col-span-2 dark:text-gray-400">
+                  Дансны мэдээлэл — хоосон орхивол үндсэн данс (
+                  {bankLabel(CAMPAIGN_ACCOUNT.bank)} ·{" "}
+                  {formatAccountNumber(CAMPAIGN_ACCOUNT.number)}) харагдана.
+                </p>
+              )}
               <div>
                 <label htmlFor="campaign-bank" className={labelClass}>
                   Банк
@@ -301,7 +309,8 @@ export default function CampaignModal({
               </div>
               <div className="sm:col-span-2">
                 <label htmlFor="campaign-account" className={labelClass}>
-                  Дансны дугаар <span className="text-error-500">*</span>
+                  Дансны дугаар{" "}
+                  {info.ownAccount && <span className="text-error-500">*</span>}
                 </label>
                 <input
                   id="campaign-account"
@@ -312,8 +321,7 @@ export default function CampaignModal({
                   className={`${fieldClass} font-mono`}
                 />
               </div>
-            </>
-          )}
+          </>
 
           <div>
             <label htmlFor="campaign-memo" className={labelClass}>
