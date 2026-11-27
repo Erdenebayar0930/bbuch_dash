@@ -84,10 +84,8 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-  /** Сар бүр | Нэг удаа | Дууссан | Хүлээгдэж буй */
-  const [tab, setTab] = useState<"monthly" | "once" | "ended" | "review">(
-    info.onceOnly ? "once" : "monthly"
-  );
+  /** Нээлттэй (Хандив: Зарлагдсан, Өглөг: Өглөг цуглуулах) | Дууссан | Хүлээгдэж буй */
+  const [tab, setTab] = useState<"open" | "ended" | "review">("open");
   /** Дуудагч зөвшөөрөх эрхтэй эсэх — серверээс */
   const [canApprove, setCanApprove] = useState(false);
   const [approversOpen, setApproversOpen] = useState(false);
@@ -170,15 +168,9 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
   const reviewTab = info.onceOnly && (isAdmin || canApprove);
   const listed = reviewTab ? campaigns.filter((c) => c.status === "approved") : campaigns;
   const tabs = [
-    // Өглөг нь нэг удаагийнх тул «Сар бүр» табгүй, нээлттэй нь «Идэвхтэй»
-    ...(info.onceOnly
-      ? []
-      : [{ key: "monthly" as const, label: "Сар бүр", items: listed.filter((c) => c.active && c.kind === "monthly") }]),
-    {
-      key: "once" as const,
-      label: info.openLabel,
-      items: listed.filter((c) => c.active && (info.onceOnly || c.kind === "once")),
-    },
+    // Зарлагдсан бүх нээлттэй нь нэг дор — Сар бүр / Нэг удаа нь картын
+    // тэмдгээр ялгагдана
+    { key: "open" as const, label: info.openLabel, items: listed.filter((c) => c.active) },
     { key: "ended" as const, label: info.closedLabel, items: listed.filter((c) => !c.active) },
     ...(reviewTab
       ? [{ key: "review" as const, label: "Хүлээгдэж буй", items: campaigns.filter((c) => c.status !== "approved") }]
@@ -650,7 +642,7 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
         <p className="py-8 text-center text-theme-sm text-gray-500">Ачаалж байна...</p>
       )}
 
-      {/* Сар бүр | Нэг удаа | Дууссан */}
+      {/* Зарлагдсан | Дууссан */}
       <div
         role="tablist"
         aria-label={`${info.title} — ангилал`}
