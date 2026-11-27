@@ -11,6 +11,7 @@ import {
   Clock,
   Copy,
   HeartHandshake,
+  Landmark,
   MessageSquareWarning,
   Pencil,
   Plus,
@@ -26,6 +27,7 @@ import {
 import { useUser } from "@/app/(auth)/UserProvider";
 import CampaignApproversModal from "@/components/finance/CampaignApproversModal";
 import CampaignModal from "@/components/finance/CampaignModal";
+import DonationAccountsModal from "@/components/finance/DonationAccountsModal";
 import { aimags as aimagOptions } from "@/data/profileOptions";
 import { systemName } from "@/components/finance/TitheAccountCard";
 import { campaignBoards, type CampaignBoardKey } from "@/data/campaignBoards";
@@ -89,6 +91,7 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
   /** Дуудагч зөвшөөрөх эрхтэй эсэх — серверээс */
   const [canApprove, setCanApprove] = useState(false);
   const [approversOpen, setApproversOpen] = useState(false);
+  const [accountsOpen, setAccountsOpen] = useState(false);
   /** «Өөрчлүүлэх» тайлбар бичиж буй хандив */
   const [returning, setReturning] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -607,6 +610,16 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
         {isAdmin && (
           <button
             type="button"
+            onClick={() => setAccountsOpen(true)}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-theme-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
+          >
+            <Landmark className="h-4 w-4" strokeWidth={1.8} />
+            Данснууд
+          </button>
+        )}
+        {isAdmin && (
+          <button
+            type="button"
             onClick={() => setApproversOpen(true)}
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-theme-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
           >
@@ -681,6 +694,10 @@ export default function CampaignBoard({ board = "donation" }: CampaignBoardProps
 
       {isAdmin && (
         <CampaignApproversModal isOpen={approversOpen} onClose={() => setApproversOpen(false)} />
+      )}
+
+      {isAdmin && (
+        <DonationAccountsModal isOpen={accountsOpen} onClose={() => setAccountsOpen(false)} />
       )}
 
       <CampaignModal

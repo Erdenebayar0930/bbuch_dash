@@ -55,13 +55,27 @@ export const Modal: React.FC<ModalProps> = ({
     : "relative w-full rounded-3xl bg-white  dark:bg-gray-900";
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center overflow-y-auto modal z-99999">
+    // `items-center` дангаараа өндөр цонхны ДЭЭД хэсгийг дэлгэцээс гаргаж
+    // тайрдаг (scroll хийж хүрэхгүй). Оронд нь дээрээс эхэлж, контентод
+    // `my-auto` өгнө: багтвал голлоно, багтахгүй бол дээрээсээ гүйлгэгдэнэ.
+    <div
+      className={`fixed inset-0 flex justify-center overflow-y-auto modal z-99999 ${
+        isFullscreen ? "items-center" : "items-start py-4 sm:py-8"
+      }`}
+    >
       {!isFullscreen && (
         <div
           className="fixed inset-0 h-full w-full bg-gray-400/50 backdrop-blur-[32px]"
           onClick={onClose}
         ></div>
       )}
+      <div
+        className={
+          isFullscreen ? "contents" : "relative my-auto flex w-full justify-center"
+        }
+        // Цонхны хажуугийн хоосон зай ч backdrop шиг хаана
+        onClick={isFullscreen ? undefined : onClose}
+      >
       <div
         ref={modalRef}
         className={`${contentClasses}  ${className}`}
@@ -89,6 +103,7 @@ export const Modal: React.FC<ModalProps> = ({
           </button>
         )}
         <div>{children}</div>
+      </div>
       </div>
     </div>
   );

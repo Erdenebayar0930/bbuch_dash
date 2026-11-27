@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { campaignBoards, type CampaignBoardKey } from "@/data/campaignBoards";
 import { CAMPAIGN_ACCOUNT, bankLabel, formatAccountNumber } from "@/data/donationAccounts";
+import { useDonationAccounts } from "@/hooks/useDonationAccounts";
 import { aimags as aimagOptions } from "@/data/profileOptions";
 import {
   createCampaign,
@@ -71,6 +72,7 @@ export default function CampaignModal({
   const info = campaignBoards[board];
   const Genitive = info.genitive.charAt(0).toUpperCase() + info.genitive.slice(1);
   const [form, setForm] = useState<CampaignInput>(empty);
+  const { accounts } = useDonationAccounts();
   /** Зорилтот дүнтэй эсэх — заавал биш */
   const [hasTarget, setHasTarget] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -271,6 +273,38 @@ export default function CampaignModal({
                   {bankLabel(CAMPAIGN_ACCOUNT.bank)} ·{" "}
                   {formatAccountNumber(CAMPAIGN_ACCOUNT.number)}) харагдана.
                 </p>
+              )}
+              {accounts.length > 0 && (
+                <div className="sm:col-span-2">
+                  <label htmlFor="campaign-saved-account" className={labelClass}>
+                    Бүртгэлтэй данснаас сонгох
+                  </label>
+                  <select
+                    id="campaign-saved-account"
+                    value={
+                      accounts.find(
+                        (item) => item.number === form.accountNumber.replace(/[\s-]/g, "").toUpperCase()
+                      )?.id ?? ""
+                    }
+                    onChange={(event) => {
+                      const picked = accounts.find((item) => item.id === event.target.value);
+                      setForm((prev) => ({
+                        ...prev,
+                        accountNumber: picked?.number ?? "",
+                        accountBank: picked ? bankLabel(picked.bank) : "",
+                        accountHolder: picked?.holder ?? "",
+                      }));
+                    }}
+                    className={fieldClass}
+                  >
+                    <option value="">— Гараар оруулах —</option>
+                    {accounts.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.title} · {formatAccountNumber(item.number)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
               <div>
                 <label htmlFor="campaign-bank" className={labelClass}>
