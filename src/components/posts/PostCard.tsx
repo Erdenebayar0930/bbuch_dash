@@ -1,7 +1,20 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Check, Clock, Download, FileText, MoreHorizontal, Pencil, Trash2, Undo2, Users } from "lucide-react";
+import { createPortal } from "react-dom";
+import {
+  Check,
+  Clock,
+  Download,
+  FileText,
+  Maximize2,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Undo2,
+  Users,
+  X,
+} from "lucide-react";
 
 import PostAvatar from "@/components/posts/PostAvatar";
 import VideoPlayer from "@/components/posts/VideoPlayer";
@@ -25,7 +38,12 @@ type PostCardProps = {
 /** Үүнээс урт бичвэрийг эхлээд хураангуйлж «Цааш унших» гаргана */
 const COLLAPSE_AT = 220;
 
-/** Нийтлэлийн карт — бичсэн хүн, доор нь зураг/бичлэг, дараа нь бичвэр ба хавсралт. */
+/**
+ * Нийтлэлийн карт — бичсэн хүн, доор нь зураг/бичлэг, дараа нь бичвэр ба хавсралт.
+ *
+ * Карт нь торонд нарийн байдаг тул урт бичвэр, олон зурагтай нийтлэлийг
+ * «Дэлгэрэнгүй» дарж бүтэн дэлгэцээр (`PostDetail`) уншина.
+ */
 export default function PostCard({
   post,
   canEdit,
@@ -37,7 +55,7 @@ export default function PostCard({
   onReject,
   footer,
 }: PostCardProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState("");
   const [reviewing, setReviewing] = useState(false);
@@ -66,10 +84,11 @@ export default function PostCard({
 
   const { body } = post;
   const long = body.length > COLLAPSE_AT;
-  const shownBody = long && !expanded ? `${body.slice(0, COLLAPSE_AT).trimEnd()}…` : body;
+  const shownBody = long ? `${body.slice(0, COLLAPSE_AT).trimEnd()}…` : body;
   const images = post.media.filter((item) => item.kind === "image").map((item) => item.url);
+  /** Картад бүгд багтахгүй бол дэлгэрэнгүй харах хэрэгтэй */
+  const truncated = long || images.length > 4;
   const videos = post.media.filter((item) => item.kind === "video");
-  const attachments = post.media.filter((item) => item.kind === "file");
   const embed = post.videoLink ? parseVideoLink(post.videoLink) : null;
 
   return (
@@ -98,6 +117,16 @@ export default function PostCard({
             {post.edited && " · Засагдсан"}
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setDetailOpen(true)}
+          aria-label="Дэлгэрэнгүй — бүтэн дэлгэцээр"
+          title="Дэлгэрэнгүй"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
+        >
+          <Maximize2 className="h-4 w-4" strokeWidth={1.8} />
+        </button>
 
         {(canEdit || canDelete) && (
           <div ref={menuRef} className="relative">
@@ -174,77 +203,23 @@ export default function PostCard({
           <p className="whitespace-pre-line break-words text-[15px] leading-7 text-gray-700 dark:text-gray-200">
             {shownBody}
           </p>
-          {long && (
-            <button
-              type="button"
-              onClick={() => setExpanded((open) => !open)}
-              className="mt-1 text-[14px] font-semibold text-accent-600 hover:underline dark:text-accent-400"
-            >
-              {expanded ? "Хураах" : "Цааш унших"}
-            </button>
-          )}
         </div>
       )}
 
-      {post.tags.length > 0 && (
-        <div className="px-4 pt-3">
-          <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-gray-500 dark:text-gray-400">
-            <Users className="h-4 w-4" strokeWidth={1.8} />
-            Нэрс ({post.tags.length})
-          </p>
-          <ul className="flex flex-wrap gap-1.5">
-            {post.tags.map((tag) => (
-              <li
-                key={tag.uid ?? `name:${tag.name}`}
-                className={`rounded-full px-2.5 py-0.5 text-[13px] ${
-                  tag.uid
-                    ? "bg-accent-50 text-accent-700 dark:bg-accent-500/10 dark:text-accent-300"
-                    : "bg-gray-100 text-gray-700 dark:bg-white/5 dark:text-gray-300"
-                }`}
-              >
-                {tag.name}
-              </li>
-            ))}
-          </ul>
+      {truncated && (
+        <div className="px-4 pt-1">
+          <button
+            type="button"
+            onClick={() => setDetailOpen(true)}
+            className="text-[14px] font-semibold text-accent-600 hover:underline dark:text-accent-400"
+          >
+            Цааш унших
+          </button>
         </div>
       )}
 
-      {attachments.length > 0 && (
-        <ul className="flex flex-col gap-2 px-4 pt-3">
-          {attachments.map((file) => {
-            const name = file.name || "Файл";
-            const ext = /\.([a-z0-9]{1,5})$/i.exec(name)?.[1]?.toUpperCase() ?? "ФАЙЛ";
-            return (
-              <li key={file.path}>
-                <a
-                  href={file.url}
-                  download={name}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 transition-colors hover:border-accent-300 hover:bg-accent-50/60 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-accent-500/40 dark:hover:bg-accent-500/10"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600 dark:bg-accent-500/10 dark:text-accent-400">
-                    <FileText className="h-5 w-5" strokeWidth={1.8} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14px] font-medium text-gray-800 dark:text-white/90">
-                      {name}
-                    </span>
-                    <span className="text-[12px] text-gray-500 dark:text-gray-400">
-                      {ext}
-                      {file.size ? ` · ${formatFileSize(file.size)}` : ""}
-                    </span>
-                  </span>
-                  <Download
-                    className="h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-accent-600 dark:group-hover:text-accent-400"
-                    strokeWidth={2}
-                  />
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <PostTags post={post} />
+      <PostAttachments post={post} />
 
       {footer}
 
@@ -305,7 +280,210 @@ export default function PostCard({
       )}
 
       <div className="flex-1 pb-4" />
+
+      {detailOpen && (
+        <PostDetail
+          post={post}
+          onClose={() => setDetailOpen(false)}
+          onOpenImage={onOpenImage}
+          footer={footer}
+        />
+      )}
     </article>
+  );
+}
+
+/** Нийтлэлд тэмдэглэсэн нэрс */
+function PostTags({ post }: { post: Post }) {
+  if (post.tags.length === 0) return null;
+
+  return (
+    <div className="px-4 pt-3">
+      <p className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-gray-500 dark:text-gray-400">
+        <Users className="h-4 w-4" strokeWidth={1.8} />
+        Нэрс ({post.tags.length})
+      </p>
+      <ul className="flex flex-wrap gap-1.5">
+        {post.tags.map((tag) => (
+          <li
+            key={tag.uid ?? `name:${tag.name}`}
+            className={`rounded-full px-2.5 py-0.5 text-[13px] ${
+              tag.uid
+                ? "bg-accent-50 text-accent-700 dark:bg-accent-500/10 dark:text-accent-300"
+                : "bg-gray-100 text-gray-700 dark:bg-white/5 dark:text-gray-300"
+            }`}
+          >
+            {tag.name}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Хавсаргасан файлууд — дарахад татна */
+function PostAttachments({ post }: { post: Post }) {
+  const attachments = post.media.filter((item) => item.kind === "file");
+  if (attachments.length === 0) return null;
+
+  return (
+    <ul className="flex flex-col gap-2 px-4 pt-3">
+      {attachments.map((file) => {
+        const name = file.name || "Файл";
+        const ext = /\.([a-z0-9]{1,5})$/i.exec(name)?.[1]?.toUpperCase() ?? "ФАЙЛ";
+        return (
+          <li key={file.path}>
+            <a
+              href={file.url}
+              download={name}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 transition-colors hover:border-accent-300 hover:bg-accent-50/60 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-accent-500/40 dark:hover:bg-accent-500/10"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600 dark:bg-accent-500/10 dark:text-accent-400">
+                <FileText className="h-5 w-5" strokeWidth={1.8} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[14px] font-medium text-gray-800 dark:text-white/90">
+                  {name}
+                </span>
+                <span className="text-[12px] text-gray-500 dark:text-gray-400">
+                  {ext}
+                  {file.size ? ` · ${formatFileSize(file.size)}` : ""}
+                </span>
+              </span>
+              <Download
+                className="h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-accent-600 dark:group-hover:text-accent-400"
+                strokeWidth={2}
+              />
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+type PostDetailProps = {
+  post: Post;
+  onClose: () => void;
+  onOpenImage: (src: string) => void;
+  footer?: React.ReactNode;
+};
+
+/**
+ * Нийтлэлийг бүтэн дэлгэцээр — бичвэр бүтнээрээ, зураг бүгд том.
+ *
+ * `body`-д portal хийнэ: карт `overflow-hidden`, эсвэл өөр цонх (Modal) дотор
+ * байж болох тул дотор нь `fixed` давхарга зөв харагдахгүй. Зургийг дарахад
+ * ImageViewer (илүү өндөр z) дээр нь нээгдэнэ.
+ */
+function PostDetail({ post, onClose, onOpenImage, footer }: PostDetailProps) {
+  const images = post.media.filter((item) => item.kind === "image").map((item) => item.url);
+  const videos = post.media.filter((item) => item.kind === "video");
+  const embed = post.videoLink ? parseVideoLink(post.videoLink) : null;
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    // Өмнөх утгыг сэргээнэ — өөр цонх (Modal) нээлттэй байж болно
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${post.authorName} — нийтлэл`}
+      className="font-reading fixed inset-0 z-99999 overflow-y-auto bg-white dark:bg-gray-950"
+    >
+      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white/90 backdrop-blur dark:border-white/5 dark:bg-gray-950/90">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
+          <PostAvatar name={post.authorName} photoUrl={post.authorPhotoUrl} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-semibold text-gray-900 dark:text-white/90">
+              {post.authorName}
+            </p>
+            <p className="text-[13px] text-gray-500 dark:text-gray-400">
+              {formatPostPeriod(post.period || postDateKey(post.createdAt))}
+              {post.edited && " · Засагдсан"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Хаах"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/15"
+          >
+            <X className="h-5 w-5" strokeWidth={2} />
+          </button>
+        </div>
+      </div>
+
+      <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-12 pt-4 sm:px-6">
+        {embed && (
+          <div className="relative aspect-video w-full bg-black sm:overflow-hidden sm:rounded-xl">
+            <iframe
+              src={embed.embedUrl}
+              title="Видео"
+              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              className="absolute inset-0 h-full w-full border-0"
+            />
+          </div>
+        )}
+
+        {videos.map((video) => (
+          <div key={video.path} className="sm:overflow-hidden sm:rounded-xl">
+            <VideoPlayer url={video.url} path={video.path} />
+          </div>
+        ))}
+
+        {post.body && (
+          <p className="mx-auto w-full max-w-3xl whitespace-pre-line break-words px-4 text-[17px] leading-8 text-gray-800 sm:px-0 dark:text-gray-100">
+            {post.body}
+          </p>
+        )}
+
+        {/* Зураг бүгд — бүтэн өргөнөөр, тайрахгүй */}
+        {images.length > 0 && (
+          <div className={`grid gap-2 ${images.length > 1 ? "sm:grid-cols-2" : ""}`}>
+            {images.map((src, index) => (
+              <button
+                key={`${src}-${index}`}
+                type="button"
+                onClick={() => onOpenImage(src)}
+                aria-label={`Зураг ${index + 1}-ийг томоор харах`}
+                className="block overflow-hidden bg-gray-100 sm:rounded-xl dark:bg-white/5"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- Storage URL */}
+                <img
+                  src={src}
+                  alt=""
+                  loading="lazy"
+                  className="mx-auto max-h-[80vh] w-full object-contain"
+                />
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="mx-auto w-full max-w-3xl">
+          <PostTags post={post} />
+          <PostAttachments post={post} />
+          {footer}
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
